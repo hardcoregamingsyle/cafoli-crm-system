@@ -2,42 +2,93 @@ import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { Infer, v } from "convex/values";
 
-// default user roles. can add / remove based on the project as needed
+// User roles for the CRM system
 export const ROLES = {
   ADMIN: "admin",
-  USER: "user",
-  MEMBER: "member",
+  MANAGER: "manager", 
+  STAFF: "staff",
 } as const;
 
 export const roleValidator = v.union(
   v.literal(ROLES.ADMIN),
-  v.literal(ROLES.USER),
-  v.literal(ROLES.MEMBER),
+  v.literal(ROLES.MANAGER),
+  v.literal(ROLES.STAFF),
 );
 export type Role = Infer<typeof roleValidator>;
 
+// Lead status options
+export const LEAD_STATUS = {
+  RELEVANT: "relevant",
+  NOT_RELEVANT: "not_relevant", 
+  YET_TO_DECIDE: "yet_to_decide",
+} as const;
+
+export const leadStatusValidator = v.union(
+  v.literal(LEAD_STATUS.RELEVANT),
+  v.literal(LEAD_STATUS.NOT_RELEVANT),
+  v.literal(LEAD_STATUS.YET_TO_DECIDE),
+);
+export type LeadStatus = Infer<typeof leadStatusValidator>;
+
 const schema = defineSchema(
   {
-    // default auth tables using convex auth.
-    ...authTables, // do not remove or modify
+    ...authTables,
 
-    // the users table is the default users table that is brought in by the authTables
     users: defineTable({
-      name: v.optional(v.string()), // name of the user. do not remove
-      image: v.optional(v.string()), // image of the user. do not remove
-      email: v.optional(v.string()), // email of the user. do not remove
-      emailVerificationTime: v.optional(v.number()), // email verification time. do not remove
-      isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
+      name: v.optional(v.string()),
+      image: v.optional(v.string()),
+      email: v.optional(v.string()),
+      emailVerificationTime: v.optional(v.number()),
+      isAnonymous: v.optional(v.boolean()),
+      role: v.optional(roleValidator),
+      username: v.optional(v.string()),
+      password: v.optional(v.string()), // For custom login system
+      createdBy: v.optional(v.id("users")), // Who created this user
+    }).index("email", ["email"])
+      .index("username", ["username"]),
 
-      role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+    leads: defineTable({
+      name: v.string(),
+      subject: v.string(),
+      message: v.string(),
+      mobileNo: v.string(),
+      email: v.string(),
+      altMobileNo: v.optional(v.string()),
+      altEmail: v.optional(v.string()),
+      state: v.string(),
+      nextFollowup: v.optional(v.number()), // timestamp
+      assignedTo: v.optional(v.id("users")),
+      status: v.optional(leadStatusValidator),
+      source: v.optional(v.string()), // "indiamart", "pharmavends", "manual"
+    }).index("assignedTo", ["assignedTo"])
+      .index("nextFollowup", ["nextFollowup"])
+      .index("status", ["status"]),
 
-    // add other tables here
+    comments: defineTable({
+      leadId: v.id("leads"),
+      userId: v.id("users"),
+      content: v.string(),
+      timestamp: v.number(),
+    }).index("leadId", ["leadId"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    notifications: defineTable({
+      userId: v.id("users"),
+      title: v.string(),
+      message: v.string(),
+      read: v.boolean(),
+      type: v.string(), // "lead_assigned", "followup_due", "admin_message"
+      relatedLeadId: v.optional(v.id("leads")),
+    }).index("userId", ["userId"])
+      .index("read", ["read"]),
+
+    auditLogs: defineTable({
+      userId: v.id("users"),
+      action: v.string(),
+      details: v.string(),
+      timestamp: v.number(),
+      relatedLeadId: v.optional(v.id("leads")),
+    }).index("userId", ["userId"])
+      .index("timestamp", ["timestamp"]),
   },
   {
     schemaValidation: false,
