@@ -24,9 +24,14 @@ export default function Login() {
     }
 
     try {
-      await login(username, password);
+      const user = await login(username, password);
       toast.success("Login successful!");
-      navigate("/dashboard");
+      // Redirect per role logic
+      if (user.role === "admin" || user.role === "manager") {
+        navigate("/all_leads");
+      } else {
+        navigate("/leads");
+      }
     } catch (error) {
       toast.error("Invalid credentials. Please try again.");
     }

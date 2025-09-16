@@ -7,16 +7,21 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate, useLocation } from "react-router";
 import { ROLES } from "@/convex/schema";
+import { useEffect } from "react";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { currentUser, logout } = useCrmAuth();
+  const { currentUser, logout, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useQuery(api.notifications.getUnreadCount);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   if (!currentUser) {
     return <>{children}</>;

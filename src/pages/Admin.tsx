@@ -1,0 +1,167 @@
+import { Layout } from "@/components/Layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCrmAuth } from "@/hooks/use-crm-auth";
+import { useEffect, useState } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { ROLES, Role } from "@/convex/schema";
+import { toast } from "sonner";
+
+export default function AdminPage() {
+  const { currentUser, initializeAuth } = useCrmAuth();
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
+  const users = useQuery(api.users.getAllUsers) ?? [];
+  const createUser = useMutation(api.users.createUser);
+  const updateUserRole = useMutation(api.users.updateUserRole);
+  const deleteUser = useMutation(api.users.deleteUser);
+  const sendNotification = useMutation(api.notifications.sendNotification);
+
+  if (!currentUser) return <Layout><div /></Layout>;
+  if (currentUser.role !== ROLES.ADMIN) {
+    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Only admins can access this page.</CardContent></Card></div></Layout>;
+  }
+
+  return (
+    <Layout>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+          <CardHeader><CardTitle>Create User</CardTitle></CardHeader>
+          <CardContent className="grid md:grid-cols-5 gap-2">
+            <CreateUserForm onCreate={async (data) => {
+              try {
+                await createUser(data);
+                toast.success("User created");
+              } catch (e: any) {
+                toast.error(e.message || "Failed to create");
+              }
+            }} />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+          <CardHeader><CardTitle>Users</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {users.map((u: any) => (
+              <div key={u._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border p-3 rounded-md">
+                <div className="text-sm">
+                  <div className="font-medium">{u.name || u.username}</div>
+                  <div className="text-xs text-gray-500">{u.email || "-"}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    defaultValue={u.role || ROLES.STAFF}
+                    onValueChange={async (val) => {
+                      try {
+                        await updateUserRole({ userId: u._id, role: val as any });
+                        toast.success("Role updated");
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to update role");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-40"><SelectValue placeholder="Role" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ROLES.ADMIN}>Admin</SelectItem>
+                      <SelectItem value={ROLES.MANAGER}>Manager</SelectItem>
+                      <SelectItem value={ROLES.STAFF}>Staff</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      try {
+                        await deleteUser({ userId: u._id });
+                        toast.success("User deleted");
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to delete");
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+                <SendNotification userId={u._id} onSend={async (message) => {
+                  try {
+                    await sendNotification({ userId: u._id, message });
+                    toast.success("Notification sent");
+                  } catch (e: any) {
+                    toast.error(e.message || "Failed to send");
+                  }
+                }} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+}
+
+function CreateUserForm({ onCreate }: { onCreate: (data: { name: string; username: string; password: string; role: Role; email?: string; }) => Promise<void>; }) {
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>(ROLES.STAFF);
+  const [email, setEmail] = useState("");
+
+  return (
+    <>
+      <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+      <Input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+        <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ROLES.MANAGER}>Manager</SelectItem>
+          <SelectItem value={ROLES.STAFF}>Staff</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="flex items-center gap-2">
+        <Input placeholder="Email (optional)" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button
+          onClick={async () => {
+            if (!name || !username || !password) {
+              toast.error("Fill required fields");
+              return;
+            }
+            await onCreate({ name, username, password, role, email: email || undefined });
+            setName(""); setUsername(""); setPassword(""); setRole(ROLES.STAFF); setEmail("");
+          }}
+        >
+          Create
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function SendNotification({ userId, onSend }: { userId: string; onSend: (message: string) => Promise<void>; }) {
+  const [message, setMessage] = useState("");
+  return (
+    <div className="flex items-center gap-2 w-full sm:w-auto">
+      <Input
+        placeholder="Admin message"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+      <Button
+        variant="outline"
+        onClick={async () => {
+          if (!message.trim()) return;
+          await onSend(message);
+          setMessage("");
+        }}
+      >
+        Send
+      </Button>
+    </div>
+  );
+}

@@ -208,3 +208,26 @@ export const initializeDefaultUsers = mutation({
     }
   },
 });
+
+export const getAssignableUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      throw new Error("Not authenticated");
+    }
+    // Admin: can assign to anyone (except maybe themselves - but we allow self via UI "Assign to Self")
+    if (currentUser.role === ROLES.ADMIN) {
+      return await ctx.db.query("users").collect();
+    }
+    // Manager: can assign to Managers and Staff
+    if (currentUser.role === ROLES.MANAGER) {
+      const managersAndStaff = await ctx.db.query("users").collect();
+      return managersAndStaff.filter(
+        (u) => u.role === ROLES.MANAGER || u.role === ROLES.STAFF
+      );
+    }
+    // Staff: no access
+    throw new Error("Unauthorized");
+  },
+});
