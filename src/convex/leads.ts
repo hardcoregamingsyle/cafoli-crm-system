@@ -11,7 +11,8 @@ export const getAllLeads = query({
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
     if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
-      throw new Error("Unauthorized");
+      // Return empty list when unauthorized to avoid client-side errors
+      return [];
     }
     
     let leads = await ctx.db.query("leads").collect();
@@ -48,7 +49,8 @@ export const getMyLeads = query({
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
     if (!currentUser || currentUser.role === ROLES.ADMIN) {
-      throw new Error("Unauthorized");
+      // Return empty list when unauthorized
+      return [];
     }
     
     const leads = await ctx.db
@@ -245,6 +247,12 @@ export const cancelFollowup = mutation({
 export const getUpcomingFollowups = query({
   args: {},
   handler: async (ctx) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      // Return empty list for unauthenticated users
+      return [];
+    }
+
     const now = Date.now();
     const fiveMinutesFromNow = now + (5 * 60 * 1000);
     

@@ -10,6 +10,10 @@ import { ROLES } from "@/convex/schema";
 
 export default function Dashboard() {
   const { currentUser } = useCrmAuth();
+
+  const isAdmin = currentUser?.role === ROLES.ADMIN;
+  const isManager = currentUser?.role === ROLES.MANAGER;
+  
   const allLeads = useQuery(api.leads.getAllLeads, { filter: "all" });
   const myLeads = useQuery(api.leads.getMyLeads);
   const notifications = useQuery(api.notifications.getMyNotifications);
@@ -17,14 +21,11 @@ export default function Dashboard() {
 
   if (!currentUser) return null;
 
-  const isAdmin = currentUser.role === ROLES.ADMIN;
-  const isManager = currentUser.role === ROLES.MANAGER;
-  
   const totalLeads = allLeads?.length || 0;
-  const assignedLeads = allLeads?.filter(lead => lead.assignedTo)?.length || 0;
+  const assignedLeads = allLeads?.filter((lead: any) => lead.assignedTo)?.length || 0;
   const unassignedLeads = totalLeads - assignedLeads;
   const myLeadsCount = myLeads?.length || 0;
-  const unreadNotifications = notifications?.filter(n => !n.read)?.length || 0;
+  const unreadNotifications = notifications?.filter((n: any) => !n.read)?.length || 0;
   const upcomingCount = upcomingFollowups?.length || 0;
 
   const stats = [
@@ -144,7 +145,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {notifications?.slice(0, 5).map((notification) => (
+                  {notifications?.slice(0, 5).map((notification: any) => (
                     <div
                       key={notification._id}
                       className={`p-3 rounded-lg border ${
@@ -183,7 +184,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {upcomingFollowups?.slice(0, 5).map((lead) => (
+                  {upcomingFollowups?.slice(0, 5).map((lead: any) => (
                     <div
                       key={lead._id}
                       className="p-3 rounded-lg border border-red-200 bg-red-50"

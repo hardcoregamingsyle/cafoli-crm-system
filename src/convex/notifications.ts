@@ -9,7 +9,8 @@ export const getMyNotifications = query({
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
     if (!currentUser) {
-      throw new Error("Not authenticated");
+      // Return empty list when not authenticated to avoid client-side errors
+      return [];
     }
     
     const notifications = await ctx.db
