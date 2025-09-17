@@ -4,16 +4,16 @@ import { ROLES } from "./schema";
 
 // Add: helper to ensure a valid userId always exists for logging
 async function ensureLoggingUserId(ctx: any) {
-  // Try any existing user
-  const anyUser = await ctx.db.query("users").first();
-  if (anyUser?._id) return anyUser._id;
-
-  // Try Owner by username
+  // Try Owner by username first (fast via index)
   const ownerExisting = await ctx.db
     .query("users")
     .withIndex("username", (q: any) => q.eq("username", "Owner"))
     .unique();
   if (ownerExisting?._id) return ownerExisting._id;
+
+  // Fallback: any existing user
+  const anyUsers = await ctx.db.query("users").collect();
+  if (anyUsers.length > 0) return anyUsers[0]._id;
 
   // Create Owner if not present
   const ownerId = await ctx.db.insert("users", {
@@ -111,7 +111,7 @@ export const createLeadFromSource = internalMutation({
       }
 
       await ctx.db.insert("auditLogs", {
-        userId: (await ctx.db.query("users").first())?._id as any,
+        userId: await ensureLoggingUserId(ctx), // use valid user id for logging
         action: "CLUB_DUPLICATE_LEAD",
         details: `Webhook clubbed into existing lead ${existing._id}`,
         timestamp: Date.now(),
