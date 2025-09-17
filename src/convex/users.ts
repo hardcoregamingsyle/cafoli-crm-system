@@ -214,10 +214,11 @@ export const getAssignableUsers = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
+    // Gracefully return empty list when not authenticated to avoid client-side errors
     if (!currentUser) {
-      throw new Error("Not authenticated");
+      return [];
     }
-    // Admin: can assign to anyone (except maybe themselves - but we allow self via UI "Assign to Self")
+    // Admin: can assign to anyone
     if (currentUser.role === ROLES.ADMIN) {
       return await ctx.db.query("users").collect();
     }
@@ -228,7 +229,7 @@ export const getAssignableUsers = query({
         (u) => u.role === ROLES.MANAGER || u.role === ROLES.STAFF
       );
     }
-    // Staff: no access
-    throw new Error("Unauthorized");
+    // Staff or others: no access, return empty list to avoid throwing
+    return [];
   },
 });
