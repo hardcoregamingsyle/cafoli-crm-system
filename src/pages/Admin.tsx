@@ -37,7 +37,10 @@ export default function AdminPage() {
           <CardContent className="grid md:grid-cols-5 gap-2">
             <CreateUserForm onCreate={async (data) => {
               try {
-                await createUser(data);
+                await createUser({
+                  ...data,
+                  createdByUserId: currentUser._id,
+                });
                 toast.success("User created");
               } catch (e: any) {
                 toast.error(e.message || "Failed to create");
@@ -60,7 +63,11 @@ export default function AdminPage() {
                     defaultValue={u.role || ROLES.STAFF}
                     onValueChange={async (val) => {
                       try {
-                        await updateUserRole({ userId: u._id, role: val as any });
+                        await updateUserRole({ 
+                          userId: u._id, 
+                          role: val as any,
+                          currentUserId: currentUser._id,
+                        });
                         toast.success("Role updated");
                       } catch (e: any) {
                         toast.error(e.message || "Failed to update role");
@@ -78,7 +85,10 @@ export default function AdminPage() {
                     variant="destructive"
                     onClick={async () => {
                       try {
-                        await deleteUser({ userId: u._id });
+                        await deleteUser({ 
+                          userId: u._id,
+                          currentUserId: currentUser._id,
+                        });
                         toast.success("User deleted");
                       } catch (e: any) {
                         toast.error(e.message || "Failed to delete");

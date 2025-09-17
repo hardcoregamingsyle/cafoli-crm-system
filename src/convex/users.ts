@@ -64,11 +64,13 @@ export const createUser = mutation({
     password: v.string(),
     role: roleValidator,
     email: v.optional(v.string()),
+    createdByUserId: v.id("users"), // Pass the current user ID from frontend
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    // Get the current user who is creating this user
+    const currentUser = await ctx.db.get(args.createdByUserId);
     if (!currentUser) {
-      throw new Error("Not authenticated");
+      throw new Error("Creator user not found");
     }
     
     // Check permissions
@@ -122,9 +124,10 @@ export const updateUserRole = mutation({
   args: {
     userId: v.id("users"),
     role: roleValidator,
+    currentUserId: v.id("users"), // Pass current user ID from frontend
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = await ctx.db.get(args.currentUserId);
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
@@ -150,9 +153,10 @@ export const updateUserRole = mutation({
 export const deleteUser = mutation({
   args: {
     userId: v.id("users"),
+    currentUserId: v.id("users"), // Pass current user ID from frontend
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = await ctx.db.get(args.currentUserId);
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
