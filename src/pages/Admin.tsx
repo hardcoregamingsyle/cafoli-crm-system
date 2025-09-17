@@ -32,6 +32,7 @@ export default function AdminPage() {
   const updateUserRole = useMutation(api.users.updateUserRole);
   const deleteUser = useMutation(api.users.deleteUser);
   const sendNotification = useMutation(api.notifications.sendNotification);
+  const initializeDefaultUsers = useMutation(api.users.initializeDefaultUsers);
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role !== ROLES.ADMIN) {
@@ -63,6 +64,27 @@ export default function AdminPage() {
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader><CardTitle>Users</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            {users.length === 0 && (
+              <div className="flex items-center justify-between border p-3 rounded-md">
+                <div className="text-sm text-gray-600">
+                  No users found. You can create users above or seed default users.
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await initializeDefaultUsers({});
+                      toast.success("Default users created");
+                    } catch (e: any) {
+                      toast.error(e.message || "Failed to seed default users");
+                    }
+                  }}
+                >
+                  Seed Default Users
+                </Button>
+              </div>
+            )}
+
             {(users ?? []).map((u: any) => (
               <div key={String(u._id)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border p-3 rounded-md">
                 <div className="text-sm">
