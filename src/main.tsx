@@ -58,7 +58,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
           <Route path="/notifications" element={<ConvexProviderWrapper><NotificationsPage /></ConvexProviderWrapper>} />
-          <Route path="/webhook/logs" element={<WebhookLogsPage />} />
+          <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
