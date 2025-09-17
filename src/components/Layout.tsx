@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, Users, FileText, Settings, Home } from "lucide-react";
+import { Bell, LogOut, Users, FileText, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
@@ -28,12 +28,6 @@ export function Layout({ children }: LayoutProps) {
   }
 
   const navigationItems = [
-    { 
-      label: "Dashboard", 
-      path: "/dashboard", 
-      icon: Home,
-      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF] 
-    },
     { 
       label: "All Leads", 
       path: "/all_leads", 

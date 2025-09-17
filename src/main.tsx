@@ -10,7 +10,6 @@ import "./index.css";
 import Landing from "./pages/Landing.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
 import "./types/global.d.ts";
 import AllLeadsPage from "@/pages/AllLeads.tsx";
 import MyLeadsPage from "@/pages/MyLeads.tsx";
@@ -53,7 +52,6 @@ createRoot(document.getElementById("root")!).render(
         <RouteSyncer />
         <Routes>
           <Route path="/" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
-          <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
