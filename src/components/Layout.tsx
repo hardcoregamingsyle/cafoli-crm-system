@@ -37,42 +37,33 @@ export function Layout({ children }: LayoutProps) {
     initializeAuth();
   }, []); // run once to avoid re-run loops
 
-  // CSV parser (simple): expects first row headers
+  // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length === 0) return [];
-
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const rows = lines.slice(1);
-
-    const items = rows.map((line) => {
-      // naive CSV split; assumes no quoted commas (sufficient for this use)
-      const cols = line.split(",").map((c) => c.trim());
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => {
-        obj[h] = cols[i] ?? "";
-      });
-      return obj;
-    });
-    return items;
+    // If only headers or empty, nothing to import
+    if (lines.length <= 1) return [];
+    // Always ignore the first line as headers (row-1)
+    const dataLines = lines.slice(1);
+    // Naive CSV split; assumes no quoted commas
+    const rows: Array<string[]> = dataLines.map((line) =>
+      line.split(",").map((c) => c.trim())
+    );
+    return rows;
   };
 
-  // Build lead objects from parsed CSV row objects
-  const mapRowsToLeads = (rows: Array<Record<string, string>>) => {
-    const mapped = rows.map((r) => {
-      const name = (r.name ?? "").trim();
-      const subject = (r.subject ?? "").trim();
-      const message = (r.message ?? "").trim();
-      const mobileNo =
-        (r.mobileno ?? r.mobile ?? r.phone ?? "").toString().trim();
-      const email = (r.email ?? "").trim();
-      const altMobileNo =
-        (r.altmobileno ?? r.altmobile ?? r["alternate mobile"] ?? "")
-          .toString()
-          .trim();
-      const altEmail = (r.altemail ?? r["alternate email"] ?? "").trim();
-      const state = (r.state ?? "").trim();
-      const source = (r.source ?? "manual").trim();
+  // Build lead objects from parsed CSV using fixed column order
+  // Order: [0] Name, [1] Mobile No, [2] Email, [3] Subject, [4] Message, [5] Alt Mobile, [6] Alt Email, [7] State
+  const mapRowsToLeads = (rows: Array<string[]>) => {
+    const mapped = rows.map((cols) => {
+      const name = (cols[0] ?? "").trim();
+      const mobileNo = (cols[1] ?? "").toString().trim();
+      const email = (cols[2] ?? "").trim();
+      const subject = (cols[3] ?? "").trim();
+      const message = (cols[4] ?? "").trim();
+      const altMobileNo = (cols[5] ?? "").toString().trim();
+      const altEmail = (cols[6] ?? "").trim();
+      const state = (cols[7] ?? "").trim();
+      const source = "manual";
 
       return {
         name,
