@@ -5,11 +5,12 @@ import { ROLES } from "./schema";
 
 // Get notifications for current user
 export const getMyNotifications = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
-      // Return empty list when not authenticated to avoid client-side errors
       return [];
     }
     
@@ -18,9 +19,7 @@ export const getMyNotifications = query({
       .withIndex("userId", (q) => q.eq("userId", currentUser._id))
       .collect();
     
-    // Sort by creation time (newest first)
     notifications.sort((a, b) => b._creationTime - a._creationTime);
-    
     return notifications;
   },
 });
@@ -81,19 +80,21 @@ export const sendNotification = mutation({
 
 // Get unread notification count
 export const getUnreadCount = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
       return 0;
     }
     
-    const unreadNotifications = await ctx.db
+    const notifications = await ctx.db
       .query("notifications")
       .withIndex("userId", (q) => q.eq("userId", currentUser._id))
-      .filter((q) => q.eq(q.field("read"), false))
       .collect();
     
-    return unreadNotifications.length;
+    // Count unread on the server
+    return notifications.reduce((count, n) => (n.read ? count : count + 1), 0);
   },
 });

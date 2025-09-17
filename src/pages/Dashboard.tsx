@@ -16,7 +16,7 @@ export default function Dashboard() {
   
   const allLeads = useQuery(api.leads.getAllLeads, { filter: "all" });
   const myLeads = useQuery(api.leads.getMyLeads);
-  const notifications = useQuery(api.notifications.getMyNotifications);
+  const notifications = useQuery(api.notifications.getMyNotifications, {});
   const upcomingFollowups = useQuery(api.leads.getUpcomingFollowups);
 
   if (!currentUser) return null;

@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
   const { currentUser, logout, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const unreadCount = useQuery(api.notifications.getUnreadCount);
+  const unreadCount = useQuery(api.notifications.getUnreadCount, { currentUserId: currentUser?._id });
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all" }) ?? [];
