@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { api } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -70,6 +71,13 @@ function corsNoContent(status = 204, extraHeaders: Record<string, string> = {}) 
       ...extraHeaders,
     },
   });
+}
+
+// Add: helper to ensure an admin user id for server-initiated actions (mirrors webhook.ts)
+async function ensureAdminUserId(ctx: any) {
+  // Resolve or create an admin user via internal mutation (httpAction cannot use ctx.db)
+  const ownerId = await ctx.runMutation(internal.webhook.ensureLoggingUser, {});
+  return ownerId;
 }
 
 // Log webhooks for debugging/recordkeeping
@@ -223,6 +231,73 @@ http.route({
         } 
       });
       
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
+// New: List webhook logs via HTTP (reads the same deployment as the webhook)
+http.route({
+  path: "/api/webhook/logs_list",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/webhook/logs_list",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const limit = Number(url.searchParams.get("limit") ?? "200");
+      const max = Math.max(1, Math.min(limit, 1000));
+
+      // Ensure we act as an admin to fetch logs (admin-restricted query)
+      const currentUserId = await ensureAdminUserId(ctx);
+      const result: any[] =
+        (await ctx.runQuery(api.audit.getWebhookLogs, { currentUserId, limit: max })) ?? [];
+
+      const logs = result.map((l: any) => ({
+        _id: l._id,
+        timestamp: l.timestamp,
+        details: l.details,
+      }));
+
+      return corsJson({ ok: true, logs }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
+// New: Import from webhook logs via HTTP to ensure same-deployment execution
+http.route({
+  path: "/api/webhook/import_from_logs",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/webhook/import_from_logs",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const limitParam = url.searchParams.get("limit");
+      const limit = limitParam ? Number(limitParam) : 500;
+
+      const currentUserId = await ensureAdminUserId(ctx);
+      const result = await ctx.runMutation(api.webhook.importFromWebhookLogs, {
+        currentUserId,
+        limit,
+      });
+
+      return corsJson({ ok: true, ...result }, 200);
+    } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
   }),

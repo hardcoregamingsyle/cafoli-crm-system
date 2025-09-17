@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -38,7 +38,31 @@ export default function WebhookLogsPage() {
     );
   }
 
-  const logs = useQuery(api.audit.getWebhookLogs, { currentUserId: currentUser._id, limit: 200 }) ?? [];
+  // moved: envWebhookBase/isWebhookUrlConfigured/listeningUrl are defined above
+  const [logs, setLogs] = useState<any[]>([]);
+
+  async function loadLogs() {
+    if (!isWebhookUrlConfigured) return;
+    try {
+      const res = await fetch(
+        `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/logs_list?limit=200`,
+        { method: "GET" }
+      );
+      const json = await res.json();
+      if (json?.ok && Array.isArray(json.logs)) {
+        setLogs(json.logs);
+      } else {
+        setLogs([]);
+      }
+    } catch {
+      setLogs([]);
+    }
+  }
+
+  useEffect(() => {
+    loadLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Use ONLY the explicit webhook URL; do not fallback to window.origin to avoid mismatched deployments
   const envWebhookBase = (import.meta as any).env?.VITE_WEBHOOK_URL as string | undefined;
@@ -46,9 +70,6 @@ export default function WebhookLogsPage() {
   const listeningUrl = isWebhookUrlConfigured
     ? `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/indiamart`
     : "";
-
-  // Mutations
-  const importFromWebhookLogs = useMutation(api.webhook.importFromWebhookLogs);
 
   return (
     <Layout>
@@ -86,7 +107,7 @@ export default function WebhookLogsPage() {
                   const res = await fetch(url.toString(), { method: "GET" });
                   if (!res.ok) throw new Error(`HTTP ${res.status}`);
                   toast.success("Test webhook logged");
-                  window.location.reload();
+                  await loadLogs(); // refresh list without full reload
                 } catch (e: any) {
                   toast.error(e?.message || "Failed to send test");
                 }
@@ -99,8 +120,18 @@ export default function WebhookLogsPage() {
               variant="default"
               onClick={async () => {
                 try {
-                  const res = await importFromWebhookLogs({ currentUserId: currentUser._id, limit: 500 });
-                  toast.success(`Imported=${res.created}, Clubbed=${res.clubbed}, Skipped=${res.skipped}`);
+                  if (!isWebhookUrlConfigured) {
+                    toast.error("VITE_WEBHOOK_URL is not configured.");
+                    return;
+                  }
+                  const res = await fetch(
+                    `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/import_from_logs`,
+                    { method: "POST" }
+                  );
+                  const json = await res.json();
+                  if (!json?.ok) throw new Error(json?.error || "Failed");
+                  toast.success(`Imported=${json.created}, Clubbed=${json.clubbed}, Skipped=${json.skipped}`);
+                  await loadLogs();
                 } catch (e: any) {
                   toast.error(e?.message || "Failed to import from logs");
                 }

@@ -25,6 +25,15 @@ async function ensureLoggingUserId(ctx: any) {
   return ownerId;
 }
 
+// Expose an internal mutation to ensure a logging/admin user exists and return its id
+export const ensureLoggingUser = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const id = await ensureLoggingUserId(ctx);
+    return id;
+  },
+});
+
 // Store webhook payload in auditLogs
 export const insertLog = internalMutation({
   args: {
