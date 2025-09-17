@@ -14,7 +14,7 @@ export default function AdminPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // run once to avoid re-run loops
 
   const users = useQuery(api.users.getAllUsers) ?? [];
   const createUser = useMutation(api.users.createUser);
@@ -49,8 +49,8 @@ export default function AdminPage() {
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader><CardTitle>Users</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {users.map((u: any) => (
-              <div key={u._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border p-3 rounded-md">
+            {(users ?? []).map((u: any) => (
+              <div key={String(u._id)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border p-3 rounded-md">
                 <div className="text-sm">
                   <div className="font-medium">{u.name || u.username}</div>
                   <div className="text-xs text-gray-500">{u.email || "-"}</div>
@@ -88,7 +88,7 @@ export default function AdminPage() {
                     Delete
                   </Button>
                 </div>
-                <SendNotification userId={u._id} onSend={async (message) => {
+                <SendNotification userId={String(u._id)} onSend={async (message) => {
                   try {
                     await sendNotification({ userId: u._id, message });
                     toast.success("Notification sent");
