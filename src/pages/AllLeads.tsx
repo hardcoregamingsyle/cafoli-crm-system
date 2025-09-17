@@ -10,15 +10,26 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES } from "@/convex/schema";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 type Filter = "all" | "assigned" | "unassigned";
 
 export default function AllLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
+  const navigate = useNavigate();
+
   useEffect(() => {
     initializeAuth();
   }, []); // run once to avoid re-run loops
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/");
+      return;
+    }
+  }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
   const leads = useQuery(api.leads.getAllLeads, { filter });
@@ -40,6 +51,7 @@ export default function AllLeadsPage() {
   }, [currentUser?.role, currentUser?._id, users, assignable]);
 
   const canView = currentUser && (currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER);
+  
   if (!currentUser) return <Layout><div /></Layout>;
   if (!canView) return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don't have access to this page.</CardContent></Card></div></Layout>;
 

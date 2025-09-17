@@ -5,15 +5,31 @@ import { Label } from "@/components/ui/label";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { motion } from "framer-motion";
 import { Loader2, Lock, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login, isLoading } = useCrmAuth();
+  const { login, isLoading, currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
+
+  // Check if user is already logged in and redirect
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      // Redirect authenticated users to their appropriate dashboard
+      if (currentUser.role === "admin" || currentUser.role === "manager") {
+        navigate("/all_leads");
+      } else {
+        navigate("/leads");
+      }
+    }
+  }, [currentUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +52,18 @@ export default function Login() {
       toast.error("Invalid credentials. Please try again.");
     }
   };
+
+  // Don't show login form if user is already authenticated
+  if (currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">

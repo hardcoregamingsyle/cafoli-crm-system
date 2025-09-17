@@ -8,13 +8,24 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, Role } from "@/convex/schema";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 export default function AdminPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
+  const navigate = useNavigate();
+
   useEffect(() => {
     initializeAuth();
   }, []); // run once to avoid re-run loops
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/");
+      return;
+    }
+  }, [currentUser, navigate]);
 
   const users = useQuery(api.users.getAllUsers) ?? [];
   const createUser = useMutation(api.users.createUser);

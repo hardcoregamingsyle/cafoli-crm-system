@@ -10,13 +10,24 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 export default function MyLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
+  const navigate = useNavigate();
+
   useEffect(() => {
     initializeAuth();
   }, []); // run once to avoid re-run loops
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/");
+      return;
+    }
+  }, [currentUser, navigate]);
 
   const leads = useQuery(api.leads.getMyLeads);
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);

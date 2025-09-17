@@ -25,6 +25,8 @@ export function useCrmAuth() {
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem("crmUser");
+    // Redirect to login page
+    window.location.href = "/";
   };
   
   const initializeAuth = () => {
