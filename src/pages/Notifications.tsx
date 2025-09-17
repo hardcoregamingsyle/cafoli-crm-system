@@ -41,7 +41,9 @@ export default function NotificationsPage() {
               onClick={async () => {
                 try {
                   await Promise.all(
-                    unread.map((n: any) => markAsRead({ notificationId: n._id as any }))
+                    unread.map((n: any) => 
+                      markAsRead({ notificationId: n._id as any, currentUserId: currentUser._id })
+                    )
                   );
                   toast.success("Marked all as read");
                 } catch (e: any) {
@@ -83,7 +85,7 @@ export default function NotificationsPage() {
                     size="sm"
                     onClick={async () => {
                       try {
-                        await markAsRead({ notificationId: n._id as any });
+                        await markAsRead({ notificationId: n._id as any, currentUserId: currentUser._id });
                       } catch (e: any) {
                         toast.error(e.message || "Failed to mark as read");
                       }

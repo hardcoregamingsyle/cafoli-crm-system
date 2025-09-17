@@ -28,9 +28,13 @@ export const getMyNotifications = query({
 export const markAsRead = mutation({
   args: {
     notificationId: v.id("notifications"),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    // Use local auth when provided, fall back to Convex auth
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
       throw new Error("Not authenticated");
     }
