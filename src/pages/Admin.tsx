@@ -142,8 +142,16 @@ function CreateUserForm({ onCreate }: { onCreate: (data: { name: string; usernam
               toast.error("Fill required fields");
               return;
             }
-            await onCreate({ name, username, password, role, email: email || undefined });
-            setName(""); setUsername(""); setPassword(""); setRole(ROLES.STAFF); setEmail("");
+            try {
+              await onCreate({ name, username, password, role, email: email || undefined });
+              setName(""); setUsername(""); setPassword(""); setRole(ROLES.STAFF); setEmail("");
+            } catch (e: any) {
+              const raw = e?.message ?? "";
+              const msg = typeof raw === "string" && raw.toLowerCase().includes("username already exists")
+                ? "Username already exists"
+                : "Failed to create user";
+              toast.error(msg);
+            }
           }}
         >
           Create
