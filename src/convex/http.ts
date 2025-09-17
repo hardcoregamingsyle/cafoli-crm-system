@@ -228,6 +228,16 @@ http.route({
         });
       }
 
+      // Log parsed payload + accurate created flag for POST as well
+      await ctx.runMutation(internal.webhook.insertLog, {
+        payload: {
+          method: "POST",
+          url: req.url,
+          parsed: r,
+          leadCreated: created,
+        },
+      });
+
       return corsJson({ ok: true, received: true, leadCreated: created }, 200);
     } catch (e: any) {
       // Log the error for debugging
@@ -305,6 +315,44 @@ http.route({
       });
 
       return corsJson({ ok: true, ...result }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
+// New: Quick debug endpoint to view latest leads from the same deployment
+http.route({
+  path: "/api/webhook/latest_leads",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/webhook/latest_leads",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const limitParam = Number(url.searchParams.get("limit") ?? "5");
+      const limit = Math.max(1, Math.min(limitParam, 50));
+
+      const currentUserId = await ensureAdminUserId(ctx);
+      const all: any[] = (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
+
+      // Sort by creation time asc (as our query returns), take latest
+      const latest = all.slice(-limit).map((l: any) => ({
+        _id: l._id,
+        name: l.name,
+        subject: l.subject,
+        mobileNo: l.mobileNo,
+        email: l.email,
+        _creationTime: l._creationTime,
+      }));
+
+      return corsJson({ ok: true, count: latest.length, latest }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
