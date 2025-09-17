@@ -52,7 +52,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <RouteSyncer />
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
           <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
