@@ -9,7 +9,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES } from "@/convex/schema";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -56,6 +56,38 @@ export default function AllLeadsPage() {
   if (!currentUser) return <Layout><div /></Layout>;
   if (!canView) return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don't have access to this page.</CardContent></Card></div></Layout>;
 
+  // Debug: Compare server-side count vs UI count (same deployment as webhook HTTP)
+  const [serverCount, setServerCount] = useState<number | null>(null);
+  const [serverLatest, setServerLatest] = useState<{ _id: string; _creationTime: number; name?: string } | null>(null);
+  // Use ONLY the explicit webhook URL for HTTP endpoints (.site)
+  const envWebhookBase = (import.meta as any).env?.VITE_WEBHOOK_URL as string | undefined;
+  const isWebhookUrlConfigured = !!(envWebhookBase && envWebhookBase.trim().length > 0);
+
+  async function loadServerCount() {
+    if (!isWebhookUrlConfigured) return;
+    try {
+      // Normalize base URL by trimming trailing forward slashes
+      const base = envWebhookBase!.replace(/\/+$/, "");
+      const res = await fetch(`${base}/api/webhook/leads_count`, { method: "GET" });
+      const json = await res.json();
+      if (json?.ok) {
+        setServerCount(Number(json.count ?? 0));
+        setServerLatest(json.latest ?? null);
+      } else {
+        setServerCount(null);
+        setServerLatest(null);
+      }
+    } catch {
+      setServerCount(null);
+      setServerLatest(null);
+    }
+  }
+
+  useEffect(() => {
+    loadServerCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
@@ -67,6 +99,28 @@ export default function AllLeadsPage() {
             <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
           </div>
         </div>
+
+        {/* Debug banner: shows server vs UI counts to diagnose deployment mismatch */}
+        {isWebhookUrlConfigured && (
+          <div className="text-xs sm:text-sm border rounded-md p-3 bg-white/80 backdrop-blur-sm border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <span className="font-medium">Server leads:</span> {serverCount ?? "—"}{" "}
+              <span className="mx-2">•</span>
+              <span className="font-medium">UI leads:</span> {(leads ?? []).length}
+              {serverLatest && (
+                <>
+                  <span className="mx-2">•</span>
+                  <span className="font-medium">Latest:</span>{" "}
+                  {new Date(serverLatest._creationTime).toLocaleString()}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={loadServerCount}>Sync</Button>
+              <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Refresh</Button>
+            </div>
+          </div>
+        )}
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader>

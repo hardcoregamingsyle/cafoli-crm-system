@@ -359,4 +359,40 @@ http.route({
   }),
 });
 
+// New: Leads count and latest info for quick deployment debugging
+http.route({
+  path: "/api/webhook/leads_count",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/webhook/leads_count",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const currentUserId = await ensureAdminUserId(ctx);
+      const all: any[] =
+        (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
+
+      const count = all.length;
+      const latest = count > 0 ? all[all.length - 1] : null;
+      const summary = latest
+        ? {
+            _id: latest._id,
+            name: latest.name,
+            subject: latest.subject,
+            _creationTime: latest._creationTime,
+          }
+        : null;
+
+      return corsJson({ ok: true, count, latest: summary }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
 export default http;
