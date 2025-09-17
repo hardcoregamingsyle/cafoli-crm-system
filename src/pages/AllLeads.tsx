@@ -32,7 +32,7 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
-  const leads = useQuery(api.leads.getAllLeads, { filter });
+  const leads = useQuery(api.leads.getAllLeads, { filter, currentUserId: currentUser?._id });
   const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }); // Admin only
   const assignable = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
@@ -127,13 +127,13 @@ export default function AllLeadsPage() {
                           onValueChange={async (val) => {
                             try {
                               if (val === "self") {
-                                await assignLead({ leadId: lead._id, assignedTo: currentUser._id });
+                                await assignLead({ leadId: lead._id, assignedTo: currentUser._id, currentUserId: currentUser._id });
                                 toast.success("Assigned to yourself");
                               } else if (val === "unassign") {
-                                await assignLead({ leadId: lead._id, assignedTo: undefined });
+                                await assignLead({ leadId: lead._id, assignedTo: undefined, currentUserId: currentUser._id });
                                 toast.success("Lead unassigned");
                               } else {
-                                await assignLead({ leadId: lead._id, assignedTo: val as any });
+                                await assignLead({ leadId: lead._id, assignedTo: val as any, currentUserId: currentUser._id });
                                 toast.success("Lead assigned");
                               }
                             } catch (e: any) {
@@ -171,7 +171,7 @@ export default function AllLeadsPage() {
                                 return;
                               }
                               try {
-                                await setNextFollowup({ leadId: lead._id, followupTime: ts });
+                                await setNextFollowup({ leadId: lead._id, followupTime: ts, currentUserId: currentUser._id });
                                 toast.success("Followup set");
                               } catch (err: any) {
                                 toast.error(err.message || "Failed to set followup");
@@ -185,7 +185,7 @@ export default function AllLeadsPage() {
                               variant="destructive"
                               onClick={async () => {
                                 try {
-                                  await cancelFollowup({ leadId: lead._id });
+                                  await cancelFollowup({ leadId: lead._id, currentUserId: currentUser._id });
                                   toast.success("Followup cancelled");
                                 } catch (err: any) {
                                   toast.error(err.message || "Failed to cancel");
@@ -198,7 +198,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
 
-                      <CommentsBox leadId={lead._id} />
+                      <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -211,8 +211,8 @@ export default function AllLeadsPage() {
   );
 }
 
-function CommentsBox({ leadId }: { leadId: string }) {
-  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any }) ?? [];
+function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
+  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
   const addComment = useMutation(api.comments.addComment);
   const [content, setContent] = useState("");
 
@@ -239,7 +239,7 @@ function CommentsBox({ leadId }: { leadId: string }) {
           onClick={async () => {
             if (!content.trim()) return;
             try {
-              await addComment({ leadId: leadId as any, content });
+              await addComment({ leadId: leadId as any, content, currentUserId: currentUserId as any });
               setContent("");
             } catch (e: any) {
               toast.error(e.message || "Failed to add comment");

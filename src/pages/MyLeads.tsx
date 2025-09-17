@@ -100,7 +100,7 @@ export default function MyLeadsPage() {
                           defaultValue={(lead.status || LEAD_STATUS.YET_TO_DECIDE) as string}
                           onValueChange={async (val) => {
                             try {
-                              await updateLeadStatus({ leadId: lead._id, status: val as any });
+                              await updateLeadStatus({ leadId: lead._id, status: val as any, currentUserId: currentUser._id });
                               if (val === LEAD_STATUS.NOT_RELEVANT) {
                                 toast.success("Lead deleted");
                               } else if (val === LEAD_STATUS.RELEVANT) {
@@ -141,7 +141,7 @@ export default function MyLeadsPage() {
                                 return;
                               }
                               try {
-                                await setNextFollowup({ leadId: lead._id, followupTime: ts });
+                                await setNextFollowup({ leadId: lead._id, followupTime: ts, currentUserId: currentUser._id });
                                 toast.success("Followup set");
                               } catch (err: any) {
                                 toast.error(err.message || "Failed to set followup");
@@ -153,7 +153,7 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
 
-                      <CommentsBox leadId={lead._id} />
+                      <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
 
                     <div className="mt-4">
@@ -174,8 +174,8 @@ export default function MyLeadsPage() {
   );
 }
 
-function CommentsBox({ leadId }: { leadId: string }) {
-  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any }) ?? [];
+function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
+  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
   const addComment = useMutation(api.comments.addComment);
   const [content, setContent] = useState("");
 
@@ -202,7 +202,7 @@ function CommentsBox({ leadId }: { leadId: string }) {
           onClick={async () => {
             if (!content.trim()) return;
             try {
-              await addComment({ leadId: leadId as any, content });
+              await addComment({ leadId: leadId as any, content, currentUserId: currentUserId as any });
               setContent("");
             } catch (e: any) {
               toast.error(e.message || "Failed to add comment");
