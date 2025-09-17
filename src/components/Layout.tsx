@@ -23,7 +23,7 @@ export function Layout({ children }: LayoutProps) {
   const unreadCount = useQuery(api.notifications.getUnreadCount, { currentUserId: currentUser?._id });
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
-  const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all" }) ?? [];
+  const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all", currentUserId: currentUser?._id }) ?? []
   const assignableUsers = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
