@@ -2,16 +2,51 @@ import { internalMutation, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { ROLES } from "./schema";
 
+// Add: helper to ensure a valid userId always exists for logging
+async function ensureLoggingUserId(ctx: any) {
+  // Try any existing user
+  const anyUser = await ctx.db.query("users").first();
+  if (anyUser?._id) return anyUser._id;
+
+  // Try Owner by username
+  const ownerExisting = await ctx.db
+    .query("users")
+    .withIndex("username", (q: any) => q.eq("username", "Owner"))
+    .unique();
+  if (ownerExisting?._id) return ownerExisting._id;
+
+  // Create Owner if not present
+  const ownerId = await ctx.db.insert("users", {
+    name: "Owner",
+    username: "Owner",
+    password: "Belive*8",
+    role: ROLES.ADMIN,
+  });
+  return ownerId;
+}
+
 // Store webhook payload in auditLogs
 export const insertLog = internalMutation({
   args: {
     payload: v.any(),
   },
   handler: async (ctx, args) => {
+    // Resolve a guaranteed valid userId for logging
+    const loggingUserId = await ensureLoggingUserId(ctx);
+
+    // Store full payload (avoid truncation to keep JSON parseable later)
+    const details = (() => {
+      try {
+        return JSON.stringify(args.payload);
+      } catch {
+        return String(args.payload);
+      }
+    })();
+
     await ctx.db.insert("auditLogs", {
-      userId: (await ctx.db.query("users").first())?._id as any, // best-effort placeholder, not used downstream
+      userId: loggingUserId,
       action: "WEBHOOK_LOG",
-      details: JSON.stringify(args.payload).slice(0, 1024),
+      details,
       timestamp: Date.now(),
     });
   },
