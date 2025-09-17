@@ -40,9 +40,12 @@ export default function WebhookLogsPage() {
 
   const logs = useQuery(api.audit.getWebhookLogs, { currentUserId: currentUser._id, limit: 200 }) ?? [];
 
-  // Derive listening URL from env or current origin
-  const base = (import.meta as any).env?.VITE_WEBHOOK_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const listeningUrl = `${base.replace(/\/+$/, "")}/api/webhook/indiamart`;
+  // Use ONLY the explicit webhook URL; do not fallback to window.origin to avoid mismatched deployments
+  const envWebhookBase = (import.meta as any).env?.VITE_WEBHOOK_URL as string | undefined;
+  const isWebhookUrlConfigured = !!(envWebhookBase && envWebhookBase.trim().length > 0);
+  const listeningUrl = isWebhookUrlConfigured
+    ? `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/indiamart`
+    : "";
 
   // Mutations
   const importFromWebhookLogs = useMutation(api.webhook.importFromWebhookLogs);
@@ -56,15 +59,21 @@ export default function WebhookLogsPage() {
             <Button
               variant="outline"
               onClick={() => {
+                if (!isWebhookUrlConfigured) return;
                 navigator.clipboard.writeText(listeningUrl);
                 toast("Webhook URL copied");
               }}
+              disabled={!isWebhookUrlConfigured}
             >
               Copy Webhook URL
             </Button>
             <Button
               variant="outline"
               onClick={async () => {
+                if (!isWebhookUrlConfigured) {
+                  toast.error("VITE_WEBHOOK_URL is not configured.");
+                  return;
+                }
                 try {
                   // Hit the endpoint to produce a log entry
                   const url = new URL(listeningUrl);
@@ -82,6 +91,7 @@ export default function WebhookLogsPage() {
                   toast.error(e?.message || "Failed to send test");
                 }
               }}
+              disabled={!isWebhookUrlConfigured}
             >
               Test Log
             </Button>
@@ -102,8 +112,17 @@ export default function WebhookLogsPage() {
           </div>
         </div>
 
+        {!isWebhookUrlConfigured && (
+          <div className="text-sm text-red-600 border border-red-200 bg-red-50 rounded-md p-3">
+            VITE_WEBHOOK_URL is not configured. Set it to your Convex deployment base URL (e.g. https://cautious-guanaco-541.convex.site) in the API Keys tab. The Test Log and Copy Webhook URL buttons are disabled until configured.
+          </div>
+        )}
+
         <div className="text-sm text-gray-600">
-          Listening URL: <span className="font-mono break-all">{listeningUrl}</span>
+          Listening URL:{" "}
+          <span className="font-mono break-all">
+            {isWebhookUrlConfigured ? listeningUrl : "(not configured)"}
+          </span>
         </div>
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
