@@ -167,7 +167,7 @@ export function Layout({ children }: LayoutProps) {
     return <>{children}</>;
   }
 
-  const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
+  const isAdmin = currentUser.role === ROLES.ADMIN;
 
   const navigationItems = [
     { 
@@ -240,8 +240,8 @@ export function Layout({ children }: LayoutProps) {
 
             {/* User Actions */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              {/* Import/Export (Admin/Manager) */}
-              {isAdminOrManager && (
+              {/* Import/Export (Admin only) */}
+              {isAdmin && (
                 <div className="hidden sm:flex items-center space-x-2">
                   <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
                     <Download className="w-4 h-4" />
@@ -354,7 +354,7 @@ export function Layout({ children }: LayoutProps) {
       </main>
 
       {/* Assign Dialog */}
-      {isAdminOrManager && (
+      {isAdmin && (
         <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
           <DialogContent>
             <DialogHeader>
