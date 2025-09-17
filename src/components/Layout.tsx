@@ -77,6 +77,12 @@ export function Layout({ children }: LayoutProps) {
 
   const handleImportFile = async (file: File, assignedTo?: string) => {
     try {
+      // Early check for empty files
+      if (file.size === 0) {
+        toast.error("The selected CSV file is empty.");
+        return;
+      }
+
       const text = await file.text();
       const rows = parseCsv(text);
       const leads = mapRowsToLeads(rows);
@@ -265,11 +271,16 @@ export function Layout({ children }: LayoutProps) {
                     accept=".csv"
                     className="hidden"
                     onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        await handleImportFile(file);
-                        e.currentTarget.value = "";
+                      const inputEl = e.currentTarget; // cache before await
+                      const file = inputEl.files?.[0];
+                      if (!file) return;
+                      if (file.size === 0) {
+                        toast.error("The selected CSV file is empty.");
+                        inputEl.value = "";
+                        return;
                       }
+                      await handleImportFile(file);
+                      inputEl.value = "";
                     }}
                   />
                   <input
@@ -278,15 +289,21 @@ export function Layout({ children }: LayoutProps) {
                     accept=".csv"
                     className="hidden"
                     onChange={async (e) => {
-                      const file = e.target.files?.[0];
+                      const inputEl = e.currentTarget; // cache before await
+                      const file = inputEl.files?.[0];
                       if (file && selectedAssignee) {
+                        if (file.size === 0) {
+                          toast.error("The selected CSV file is empty.");
+                          inputEl.value = "";
+                          return;
+                        }
                         await handleImportFile(file, selectedAssignee);
-                        e.currentTarget.value = "";
+                        inputEl.value = "";
                         setAssignDialogOpen(false);
                         setSelectedAssignee("");
                       } else if (!selectedAssignee) {
                         toast.error("Select an assignee first");
-                        e.currentTarget.value = "";
+                        inputEl.value = "";
                       }
                     }}
                   />
