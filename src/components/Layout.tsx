@@ -26,6 +26,7 @@ export function Layout({ children }: LayoutProps) {
   const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all" }) ?? [];
   const assignableUsers = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
+  const runDeduplication = useMutation(api.leads.runDeduplication);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
@@ -285,6 +286,30 @@ export function Layout({ children }: LayoutProps) {
                   >
                     <UserPlus className="w-4 h-4" />
                     Import And Assign
+                  </Button>
+                  {/* New: Run Deduplication */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={async () => {
+                      try {
+                        if (!currentUser?._id) {
+                          toast.error("Not authenticated");
+                          return;
+                        }
+                        const confirmRun = window.confirm("Run deduplication across all leads now?");
+                        if (!confirmRun) return;
+                        const res = await runDeduplication({ currentUserId: currentUser._id });
+                        toast.success(
+                          `Dedup done: groups=${res?.groupsProcessed ?? 0}, merged=${res?.mergedCount ?? 0}, deleted=${res?.deletedCount ?? 0}`
+                        );
+                      } catch (e: any) {
+                        toast.error(e?.message || "Failed to run deduplication");
+                      }
+                    }}
+                  >
+                    Run Deduplication
                   </Button>
                   <input
                     ref={importInputRef}

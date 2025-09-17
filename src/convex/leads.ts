@@ -464,3 +464,126 @@ export const bulkCreateLeads = mutation({
     });
   },
 });
+
+export const runDeduplication = mutation({
+  args: {
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    // Load all leads
+    const all = await ctx.db.query("leads").collect();
+    if (all.length === 0) {
+      return { groupsProcessed: 0, mergedCount: 0, deletedCount: 0, notificationsSent: 0 };
+    }
+
+    // Build groups by mobileNo and email
+    type Group = { key: string; members: typeof all };
+    const byKey: Record<string, Array<typeof all[number]>> = {};
+
+    for (const l of all) {
+      const keys: Array<string> = [];
+      if (l.mobileNo) keys.push(`m:${l.mobileNo}`);
+      if (l.email) keys.push(`e:${l.email}`);
+      // If a lead has both, we add it to both groups; we will unify by selecting a canonical doc
+      for (const k of keys) {
+        if (!byKey[k]) byKey[k] = [];
+        byKey[k].push(l);
+      }
+    }
+
+    // To avoid double-processing the same physical docs across mobile/email overlap, track visited doc ids
+    const visitedDocIds = new Set<string>();
+    let groupsProcessed = 0;
+    let mergedCount = 0;
+    let deletedCount = 0;
+    let notificationsSent = 0;
+
+    // Helper to club members into a single canonical doc (oldest by _creationTime)
+    const clubGroup = async (members: Array<typeof all[number]>) => {
+      // Filter out already processed docs
+      const fresh = members.filter(m => !visitedDocIds.has(String(m._id)));
+      if (fresh.length <= 1) {
+        fresh.forEach(m => visitedDocIds.add(String(m._id)));
+        return;
+      }
+
+      // Choose primary as oldest
+      fresh.sort((a, b) => a._creationTime - b._creationTime);
+      const primary = fresh[0];
+      const rest = fresh.slice(1);
+
+      // Build patch by filling missing fields
+      const patch: Record<string, any> = {};
+      for (const r of rest) {
+        if (!primary.name && r.name) patch.name = r.name;
+        if (!primary.subject && r.subject) patch.subject = r.subject;
+        if (!primary.message && r.message) patch.message = r.message;
+        if (!primary.altMobileNo && r.altMobileNo) patch.altMobileNo = r.altMobileNo;
+        if (!primary.altEmail && r.altEmail) patch.altEmail = r.altEmail;
+        if (!primary.state && r.state) patch.state = r.state;
+        if (!primary.source && r.source) patch.source = r.source;
+      }
+
+      // Assignment rule:
+      // - If primary has assignedTo, keep it
+      // - Else, if any member has assignedTo, set that on primary (use the first one encountered)
+      if (!primary.assignedTo) {
+        const assignedFromOthers = rest.find(r => !!r.assignedTo)?.assignedTo;
+        if (assignedFromOthers) {
+          patch.assignedTo = assignedFromOthers;
+        }
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(primary._id, patch);
+        mergedCount++;
+      }
+
+      // Notify the assignee if there is one
+      const assignee = (patch.assignedTo ?? primary.assignedTo) as any;
+      if (assignee) {
+        await ctx.db.insert("notifications", {
+          userId: assignee,
+          title: "Duplicate Leads Clubbed",
+          message: "Some duplicate leads were clubbed into one of your assigned leads.",
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: primary._id,
+        });
+        notificationsSent++;
+      }
+
+      // Delete the rest after merging
+      for (const r of rest) {
+        await ctx.db.delete(r._id);
+        deletedCount++;
+      }
+
+      // Audit log
+      await ctx.db.insert("auditLogs", {
+        userId: currentUser._id,
+        action: "RUN_DEDUPLICATION",
+        details: `Clubbed ${rest.length} duplicate(s) into lead ${primary._id}`,
+        timestamp: Date.now(),
+        relatedLeadId: primary._id,
+      });
+
+      // Mark all as visited
+      visitedDocIds.add(String(primary._id));
+      rest.forEach(m => visitedDocIds.add(String(m._id)));
+      groupsProcessed++;
+    };
+
+    // Process each group
+    for (const key of Object.keys(byKey)) {
+      await clubGroup(byKey[key]);
+    }
+
+    return { groupsProcessed, mergedCount, deletedCount, notificationsSent };
+  },
+});
