@@ -63,23 +63,36 @@ export default function AllLeadsPage() {
   const envWebhookBase = (import.meta as any).env?.VITE_WEBHOOK_URL as string | undefined;
   const isWebhookUrlConfigured = !!(envWebhookBase && envWebhookBase.trim().length > 0);
 
+  // Add: syncing state for the Sync button
+  const [syncing, setSyncing] = useState(false);
+
   async function loadServerCount() {
-    if (!isWebhookUrlConfigured) return;
+    if (!isWebhookUrlConfigured) {
+      toast.error("VITE_WEBHOOK_URL is not configured.");
+      return;
+    }
     try {
+      setSyncing(true); // start loading
       // Normalize base URL by trimming trailing forward slashes
       const base = envWebhookBase!.replace(/\/+$/, "");
       const res = await fetch(`${base}/api/webhook/leads_count`, { method: "GET" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json?.ok) {
         setServerCount(Number(json.count ?? 0));
         setServerLatest(json.latest ?? null);
+        toast.success("Synced server counts");
       } else {
         setServerCount(null);
         setServerLatest(null);
+        toast.error(json?.error || "Failed to sync");
       }
-    } catch {
+    } catch (e: any) {
       setServerCount(null);
       setServerLatest(null);
+      toast.error(e?.message || "Sync error");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -116,7 +129,9 @@ export default function AllLeadsPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={loadServerCount}>Sync</Button>
+              <Button size="sm" variant="outline" onClick={loadServerCount} disabled={syncing}>
+                {syncing ? "Syncing..." : "Sync"}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Refresh</Button>
             </div>
           </div>
