@@ -96,6 +96,31 @@ export default function AllLeadsPage() {
     }
   }
 
+  // Add: sync action to import from logs, then refresh counts and UI
+  async function syncNow() {
+    if (!isWebhookUrlConfigured) {
+      toast.error("VITE_WEBHOOK_URL is not configured.");
+      return;
+    }
+    try {
+      setSyncing(true);
+      const base = envWebhookBase!.replace(/\/+$/, "");
+      const res = await fetch(`${base}/api/webhook/import_from_logs`, { method: "POST" });
+      const json = await res.json();
+      if (!json?.ok) {
+        throw new Error(json?.error || "Failed to import from logs");
+      }
+      toast.success(`Imported=${json.created}, Clubbed=${json.clubbed}, Skipped=${json.skipped}`);
+      await loadServerCount();
+      // Force UI to reflect latest leads (ensures useQuery updates immediately on deployment)
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   useEffect(() => {
     loadServerCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +154,7 @@ export default function AllLeadsPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={loadServerCount} disabled={syncing}>
+              <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing}>
                 {syncing ? "Syncing..." : "Sync"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Refresh</Button>
