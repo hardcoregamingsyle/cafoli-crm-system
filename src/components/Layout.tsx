@@ -24,7 +24,7 @@ export function Layout({ children }: LayoutProps) {
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all" }) ?? [];
-  const assignableUsers = useQuery(api.users.getAssignableUsers) ?? [];
+  const assignableUsers = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);

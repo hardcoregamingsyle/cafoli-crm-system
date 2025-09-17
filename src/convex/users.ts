@@ -44,9 +44,13 @@ export const loginWithCredentials = mutation({
 
 // Get all users (Admin only)
 export const getAllUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    // Determine current user from passed id (custom auth) or convex auth
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
+
     // Return empty list when unauthorized to avoid client-side errors
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       return [];
@@ -215,9 +219,12 @@ export const initializeDefaultUsers = mutation({
 });
 
 export const getAssignableUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
+
     // Gracefully return empty list when not authenticated to avoid client-side errors
     if (!currentUser) {
       return [];

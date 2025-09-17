@@ -27,7 +27,7 @@ export default function AdminPage() {
     }
   }, [currentUser, navigate]);
 
-  const users = useQuery(api.users.getAllUsers) ?? [];
+  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }) ?? [];
   const createUser = useMutation(api.users.createUser);
   const updateUserRole = useMutation(api.users.updateUserRole);
   const deleteUser = useMutation(api.users.deleteUser);

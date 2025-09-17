@@ -33,8 +33,8 @@ export default function AllLeadsPage() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const leads = useQuery(api.leads.getAllLeads, { filter });
-  const users = useQuery(api.users.getAllUsers); // Admin only
-  const assignable = useQuery(api.users.getAssignableUsers); // Admin + Manager
+  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }); // Admin only
+  const assignable = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
