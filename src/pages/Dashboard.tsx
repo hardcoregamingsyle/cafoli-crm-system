@@ -15,9 +15,9 @@ export default function Dashboard() {
   const isManager = currentUser?.role === ROLES.MANAGER;
   
   const allLeads = useQuery(api.leads.getAllLeads, { filter: "all" });
-  const myLeads = useQuery(api.leads.getMyLeads);
+  const myLeads = useQuery(api.leads.getMyLeads, { currentUserId: currentUser?._id });
   const notifications = useQuery(api.notifications.getMyNotifications, {});
-  const upcomingFollowups = useQuery(api.leads.getUpcomingFollowups);
+  const upcomingFollowups = useQuery(api.leads.getUpcomingFollowups, { currentUserId: currentUser?._id });
 
   if (!currentUser) return null;
 

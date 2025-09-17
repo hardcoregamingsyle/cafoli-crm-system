@@ -6,9 +6,13 @@ import { getCurrentUser } from "./users";
 export const getLeadComments = query({
   args: {
     leadId: v.id("leads"),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    // Accept local auth
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
       throw new Error("Not authenticated");
     }
@@ -41,9 +45,13 @@ export const addComment = mutation({
   args: {
     leadId: v.id("leads"),
     content: v.string(),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    // Accept local auth
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
       throw new Error("Not authenticated");
     }

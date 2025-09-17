@@ -7,11 +7,13 @@ import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await (args.currentUserId ? ctx.db.get(args.currentUserId) : null)
+      : await getCurrentUser(ctx);
     if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
-      // Return empty list when unauthorized to avoid client-side errors
       return [];
     }
     
@@ -45,11 +47,12 @@ export const getAllLeads = query({
 
 // Get leads assigned to current user (Manager and Staff only)
 export const getMyLeads = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser || currentUser.role === ROLES.ADMIN) {
-      // Return empty list when unauthorized
       return [];
     }
     
@@ -93,9 +96,12 @@ export const assignLead = mutation({
   args: {
     leadId: v.id("leads"),
     assignedTo: v.optional(v.id("users")),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
       throw new Error("Unauthorized");
     }
@@ -136,9 +142,12 @@ export const updateLeadStatus = mutation({
   args: {
     leadId: v.id("leads"),
     status: leadStatusValidator,
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser || currentUser.role === ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
@@ -184,9 +193,12 @@ export const setNextFollowup = mutation({
   args: {
     leadId: v.id("leads"),
     followupTime: v.number(),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
       throw new Error("Not authenticated");
     }
@@ -218,9 +230,12 @@ export const setNextFollowup = mutation({
 export const cancelFollowup = mutation({
   args: {
     leadId: v.id("leads"),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
@@ -245,11 +260,12 @@ export const cancelFollowup = mutation({
 
 // Get leads with upcoming followups
 export const getUpcomingFollowups = query({
-  args: {},
-  handler: async (ctx) => {
-    const currentUser = await getCurrentUser(ctx);
+  args: { currentUserId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser) {
-      // Return empty list for unauthenticated users
       return [];
     }
 
@@ -282,9 +298,12 @@ export const bulkCreateLeads = mutation({
       })
     ),
     assignedTo: v.optional(v.id("users")),
+    currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
     if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
       throw new Error("Unauthorized");
     }
