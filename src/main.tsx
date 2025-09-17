@@ -42,25 +42,27 @@ function RouteSyncer() {
   return null;
 }
 
+function ConvexProviderWrapper({ children }: { children: React.ReactNode }) {
+  return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <VlyToolbar />
     <InstrumentationProvider>
-      <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
-          <RouteSyncer />
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/all_leads" element={<AllLeadsPage />} />
-            <Route path="/leads" element={<MyLeadsPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </ConvexAuthProvider>
+      <BrowserRouter>
+        <RouteSyncer />
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
+          <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
+          <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
+          <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
+          <Route path="/auth" element={<ConvexProviderWrapper><AuthPage redirectAfterAuth="/dashboard" /></ConvexProviderWrapper>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
     </InstrumentationProvider>
   </StrictMode>,
 );
