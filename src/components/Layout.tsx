@@ -97,8 +97,6 @@ export function Layout({ children }: LayoutProps) {
   // .xlsx export using dynamic import of xlsx (keeps bundle lean if unused)
   const handleExport = async () => {
     try {
-      const { utils, writeFileXLSX, book_new, book_append_sheet } = await import("xlsx");
-
       const headers = [
         "name",
         "subject",
@@ -114,45 +112,45 @@ export function Layout({ children }: LayoutProps) {
         "source",
       ];
 
-      const data =
-        (allLeadsForExport.length > 0
-          ? allLeadsForExport
-          : [
-              {
-                name: "",
-                subject: "",
-                message: "",
-                mobileNo: "",
-                email: "",
-                altMobileNo: "",
-                altEmail: "",
-                state: "",
-                status: "",
-                assignedTo: "",
-                nextFollowup: "",
-                source: "",
-              },
-            ]) as any[];
+      const data = allLeadsForExport ?? [];
 
-      const sheetData = [headers, ...data.map((l) => [
-        l.name ?? "",
-        l.subject ?? "",
-        l.message ?? "",
-        l.mobileNo ?? "",
-        l.email ?? "",
-        l.altMobileNo ?? "",
-        l.altEmail ?? "",
-        l.state ?? "",
-        l.status ?? "",
-        l.assignedTo ?? "",
-        l.nextFollowup ? new Date(l.nextFollowup).toISOString() : "",
-        l.source ?? "",
-      ])];
+      const escapeCsv = (val: any) => {
+        const str = String(val ?? "");
+        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+      };
 
-      const ws = utils.aoa_to_sheet(sheetData);
-      const wb = book_new();
-      book_append_sheet(wb, ws, "Leads");
-      writeFileXLSX(wb, "cafoli_leads.xlsx");
+      const rows: string[] = [];
+      rows.push(headers.join(","));
+
+      if (data.length > 0) {
+        for (const l of data) {
+          const row = [
+            escapeCsv(l.name ?? ""),
+            escapeCsv(l.subject ?? ""),
+            escapeCsv(l.message ?? ""),
+            escapeCsv(l.mobileNo ?? ""),
+            escapeCsv(l.email ?? ""),
+            escapeCsv(l.altMobileNo ?? ""),
+            escapeCsv(l.altEmail ?? ""),
+            escapeCsv(l.state ?? ""),
+            escapeCsv(l.status ?? ""),
+            escapeCsv(l.assignedTo ?? ""),
+            escapeCsv(l.nextFollowup ? new Date(l.nextFollowup).toISOString() : ""),
+            escapeCsv(l.source ?? ""),
+          ];
+          rows.push(row.join(","));
+        }
+      }
+      // If there are no rows beyond headers, it still downloads just the headers as requested
+      const csvContent = rows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "cafoli_leads.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+
       toast.success("Export complete");
     } catch (e: any) {
       toast.error(e.message || "Failed to export");
