@@ -187,6 +187,33 @@ export const deleteUser = mutation({
   },
 });
 
+// Delete all users (Admin only)
+export const deleteAllUsers = mutation({
+  args: {
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    const allUsers = await ctx.db.query("users").collect();
+
+    // Delete all users
+    for (const u of allUsers) {
+      await ctx.db.delete(u._id);
+    }
+
+    await ctx.db.insert("auditLogs", {
+      userId: args.currentUserId,
+      action: "DELETE_ALL_USERS",
+      details: `Admin deleted all user accounts (${allUsers.length})`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
 // Initialize default users
 export const initializeDefaultUsers = mutation({
   args: {},
