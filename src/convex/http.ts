@@ -46,7 +46,41 @@ async function parseRequestPayload(req: Request): Promise<any> {
   return {};
 }
 
+// Add: CORS helpers
+function corsJson(data: any, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization",
+      ...extraHeaders,
+    },
+  });
+}
+
+function corsNoContent(status = 204, extraHeaders: Record<string, string> = {}) {
+  return new Response(null, {
+    status,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization",
+      ...extraHeaders,
+    },
+  });
+}
+
 // Log webhooks for debugging/recordkeeping
+http.route({
+  path: "/api/webhook/logs",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
 http.route({
   path: "/api/webhook/logs",
   method: "GET",
@@ -57,10 +91,19 @@ http.route({
       const paramsObj: Record<string, string> = {};
       url.searchParams.forEach((value, key) => (paramsObj[key] = value));
       await ctx.runMutation(internal.webhook.insertLog, { payload: paramsObj });
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      return corsJson({ ok: true }, 200);
     } catch (e: any) {
-      return new Response(JSON.stringify({ ok: false, error: e.message || "error" }), { status: 500 });
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
+  }),
+});
+
+// Add: OPTIONS handler for /api/webhook/indiamart (CORS preflight)
+http.route({
+  path: "/api/webhook/indiamart",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
   }),
 });
 
@@ -109,9 +152,9 @@ http.route({
       // Log raw for debugging
       await ctx.runMutation(internal.webhook.insertLog, { payload: { method: "GET", url: req.url, parsed: r } });
 
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      return corsJson({ ok: true }, 200);
     } catch (e: any) {
-      return new Response(JSON.stringify({ ok: false, error: e.message || "error" }), { status: 500 });
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
   }),
 });
@@ -154,7 +197,8 @@ http.route({
       const source = "indiamart";
 
       // Only create lead if we have essential data
-      if (mobileNo || (email && email !== "unknown@example.com")) {
+      const shouldCreate = !!(mobileNo || (email && email !== "unknown@example.com"));
+      if (shouldCreate) {
         await ctx.runMutation(internal.webhook.createLeadFromSource, {
           name,
           subject,
@@ -168,14 +212,7 @@ http.route({
         });
       }
 
-      return new Response(JSON.stringify({ 
-        ok: true, 
-        received: true,
-        leadCreated: !!(mobileNo || (email && email !== "unknown@example.com"))
-      }), { 
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
+      return corsJson({ ok: true, received: true, leadCreated: shouldCreate }, 200);
     } catch (e: any) {
       // Log the error for debugging
       await ctx.runMutation(internal.webhook.insertLog, { 
@@ -186,10 +223,7 @@ http.route({
         } 
       });
       
-      return new Response(JSON.stringify({ ok: false, error: e.message || "error" }), { 
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
   }),
 });
