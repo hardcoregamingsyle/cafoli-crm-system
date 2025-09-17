@@ -54,6 +54,56 @@ export const fetchPharmavendsQueries = internalAction({
           data: parsed,
         },
       });
+
+      // NEW: Auto-create/club leads directly (no manual import needed)
+      const arr =
+        Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.data)
+          ? parsed.data
+          : Array.isArray(parsed?.results)
+          ? parsed.results
+          : Array.isArray(parsed?.company_profile)
+          ? parsed.company_profile
+          : [];
+
+      const fallback = (obj: any, keys: string[], def: string) => {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v !== undefined && v !== null && `${v}`.trim().length > 0) {
+            return `${v}`.trim();
+          }
+        }
+        return def;
+      };
+
+      for (const r of arr) {
+        // Try best-effort field extraction
+        const name = fallback(r, ["SENDER_NAME", "name", "fullName", "contact_person"], "Unknown");
+        const subject = fallback(r, ["SUBJECT", "subject"], "Lead from Pharmavends");
+        const message = fallback(r, ["QUERY_MESSAGE", "message", "msg", "body", "remarks"], "");
+        const mobileNo = fallback(r, ["SENDER_MOBILE", "SENDER_PHONE", "mobileNo", "mobile", "phone", "contact_no"], "");
+        const email = fallback(r, ["SENDER_EMAIL", "email"], "");
+        const altMobileNo = fallback(r, ["SENDER_MOBILE_ALT", "SENDER_PHONE_ALT", "altMobileNo", "altMobile", "altPhone"], "");
+        const altEmail = fallback(r, ["SENDER_EMAIL_ALT", "altEmail"], "");
+        const state = fallback(r, ["SENDER_STATE", "state", "region"], "Unknown");
+        const source = "pharmavends";
+
+        // Require at least a mobile or an email
+        if (!mobileNo && !email) continue;
+
+        await ctx.runMutation(internal.webhook.createLeadFromSource, {
+          name,
+          subject,
+          message,
+          mobileNo: `${mobileNo}`,
+          email: email || "unknown@example.com",
+          altMobileNo: altMobileNo ? `${altMobileNo}` : undefined,
+          altEmail: altEmail || undefined,
+          state,
+          source,
+        });
+      }
     } catch (e: any) {
       // Log error as well for visibility
       await ctx.runMutation(internal.webhook.insertLog, {
