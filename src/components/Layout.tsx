@@ -93,6 +93,8 @@ export function Layout({ children }: LayoutProps) {
       await bulkCreateLeads({
         leads,
         assignedTo: assignedTo ? (assignedTo as any) : undefined,
+        // pass current user for authorization
+        currentUserId: currentUser._id,
       });
       toast.success(`Imported ${leads.length} lead(s)${assignedTo ? " and assigned" : ""}`);
     } catch (e: any) {
