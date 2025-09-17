@@ -145,22 +145,28 @@ http.route({
       const altEmail = fallback(["SENDER_EMAIL_ALT", "altEmail"], "");
       const state = fallback(["SENDER_STATE", "state", "region"], "Unknown");
 
-      await ctx.runMutation(internal.webhook.createLeadFromSource, {
-        name,
-        subject,
-        message,
-        mobileNo: `${mobileNo}`,
-        email,
-        altMobileNo: altMobileNo ? `${altMobileNo}` : undefined,
-        altEmail: altEmail || undefined,
-        state,
-        source: "indiamart",
+      // Only create lead if essential data present (mirror POST)
+      const shouldCreate = !!(mobileNo || (email && email !== "unknown@example.com"));
+      if (shouldCreate) {
+        await ctx.runMutation(internal.webhook.createLeadFromSource, {
+          name,
+          subject,
+          message,
+          mobileNo: `${mobileNo}`,
+          email,
+          altMobileNo: altMobileNo ? `${altMobileNo}` : undefined,
+          altEmail: altEmail || undefined,
+          state,
+          source: "indiamart",
+        });
+      }
+
+      // Log raw + leadCreated for debugging
+      await ctx.runMutation(internal.webhook.insertLog, {
+        payload: { method: "GET", url: req.url, parsed: r, leadCreated: shouldCreate },
       });
 
-      // Log raw for debugging
-      await ctx.runMutation(internal.webhook.insertLog, { payload: { method: "GET", url: req.url, parsed: r } });
-
-      return corsJson({ ok: true }, 200);
+      return corsJson({ ok: true, received: true, leadCreated: shouldCreate }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
     }

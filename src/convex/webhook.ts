@@ -75,20 +75,25 @@ export const createLeadFromSource = internalMutation({
     source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Dedup by mobile or email
-    const byMobile = args.mobileNo
+    // Normalize and ignore placeholder email for dedup
+    const mobile = (args.mobileNo || "").trim();
+    const rawEmail = (args.email || "").trim().toLowerCase();
+    const emailForDedup = rawEmail && rawEmail !== "unknown@example.com" ? rawEmail : "";
+
+    // Dedup by mobile or email (skip placeholder/empty email)
+    const byMobile = mobile
       ? await ctx.db
           .query("leads")
-          .withIndex("mobileNo", (q) => q.eq("mobileNo", args.mobileNo))
+          .withIndex("mobileNo", (q) => q.eq("mobileNo", mobile))
           .unique()
       : null;
 
     const existing =
       byMobile ||
-      (args.email
+      (emailForDedup
         ? await ctx.db
             .query("leads")
-            .withIndex("email", (q) => q.eq("email", args.email))
+            .withIndex("email", (q) => q.eq("email", emailForDedup))
             .unique()
         : null);
 
@@ -120,7 +125,7 @@ export const createLeadFromSource = internalMutation({
       }
 
       await ctx.db.insert("auditLogs", {
-        userId: await ensureLoggingUserId(ctx), // use valid user id for logging
+        userId: await ensureLoggingUserId(ctx),
         action: "CLUB_DUPLICATE_LEAD",
         details: `Webhook clubbed into existing lead ${existing._id}`,
         timestamp: Date.now(),
@@ -129,12 +134,13 @@ export const createLeadFromSource = internalMutation({
       return;
     }
 
+    // Insert new lead (store placeholder email as-is or leave empty if you prefer)
     await ctx.db.insert("leads", {
       name: args.name,
       subject: args.subject,
       message: args.message,
-      mobileNo: args.mobileNo,
-      email: args.email,
+      mobileNo: mobile,
+      email: rawEmail, // keep original for record; placeholder will be an empty string or literal as provided
       altMobileNo: args.altMobileNo,
       altEmail: args.altEmail,
       state: args.state,
