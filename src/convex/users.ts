@@ -22,6 +22,22 @@ export const getCurrentUser = async (ctx: QueryCtx) => {
   return await ctx.db.get(userId);
 };
 
+async function ensureOwnerExists(ctx: any) {
+  // Ensure the default Owner admin user exists
+  const existing = await ctx.db
+    .query("users")
+    .withIndex("username", (q: any) => q.eq("username", "Owner"))
+    .unique();
+  if (!existing) {
+    await ctx.db.insert("users", {
+      name: "Owner",
+      username: "Owner",
+      password: "Belive*8",
+      role: ROLES.ADMIN,
+    });
+  }
+}
+
 // Custom login for predefined users
 export const loginWithCredentials = mutation({
   args: {
@@ -29,6 +45,9 @@ export const loginWithCredentials = mutation({
     password: v.string(),
   },
   handler: async (ctx, args) => {
+    // Ensure default Owner exists on any fresh database
+    await ensureOwnerExists(ctx);
+
     const user = await ctx.db
       .query("users")
       .withIndex("username", (q) => q.eq("username", args.username))
