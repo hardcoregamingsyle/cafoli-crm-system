@@ -28,15 +28,15 @@ export default function AllLeadsPage() {
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
 
+  const userOptions = useMemo(() => {
+    if (currentUser?.role === ROLES.ADMIN) return users ?? [];
+    if (currentUser?.role === ROLES.MANAGER) return assignable ?? [];
+    return [];
+  }, [users, assignable, currentUser]);
+
   const canView = currentUser && (currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER);
   if (!currentUser) return <Layout><div /></Layout>;
-  if (!canView) return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don’t have access to this page.</CardContent></Card></div></Layout>;
-
-  const userOptions = useMemo(() => {
-    // Admin can see users (users query). Manager uses assignable (Manager + Staff).
-    if (currentUser.role === ROLES.ADMIN) return users ?? [];
-    return assignable ?? [];
-  }, [users, assignable, currentUser]);
+  if (!canView) return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don't have access to this page.</CardContent></Card></div></Layout>;
 
   return (
     <Layout>
