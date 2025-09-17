@@ -133,7 +133,7 @@ export default function AdminPage() {
                 </div>
                 <SendNotification userId={String(u._id)} onSend={async (message) => {
                   try {
-                    await sendNotification({ userId: u._id, message });
+                    await sendNotification({ userId: u._id, message, currentUserId: currentUser._id });
                     toast.success("Notification sent");
                   } catch (e: any) {
                     toast.error(e.message || "Failed to send");

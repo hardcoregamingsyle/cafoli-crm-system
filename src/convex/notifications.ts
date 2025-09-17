@@ -50,9 +50,12 @@ export const sendNotification = mutation({
   args: {
     userId: v.id("users"),
     message: v.string(),
+    // Add current user id from custom auth
+    currentUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    // Use custom auth: load current user by id passed from frontend
+    const currentUser = await ctx.db.get(args.currentUserId);
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
