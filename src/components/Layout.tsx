@@ -59,36 +59,55 @@ export function Layout({ children }: LayoutProps) {
   // Build lead objects from parsed CSV row objects
   const mapRowsToLeads = (rows: Array<Record<string, string>>) => {
     const mapped = rows.map((r) => {
+      const name = (r.name ?? "").trim();
+      const subject = (r.subject ?? "").trim();
+      const message = (r.message ?? "").trim();
+      const mobileNo =
+        (r.mobileno ?? r.mobile ?? r.phone ?? "").toString().trim();
+      const email = (r.email ?? "").trim();
+      const altMobileNo =
+        (r.altmobileno ?? r.altmobile ?? r["alternate mobile"] ?? "")
+          .toString()
+          .trim();
+      const altEmail = (r.altemail ?? r["alternate email"] ?? "").trim();
+      const state = (r.state ?? "").trim();
+      const source = (r.source ?? "manual").trim();
+
       return {
-        name: r.name ?? "",
-        subject: r.subject ?? "",
-        message: r.message ?? "",
-        mobileNo: r.mobileno ?? r.mobile ?? r.phone ?? "",
-        email: r.email ?? "",
-        altMobileNo: r.altmobileno ?? r.altmobile ?? r["alternate mobile"] ?? undefined,
-        altEmail: r.altemail ?? r["alternate email"] ?? undefined,
-        state: r.state ?? "",
-        source: r.source ?? "manual",
+        name,
+        subject,
+        message,
+        mobileNo,
+        email,
+        altMobileNo: altMobileNo || undefined,
+        altEmail: altEmail || undefined,
+        state,
+        source,
       };
     });
-    // basic required fields check
-    return mapped.filter((m) => m.name && m.subject && m.message && m.mobileNo && m.email && m.state);
+
+    // Relaxed validation: only require mobileNo to be present
+    return mapped.filter((m) => !!m.mobileNo);
   };
 
   const handleImportFile = async (file: File, assignedTo?: string) => {
     try {
       // Early check for empty files
       if (file.size === 0) {
-        toast.error("The selected CSV file is empty.");
+        toast("The selected CSV file is empty.");
         return;
       }
 
       const text = await file.text();
       const rows = parseCsv(text);
       const leads = mapRowsToLeads(rows);
+      const skipped = rows.length - leads.length;
       if (leads.length === 0) {
-        toast.error("No valid rows found. Ensure headers and required fields are present.");
+        toast("No valid rows found. Ensure at least a mobile number is present.");
         return;
+      }
+      if (skipped > 0) {
+        toast(`Skipped ${skipped} row(s) with no mobile number.`);
       }
       await bulkCreateLeads({
         leads,
