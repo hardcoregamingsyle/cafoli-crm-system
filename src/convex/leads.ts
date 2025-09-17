@@ -612,3 +612,31 @@ export const deleteAllLeads = mutation({
     });
   },
 });
+
+export const deleteLeadAdmin = mutation({
+  args: {
+    leadId: v.id("leads"),
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+
+    await ctx.db.delete(args.leadId);
+
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: "DELETE_LEAD_ADMIN",
+      details: `Admin deleted lead "${lead.name}" (${String(args.leadId)})`,
+      timestamp: Date.now(),
+      relatedLeadId: args.leadId,
+    });
+  },
+});

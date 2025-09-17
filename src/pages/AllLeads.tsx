@@ -38,6 +38,7 @@ export default function AllLeadsPage() {
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
+  const deleteLeadAdmin = useMutation(api.leads.deleteLeadAdmin);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -239,6 +240,27 @@ export default function AllLeadsPage() {
                       {/* Comments */}
                       <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
+
+                    {/* Admin-only controls */}
+                    {currentUser.role === ROLES.ADMIN && (
+                      <div className="mt-4">
+                        <Button
+                          variant="destructive"
+                          onClick={async () => {
+                            const ok = window.confirm("Delete this lead permanently?");
+                            if (!ok) return;
+                            try {
+                              await deleteLeadAdmin({ leadId: lead._id, currentUserId: currentUser._id });
+                              toast.success("Lead deleted");
+                            } catch (e: any) {
+                              toast.error(e?.message || "Failed to delete lead");
+                            }
+                          }}
+                        >
+                          Delete Lead
+                        </Button>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}
