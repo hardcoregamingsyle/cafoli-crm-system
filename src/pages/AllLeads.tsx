@@ -92,34 +92,71 @@ export default function AllLeadsPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="grid md:grid-cols-3 gap-4 py-3">
+                    <div className="grid md:grid-cols-2 gap-4 py-3">
+                      {/* Name */}
+                      <div>
+                        <div className="text-xs text-gray-500">Name</div>
+                        <div className="text-sm">{lead.name || "-"}</div>
+                      </div>
+                      {/* Subject */}
+                      <div>
+                        <div className="text-xs text-gray-500">Subject</div>
+                        <div className="text-sm">{lead.subject || "-"}</div>
+                      </div>
+                      {/* Message (full width on md) */}
+                      <div className="md:col-span-2">
+                        <div className="text-xs text-gray-500">Message</div>
+                        <div className="text-sm break-words">{lead.message || "-"}</div>
+                      </div>
+
+                      {/* Mobile No */}
                       <div>
                         <div className="text-xs text-gray-500">Mobile No.</div>
-                        <div className="text-sm">{lead.mobileNo}</div>
+                        <div className="text-sm">{lead.mobileNo || "-"}</div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Email</div>
-                        <div className="text-sm break-all">{lead.email}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500">State</div>
-                        <div className="text-sm">{lead.state}</div>
-                      </div>
+                      {/* Alt. Mobile */}
                       <div>
                         <div className="text-xs text-gray-500">Alt. Mobile</div>
                         <div className="text-sm">{lead.altMobileNo || "-"}</div>
                       </div>
+
+                      {/* Email */}
+                      <div>
+                        <div className="text-xs text-gray-500">Email</div>
+                        <div className="text-sm break-all">{lead.email || "-"}</div>
+                      </div>
+                      {/* Alt. Email */}
                       <div>
                         <div className="text-xs text-gray-500">Alt. Email</div>
                         <div className="text-sm break-all">{lead.altEmail || "-"}</div>
                       </div>
+
+                      {/* State */}
+                      <div>
+                        <div className="text-xs text-gray-500">State</div>
+                        <div className="text-sm">{lead.state || "-"}</div>
+                      </div>
+                      {/* Assigned To */}
+                      <div>
+                        <div className="text-xs text-gray-500">Assigned To</div>
+                        <div className="text-sm">{lead.assignedUserName || "-"}</div>
+                      </div>
+
+                      {/* Relevance */}
+                      <div>
+                        <div className="text-xs text-gray-500">Relevance</div>
+                        <div className="text-sm capitalize">{lead.status || "yet_to_decide"}</div>
+                      </div>
+                      {/* Next Followup */}
                       <div>
                         <div className="text-xs text-gray-500">Next Followup</div>
                         <div className="text-sm">{lead.nextFollowup ? new Date(lead.nextFollowup).toLocaleString() : "Not set"}</div>
                       </div>
                     </div>
 
+                    {/* Controls: Assign, Followup, Comments */}
                     <div className="grid md:grid-cols-3 gap-4 mt-4">
+                      {/* Assign To */}
                       <div className="space-y-2">
                         <div className="text-xs text-gray-500">Assign To</div>
                         <Select
@@ -152,6 +189,7 @@ export default function AllLeadsPage() {
                         </Select>
                       </div>
 
+                      {/* Followup */}
                       <div className="space-y-2">
                         <div className="text-xs text-gray-500">Set Next Followup</div>
                         <div className="flex items-center gap-2">
@@ -198,6 +236,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
 
+                      {/* Comments */}
                       <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
                   </AccordionContent>
