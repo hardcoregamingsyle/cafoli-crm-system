@@ -47,8 +47,9 @@ export const getAllUsers = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
+    // Return empty list when unauthorized to avoid client-side errors
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-      throw new Error("Unauthorized");
+      return [];
     }
     
     return await ctx.db.query("users").collect();
