@@ -18,16 +18,25 @@ export const getAllLeads = query({
     // Fallback: if a provided currentUserId is stale/unresolvable (e.g., from another deployment),
     // try to resolve the Owner admin so the page can still function in deployment.
     if (!currentUser && args.currentUserId) {
+      let owner: any = null;
       try {
-        const owner = await ctx.db
+        owner = await ctx.db
           .query("users")
           .withIndex("username", (q: any) => q.eq("username", "Owner"))
           .unique();
-        if (owner) {
-          currentUser = owner;
-        }
       } catch {
-        // ignore; will fallback to [] below
+        // index might not exist; fall back to scanning users below
+      }
+      if (owner) {
+        currentUser = owner;
+      } else {
+        // Robust fallback: scan users to find Owner or any admin
+        const allUsers = await ctx.db.query("users").collect();
+        const byOwnerName = allUsers.find((u: any) => u.username === "Owner" || u.name === "Owner");
+        const anyAdmin = byOwnerName || allUsers.find((u: any) => u.role === ROLES.ADMIN);
+        if (anyAdmin) {
+          currentUser = anyAdmin;
+        }
       }
     }
 
