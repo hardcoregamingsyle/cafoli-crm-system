@@ -145,10 +145,11 @@ http.route({
       const altEmail = fallback(["SENDER_EMAIL_ALT", "altEmail"], "");
       const state = fallback(["SENDER_STATE", "state", "region"], "Unknown");
 
-      // Only create lead if essential data present (mirror POST)
-      const shouldCreate = !!(mobileNo || (email && email !== "unknown@example.com"));
-      if (shouldCreate) {
-        await ctx.runMutation(internal.webhook.createLeadFromSource, {
+      // Only attempt create if essential data present
+      const shouldAttempt = !!(mobileNo || (email && email !== "unknown@example.com"));
+      let created = false;
+      if (shouldAttempt) {
+        created = await ctx.runMutation(internal.webhook.createLeadFromSource, {
           name,
           subject,
           message,
@@ -161,12 +162,12 @@ http.route({
         });
       }
 
-      // Log raw + leadCreated for debugging
+      // Log raw + accurate leadCreated for debugging
       await ctx.runMutation(internal.webhook.insertLog, {
-        payload: { method: "GET", url: req.url, parsed: r, leadCreated: shouldCreate },
+        payload: { method: "GET", url: req.url, parsed: r, leadCreated: created },
       });
 
-      return corsJson({ ok: true, received: true, leadCreated: shouldCreate }, 200);
+      return corsJson({ ok: true, received: true, leadCreated: created }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
@@ -210,10 +211,11 @@ http.route({
       const state = fallback(["SENDER_STATE", "state", "region"], "Unknown");
       const source = "indiamart";
 
-      // Only create lead if we have essential data
-      const shouldCreate = !!(mobileNo || (email && email !== "unknown@example.com"));
-      if (shouldCreate) {
-        await ctx.runMutation(internal.webhook.createLeadFromSource, {
+      // Only attempt to create if we have essential data
+      const shouldAttempt = !!(mobileNo || (email && email !== "unknown@example.com"));
+      let created = false;
+      if (shouldAttempt) {
+        created = await ctx.runMutation(internal.webhook.createLeadFromSource, {
           name,
           subject,
           message,
@@ -226,7 +228,7 @@ http.route({
         });
       }
 
-      return corsJson({ ok: true, received: true, leadCreated: shouldCreate }, 200);
+      return corsJson({ ok: true, received: true, leadCreated: created }, 200);
     } catch (e: any) {
       // Log the error for debugging
       await ctx.runMutation(internal.webhook.insertLog, { 

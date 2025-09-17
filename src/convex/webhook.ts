@@ -131,7 +131,8 @@ export const createLeadFromSource = internalMutation({
         timestamp: Date.now(),
         relatedLeadId: existing._id,
       });
-      return;
+      // Return explicit result for caller
+      return false;
     }
 
     // Insert new lead (store placeholder email as-is or leave empty if you prefer)
@@ -140,13 +141,15 @@ export const createLeadFromSource = internalMutation({
       subject: args.subject,
       message: args.message,
       mobileNo: mobile,
-      email: rawEmail, // keep original for record; placeholder will be an empty string or literal as provided
+      email: rawEmail,
       altMobileNo: args.altMobileNo,
       altEmail: args.altEmail,
       state: args.state,
       status: "yet_to_decide",
       source: args.source,
     });
+    // Return explicit creation result
+    return true;
   },
 });
 
