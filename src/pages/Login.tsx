@@ -144,21 +144,6 @@ export default function Login() {
             </form>
           </CardContent>
         </Card>
-
-        {/* Default Accounts Info */}
-        <motion.div 
-          className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-lg border border-blue-100"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Default Accounts:</h3>
-          <div className="text-xs text-gray-600 space-y-1">
-            <p><strong>Admin:</strong> Owner / Belive*8</p>
-            <p><strong>Manager:</strong> Ankush / Ankush1234</p>
-            <p><strong>Staff:</strong> (Created by Managers)</p>
-          </div>
-        </motion.div>
       </motion.div>
     </div>
   );
