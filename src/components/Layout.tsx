@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, Users, FileText, Settings } from "lucide-react";
+import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate, useLocation } from "react-router";
 import { ROLES } from "@/convex/schema";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,13 +22,148 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const unreadCount = useQuery(api.notifications.getUnreadCount);
 
+  // Add data and mutations early so hooks order is stable even when currentUser is null
+  const allLeadsForExport = useQuery(api.leads.getAllLeads, { filter: "all" }) ?? [];
+  const assignableUsers = useQuery(api.users.getAssignableUsers) ?? [];
+  const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
+
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const importAssignInputRef = useRef<HTMLInputElement | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
+  // CSV parser (simple): expects first row headers
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length === 0) return [];
+
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const rows = lines.slice(1);
+
+    const items = rows.map((line) => {
+      // naive CSV split; assumes no quoted commas (sufficient for this use)
+      const cols = line.split(",").map((c) => c.trim());
+      const obj: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        obj[h] = cols[i] ?? "";
+      });
+      return obj;
+    });
+    return items;
+  };
+
+  // Build lead objects from parsed CSV row objects
+  const mapRowsToLeads = (rows: Array<Record<string, string>>) => {
+    const mapped = rows.map((r) => {
+      return {
+        name: r.name ?? "",
+        subject: r.subject ?? "",
+        message: r.message ?? "",
+        mobileNo: r.mobileno ?? r.mobile ?? r.phone ?? "",
+        email: r.email ?? "",
+        altMobileNo: r.altmobileno ?? r.altmobile ?? r["alternate mobile"] ?? undefined,
+        altEmail: r.altemail ?? r["alternate email"] ?? undefined,
+        state: r.state ?? "",
+        source: r.source ?? "manual",
+      };
+    });
+    // basic required fields check
+    return mapped.filter((m) => m.name && m.subject && m.message && m.mobileNo && m.email && m.state);
+  };
+
+  const handleImportFile = async (file: File, assignedTo?: string) => {
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      const leads = mapRowsToLeads(rows);
+      if (leads.length === 0) {
+        toast.error("No valid rows found. Ensure headers and required fields are present.");
+        return;
+      }
+      await bulkCreateLeads({
+        leads,
+        assignedTo: assignedTo ? (assignedTo as any) : undefined,
+      });
+      toast.success(`Imported ${leads.length} lead(s)${assignedTo ? " and assigned" : ""}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to import");
+    }
+  };
+
+  // .xlsx export using dynamic import of xlsx (keeps bundle lean if unused)
+  const handleExport = async () => {
+    try {
+      const { utils, writeFileXLSX, book_new, book_append_sheet } = await import("xlsx");
+
+      const headers = [
+        "name",
+        "subject",
+        "message",
+        "mobileNo",
+        "email",
+        "altMobileNo",
+        "altEmail",
+        "state",
+        "status",
+        "assignedTo",
+        "nextFollowup",
+        "source",
+      ];
+
+      const data =
+        (allLeadsForExport.length > 0
+          ? allLeadsForExport
+          : [
+              {
+                name: "",
+                subject: "",
+                message: "",
+                mobileNo: "",
+                email: "",
+                altMobileNo: "",
+                altEmail: "",
+                state: "",
+                status: "",
+                assignedTo: "",
+                nextFollowup: "",
+                source: "",
+              },
+            ]) as any[];
+
+      const sheetData = [headers, ...data.map((l) => [
+        l.name ?? "",
+        l.subject ?? "",
+        l.message ?? "",
+        l.mobileNo ?? "",
+        l.email ?? "",
+        l.altMobileNo ?? "",
+        l.altEmail ?? "",
+        l.state ?? "",
+        l.status ?? "",
+        l.assignedTo ?? "",
+        l.nextFollowup ? new Date(l.nextFollowup).toISOString() : "",
+        l.source ?? "",
+      ])];
+
+      const ws = utils.aoa_to_sheet(sheetData);
+      const wb = book_new();
+      book_append_sheet(wb, ws, "Leads");
+      writeFileXLSX(wb, "cafoli_leads.xlsx");
+      toast.success("Export complete");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to export");
+    }
+  };
+
   if (!currentUser) {
     return <>{children}</>;
   }
+
+  const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
 
   const navigationItems = [
     { 
@@ -61,7 +199,7 @@ export function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <motion.div 
               className="flex items-center space-x-3 cursor-pointer"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/all_leads")}
               whileHover={{ scale: 1.05 }}
             >
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -97,7 +235,66 @@ export function Layout({ children }: LayoutProps) {
             </nav>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Import/Export (Admin/Manager) */}
+              {isAdminOrManager && (
+                <div className="hidden sm:flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Export All Leads
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => importInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Import Leads
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setAssignDialogOpen(true)}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Import And Assign
+                  </Button>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        await handleImportFile(file);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                  <input
+                    ref={importAssignInputRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file && selectedAssignee) {
+                        await handleImportFile(file, selectedAssignee);
+                        e.currentTarget.value = "";
+                        setAssignDialogOpen(false);
+                        setSelectedAssignee("");
+                      } else if (!selectedAssignee) {
+                        toast.error("Select an assignee first");
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Notifications */}
               <Button
                 variant="ghost"
@@ -118,7 +315,7 @@ export function Layout({ children }: LayoutProps) {
 
               {/* User Info */}
               <div className="flex items-center space-x-3">
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
                   <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
                 </div>
@@ -140,6 +337,53 @@ export function Layout({ children }: LayoutProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+
+      {/* Assign Dialog */}
+      {isAdminOrManager && (
+        <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import and Assign</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Select a user to assign all imported leads to, then choose a CSV file.
+              </p>
+              <Select
+                value={selectedAssignee}
+                onValueChange={(v) => setSelectedAssignee(v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(assignableUsers ?? []).map((u: any) => (
+                    <SelectItem key={u._id} value={u._id}>
+                      {u.name || u.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!selectedAssignee) {
+                    toast.error("Select an assignee");
+                    return;
+                  }
+                  importAssignInputRef.current?.click();
+                }}
+              >
+                Choose CSV & Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

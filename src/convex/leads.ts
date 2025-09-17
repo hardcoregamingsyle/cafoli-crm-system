@@ -265,3 +265,64 @@ export const getUpcomingFollowups = query({
     );
   },
 });
+
+export const bulkCreateLeads = mutation({
+  args: {
+    leads: v.array(
+      v.object({
+        name: v.string(),
+        subject: v.string(),
+        message: v.string(),
+        mobileNo: v.string(),
+        email: v.string(),
+        altMobileNo: v.optional(v.string()),
+        altEmail: v.optional(v.string()),
+        state: v.string(),
+        source: v.optional(v.string()),
+      })
+    ),
+    assignedTo: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+      throw new Error("Unauthorized");
+    }
+
+    // Validate assignedTo exists if provided
+    if (args.assignedTo) {
+      const assignee = await ctx.db.get(args.assignedTo);
+      if (!assignee) {
+        throw new Error("Invalid assignee");
+      }
+    }
+
+    for (const lead of args.leads) {
+      const leadId = await ctx.db.insert("leads", {
+        ...lead,
+        status: LEAD_STATUS.YET_TO_DECIDE,
+        assignedTo: args.assignedTo,
+      });
+
+      // If assigned, notify the assignee
+      if (args.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId: args.assignedTo,
+          title: "New Lead Assigned",
+          message: `A new Lead has Been Assigned`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: leadId,
+        });
+      }
+    }
+
+    // Audit log
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: args.assignedTo ? "BULK_IMPORT_AND_ASSIGN_LEADS" : "BULK_IMPORT_LEADS",
+      details: `Imported ${args.leads.length} leads${args.assignedTo ? " and assigned" : ""}`,
+      timestamp: Date.now(),
+    });
+  },
+});
