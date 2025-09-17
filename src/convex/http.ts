@@ -123,11 +123,22 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     try {
       const body = await parseRequestPayload(req);
+      
+      // Log the raw payload for debugging
+      await ctx.runMutation(internal.webhook.insertLog, { 
+        payload: { 
+          method: "POST", 
+          rawBody: body,
+          timestamp: new Date().toISOString()
+        } 
+      });
+
+      // IndiaMART sends data in RESPONSE object
       const r = body?.RESPONSE ?? body ?? {};
       const fallback = (keys: string[], def: string) => {
         for (const k of keys) {
           const v = (r as any)?.[k] ?? body?.[k];
-          if (v !== undefined && v !== null && `${v}`.length > 0) return `${v}`;
+          if (v !== undefined && v !== null && `${v}`.trim().length > 0) return `${v}`.trim();
         }
         return def;
       };
@@ -142,23 +153,43 @@ http.route({
       const state = fallback(["SENDER_STATE", "state", "region"], "Unknown");
       const source = "indiamart";
 
-      await ctx.runMutation(internal.webhook.createLeadFromSource, {
-        name,
-        subject,
-        message,
-        mobileNo: `${mobileNo}`,
-        email,
-        altMobileNo: altMobileNo ? `${altMobileNo}` : undefined,
-        altEmail: altEmail || undefined,
-        state,
-        source,
+      // Only create lead if we have essential data
+      if (mobileNo || (email && email !== "unknown@example.com")) {
+        await ctx.runMutation(internal.webhook.createLeadFromSource, {
+          name,
+          subject,
+          message,
+          mobileNo: `${mobileNo}`,
+          email,
+          altMobileNo: altMobileNo ? `${altMobileNo}` : undefined,
+          altEmail: altEmail || undefined,
+          state,
+          source,
+        });
+      }
+
+      return new Response(JSON.stringify({ 
+        ok: true, 
+        received: true,
+        leadCreated: !!(mobileNo || (email && email !== "unknown@example.com"))
+      }), { 
+        status: 200,
+        headers: { "Content-Type": "application/json" }
       });
-
-      await ctx.runMutation(internal.webhook.insertLog, { payload: { method: "POST", parsed: r } });
-
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
     } catch (e: any) {
-      return new Response(JSON.stringify({ ok: false, error: e.message || "error" }), { status: 500 });
+      // Log the error for debugging
+      await ctx.runMutation(internal.webhook.insertLog, { 
+        payload: { 
+          method: "POST", 
+          error: e.message,
+          timestamp: new Date().toISOString()
+        } 
+      });
+      
+      return new Response(JSON.stringify({ ok: false, error: e.message || "error" }), { 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
   }),
 });
