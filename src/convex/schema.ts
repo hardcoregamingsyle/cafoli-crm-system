@@ -62,7 +62,9 @@ const schema = defineSchema(
       source: v.optional(v.string()), // "indiamart", "pharmavends", "manual"
     }).index("assignedTo", ["assignedTo"])
       .index("nextFollowup", ["nextFollowup"])
-      .index("status", ["status"]),
+      .index("status", ["status"])
+      .index("mobileNo", ["mobileNo"])
+      .index("email", ["email"]),
 
     comments: defineTable({
       leadId: v.id("leads"),

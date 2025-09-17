@@ -68,7 +68,28 @@ export const getMyLeads = query({
   },
 });
 
-// Create lead
+async function findDuplicateLead(ctx: any, mobileNo: string, email: string) {
+  // Prefer exact mobile match, then email
+  const byMobile = mobileNo
+    ? await ctx.db
+        .query("leads")
+        .withIndex("mobileNo", (q: any) => q.eq("mobileNo", mobileNo))
+        .unique()
+    : null;
+
+  if (byMobile) return byMobile;
+
+  const byEmail = email
+    ? await ctx.db
+        .query("leads")
+        .withIndex("email", (q: any) => q.eq("email", email))
+        .unique()
+    : null;
+
+  return byEmail;
+}
+
+// Create lead with deduplication
 export const createLead = mutation({
   args: {
     name: v.string(),
@@ -82,11 +103,53 @@ export const createLead = mutation({
     source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const existing = await findDuplicateLead(ctx, args.mobileNo, args.email);
+
+    if (existing) {
+      // Club records: patch any missing/empty fields on the existing doc
+      const patch: Record<string, any> = {};
+      if (!existing.name && args.name) patch.name = args.name;
+      if (!existing.subject && args.subject) patch.subject = args.subject;
+      if (!existing.message && args.message) patch.message = args.message;
+      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
+      if (!existing.state && args.state) patch.state = args.state;
+      if (!existing.source && args.source) patch.source = args.source;
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+
+      // If existing is already assigned, notify assignee about the clubbed lead
+      if (existing.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId: existing.assignedTo,
+          title: "Duplicate Lead Clubbed",
+          message: `A new lead matching ${existing.name || existing.mobileNo || existing.email} was clubbed into your assigned lead.`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: existing._id,
+        });
+      }
+
+      // Audit log the clubbing
+      await ctx.db.insert("auditLogs", {
+        userId: (await ctx.db.query("users").first())?._id as any,
+        action: "CLUB_DUPLICATE_LEAD",
+        details: `Clubbed new lead into existing lead ${existing._id}`,
+        timestamp: Date.now(),
+        relatedLeadId: existing._id,
+      });
+
+      return existing._id;
+    }
+
+    // No duplicate: create new lead
     const leadId = await ctx.db.insert("leads", {
       ...args,
       status: LEAD_STATUS.YET_TO_DECIDE,
     });
-    
+
     return leadId;
   },
 });
@@ -308,7 +371,6 @@ export const bulkCreateLeads = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Validate assignedTo exists if provided
     if (args.assignedTo) {
       const assignee = await ctx.db.get(args.assignedTo);
       if (!assignee) {
@@ -316,31 +378,88 @@ export const bulkCreateLeads = mutation({
       }
     }
 
-    for (const lead of args.leads) {
-      const leadId = await ctx.db.insert("leads", {
-        ...lead,
-        status: LEAD_STATUS.YET_TO_DECIDE,
-        assignedTo: args.assignedTo,
-      });
+    let importedCount = 0;
 
-      // If assigned, notify the assignee
-      if (args.assignedTo) {
-        await ctx.db.insert("notifications", {
-          userId: args.assignedTo,
-          title: "New Lead Assigned",
-          message: `A new Lead has Been Assigned`,
-          read: false,
-          type: "lead_assigned",
-          relatedLeadId: leadId,
+    for (const incoming of args.leads) {
+      const existing = await findDuplicateLead(ctx, incoming.mobileNo, incoming.email);
+
+      if (existing) {
+        // Club records: fill missing/empty fields from incoming
+        const patch: Record<string, any> = {};
+        if (!existing.name && incoming.name) patch.name = incoming.name;
+        if (!existing.subject && incoming.subject) patch.subject = incoming.subject;
+        if (!existing.message && incoming.message) patch.message = incoming.message;
+        if (!existing.altMobileNo && incoming.altMobileNo) patch.altMobileNo = incoming.altMobileNo;
+        if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
+        if (!existing.state && incoming.state) patch.state = incoming.state;
+        if (!existing.source && incoming.source) patch.source = incoming.source;
+
+        // Assignment logic:
+        // - If existing has assignee, keep it and notify them about duplicate clubbing
+        // - Else if bulk assignedTo provided, assign and notify
+        let assignedJustNow = false;
+        if (!existing.assignedTo && args.assignedTo) {
+          patch.assignedTo = args.assignedTo;
+          assignedJustNow = true;
+        }
+
+        if (Object.keys(patch).length > 0) {
+          await ctx.db.patch(existing._id, patch);
+        }
+
+        if (existing.assignedTo) {
+          await ctx.db.insert("notifications", {
+            userId: existing.assignedTo,
+            title: "Duplicate Lead Clubbed",
+            message: `A new lead matching ${existing.name || existing.mobileNo || existing.email} was clubbed into your assigned lead.`,
+            read: false,
+            type: "lead_assigned",
+            relatedLeadId: existing._id,
+          });
+        } else if (assignedJustNow && args.assignedTo) {
+          await ctx.db.insert("notifications", {
+            userId: args.assignedTo,
+            title: "New Lead Assigned",
+            message: `A lead was clubbed into an existing entry and assigned to you.`,
+            read: false,
+            type: "lead_assigned",
+            relatedLeadId: existing._id,
+          });
+        }
+
+        await ctx.db.insert("auditLogs", {
+          userId: currentUser._id,
+          action: "CLUB_DUPLICATE_LEAD",
+          details: `Bulk import clubbed into existing lead ${existing._id}`,
+          timestamp: Date.now(),
+          relatedLeadId: existing._id,
         });
+      } else {
+        // Create fresh lead
+        const leadId = await ctx.db.insert("leads", {
+          ...incoming,
+          status: LEAD_STATUS.YET_TO_DECIDE,
+          assignedTo: args.assignedTo,
+        });
+
+        if (args.assignedTo) {
+          await ctx.db.insert("notifications", {
+            userId: args.assignedTo,
+            title: "New Lead Assigned",
+            message: `A new Lead has Been Assigned`,
+            read: false,
+            type: "lead_assigned",
+            relatedLeadId: leadId,
+          });
+        }
+        importedCount++;
       }
     }
 
-    // Audit log
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
       action: args.assignedTo ? "BULK_IMPORT_AND_ASSIGN_LEADS" : "BULK_IMPORT_LEADS",
-      details: `Imported ${args.leads.length} leads${args.assignedTo ? " and assigned" : ""}`,
+      details: `Imported ${importedCount} new lead(s)${args.assignedTo ? " and assigned" : ""}; duplicates were clubbed.`,
       timestamp: Date.now(),
     });
   },
