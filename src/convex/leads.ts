@@ -587,3 +587,28 @@ export const runDeduplication = mutation({
     return { groupsProcessed, mergedCount, deletedCount, notificationsSent };
   },
 });
+
+export const deleteAllLeads = mutation({
+  args: {
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    const allLeads = await ctx.db.query("leads").collect();
+
+    for (const lead of allLeads) {
+      await ctx.db.delete(lead._id);
+    }
+
+    await ctx.db.insert("auditLogs", {
+      userId: args.currentUserId,
+      action: "DELETE_ALL_LEADS",
+      details: `Admin deleted all leads (${allLeads.length})`,
+      timestamp: Date.now(),
+    });
+  },
+});

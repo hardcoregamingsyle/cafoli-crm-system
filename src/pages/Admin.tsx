@@ -34,6 +34,7 @@ export default function AdminPage() {
   const sendNotification = useMutation(api.notifications.sendNotification);
   const initializeDefaultUsers = useMutation(api.users.initializeDefaultUsers);
   const deleteAllUsersMutation = useMutation(api.users.deleteAllUsers);
+  const deleteAllLeadsMutation = useMutation(api.leads.deleteAllLeads);
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role !== ROLES.ADMIN) {
@@ -45,23 +46,42 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Admin Panel</h1>
-          <Button
-            variant="destructive"
-            onClick={async () => {
-              try {
-                const ok = window.confirm(
-                  "Are you sure you want to delete ALL user accounts? This action cannot be undone."
-                );
-                if (!ok) return;
-                await deleteAllUsersMutation({ currentUserId: currentUser._id });
-                toast.success("All user accounts have been deleted");
-              } catch (e: any) {
-                toast.error(e?.message || "Failed to delete all accounts");
-              }
-            }}
-          >
-            Delete All Accounts
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const ok = window.confirm(
+                    "Are you sure you want to delete ALL leads? This action cannot be undone."
+                  );
+                  if (!ok) return;
+                  await deleteAllLeadsMutation({ currentUserId: currentUser._id });
+                  toast.success("All leads have been deleted");
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to delete all leads");
+                }
+              }}
+            >
+              Delete All Leads
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  const ok = window.confirm(
+                    "Are you sure you want to delete ALL user accounts? This action cannot be undone."
+                  );
+                  if (!ok) return;
+                  await deleteAllUsersMutation({ currentUserId: currentUser._id });
+                  toast.success("All user accounts have been deleted");
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to delete all accounts");
+                }
+              }}
+            >
+              Delete All Accounts
+            </Button>
+          </div>
         </div>
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
