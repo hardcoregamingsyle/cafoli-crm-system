@@ -16,7 +16,7 @@ export default function MyLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // run once to avoid re-run loops
 
   const leads = useQuery(api.leads.getMyLeads);
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);

@@ -34,7 +34,7 @@ export function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // run once to avoid re-run loops
 
   // CSV parser (simple): expects first row headers
   const parseCsv = (text: string) => {
@@ -356,7 +356,7 @@ export function Layout({ children }: LayoutProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {(assignableUsers ?? []).map((u: any) => (
-                    <SelectItem key={u._id} value={u._id}>
+                    <SelectItem key={String(u._id)} value={String(u._id)}>
                       {u.name || u.username}
                     </SelectItem>
                   ))}

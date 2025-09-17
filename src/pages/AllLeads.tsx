@@ -18,7 +18,7 @@ export default function AllLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // run once to avoid re-run loops
 
   const [filter, setFilter] = useState<Filter>("all");
   const leads = useQuery(api.leads.getAllLeads, { filter });
