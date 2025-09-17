@@ -29,10 +29,15 @@ export default function AllLeadsPage() {
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
 
   const userOptions = useMemo(() => {
-    if (currentUser?.role === ROLES.ADMIN) return users ?? [];
-    if (currentUser?.role === ROLES.MANAGER) return assignable ?? [];
+    if (!currentUser) return [];
+    if (currentUser.role === ROLES.ADMIN) {
+      return users ?? [];
+    }
+    if (currentUser.role === ROLES.MANAGER) {
+      return assignable ?? [];
+    }
     return [];
-  }, [users, assignable, currentUser]);
+  }, [currentUser?.role, currentUser?._id, users, assignable]);
 
   const canView = currentUser && (currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER);
   if (!currentUser) return <Layout><div /></Layout>;
@@ -106,6 +111,7 @@ export default function AllLeadsPage() {
                       <div className="space-y-2">
                         <div className="text-xs text-gray-500">Assign To</div>
                         <Select
+                          key={`assign-${lead._id}`}
                           onValueChange={async (val) => {
                             try {
                               if (val === "self") {
@@ -127,7 +133,7 @@ export default function AllLeadsPage() {
                           <SelectContent>
                             <SelectItem value="self">Assign to Self</SelectItem>
                             <SelectItem value="unassign">Unassign</SelectItem>
-                            {(userOptions ?? []).map((u: any) => (
+                            {userOptions.map((u: any) => (
                               <SelectItem key={u._id} value={u._id}>{u.name || u.username}</SelectItem>
                             ))}
                           </SelectContent>
