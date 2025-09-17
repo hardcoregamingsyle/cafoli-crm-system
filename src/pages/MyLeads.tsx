@@ -24,7 +24,7 @@ export default function MyLeadsPage() {
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
-    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Admins don’t have access to My Leads.</CardContent></Card></div></Layout>;
+    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Admins don't have access to My Leads.</CardContent></Card></div></Layout>;
   }
 
   return (
@@ -41,7 +41,7 @@ export default function MyLeadsPage() {
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
               {(leads ?? []).map((lead: any) => (
-                <AccordionItem key={lead._id} value={lead._id}>
+                <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
                       <div className="text-sm">

@@ -57,7 +57,7 @@ export default function AllLeadsPage() {
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
               {(leads ?? []).map((lead: any) => (
-                <AccordionItem key={lead._id} value={lead._id}>
+                <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
                       <div className="text-sm">
