@@ -67,9 +67,7 @@ export default function WebhookLogsPage() {
   // Use ONLY the explicit webhook URL; do not fallback to window.origin to avoid mismatched deployments
   const envWebhookBase = (import.meta as any).env?.VITE_WEBHOOK_URL as string | undefined;
   const isWebhookUrlConfigured = !!(envWebhookBase && envWebhookBase.trim().length > 0);
-  const listeningUrl = isWebhookUrlConfigured
-    ? `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/indiamart`
-    : "";
+  const listeningUrl = "https://script.google.com/macros/s/AKfycbxKrR7SZjO_DhJwJhguvAmnejgddGydFEvJSdsnmV-hl1UQMINjWNQ-dxJRNT155m-H/exec";
 
   return (
     <Layout>
