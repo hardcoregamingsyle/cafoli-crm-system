@@ -138,10 +138,10 @@ export const fetchGoogleScriptLeads = internalAction({
 
 const crons = cronJobs();
 
-// Run every 15 minutes to fetch leads from Google Script
+// Run at minute 2 and 29 of every hour to fetch leads from Google Script
 crons.cron(
-  "Fetch Google Script leads every 1 minute",
-  "* * * * *",
+  "Fetch Google Script leads at minute 2 and 29",
+  "2,29 * * * *",
   internal.crons.fetchGoogleScriptLeads,
   {}
 );
