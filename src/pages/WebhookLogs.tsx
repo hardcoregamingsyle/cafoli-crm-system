@@ -43,6 +43,9 @@ export default function WebhookLogsPage() {
   // NEW: capture last GET response output
   const [lastGetOutput, setLastGetOutput] = useState<string>("");
 
+  // Add bulk import mutation
+  const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
+
   async function loadLogs() {
     if (!isWebhookUrlConfigured) return;
     try {
@@ -127,10 +130,62 @@ export default function WebhookLogsPage() {
                 try {
                   const res = await fetch(listeningUrl, { method: "GET" });
                   const bodyText = await res.text().catch(() => "");
-                  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                  // Save the response so it's visible on the page
+                  // Always show raw output for debugging
                   setLastGetOutput(`HTTP ${res.status} ${res.statusText}\n\n${bodyText}`);
-                  toast.success("GET request sent");
+
+                  if (!res.ok) {
+                    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+                  }
+
+                  // Try parsing and importing if JSON array
+                  let parsed: any = null;
+                  try {
+                    parsed = JSON.parse(bodyText);
+                  } catch {
+                    parsed = null;
+                  }
+
+                  if (Array.isArray(parsed)) {
+                    // Map Column A..P/Q -> lead fields
+                    // A/Serial No. B/Source C/Name D/Subject E/Email F/Mobile G/Message
+                    // H/Alt_Email I/Alt_Mobile J/Assigned_To L/Relevance
+                    // M/State N/Station O/District P/Pincode Q/Agency Name
+                    const leads = parsed.map((row: any) => {
+                      const get = (k: string) => (row && (row[k] ?? row[k.trim()])) ?? "";
+                      const mobileRaw = String(get("Column F") ?? "").trim();
+                      const mobile = mobileRaw.replace(/[^\d]/g, "");
+                      return {
+                        name: String(get("Column C") ?? "").trim(),
+                        subject: String(get("Column D") ?? "").trim(),
+                        message: String(get("Column G") ?? "").trim(),
+                        mobileNo: mobile, // required
+                        email: String(get("Column E") ?? "").trim(),
+                        altMobileNo: String(get("Column I") ?? "").trim() || undefined,
+                        altEmail: String(get("Column H") ?? "").trim() || undefined,
+                        state: String(get("Column M") ?? "").trim(),
+                        source: String(get("Column B") ?? "").trim() || "webhook",
+                        station: String(get("Column N") ?? "").trim() || undefined,
+                        district: String(get("Column O") ?? "").trim() || undefined,
+                        pincode: String(get("Column P") ?? "").trim() || undefined,
+                        agencyName: String(get("Column Q") ?? "").trim() || undefined,
+                      };
+                    })
+                    // only keep those with a mobile number
+                    .filter((l: any) => !!l.mobileNo);
+
+                    if (leads.length > 0) {
+                      await bulkCreateLeads({
+                        leads,
+                        currentUserId: currentUser?._id as any,
+                      });
+                      toast.success(`Imported ${leads.length} lead(s) from GET response`);
+                    } else {
+                      toast("No valid rows with a mobile number to import.");
+                    }
+                  } else {
+                    toast("GET succeeded but response is not a JSON array; showing raw output.");
+                  }
+
                   await loadLogs();
                 } catch (e: any) {
                   setLastGetOutput(`Error: ${e?.message || "Failed to send GET"}`);

@@ -385,6 +385,10 @@ export const bulkCreateLeads = mutation({
         altEmail: v.optional(v.string()),
         state: v.string(),
         source: v.optional(v.string()),
+        station: v.optional(v.string()),
+        district: v.optional(v.string()),
+        pincode: v.optional(v.string()),
+        agencyName: v.optional(v.string()),
       })
     ),
     assignedTo: v.optional(v.id("users")),
@@ -420,10 +424,13 @@ export const bulkCreateLeads = mutation({
         if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
         if (!existing.state && incoming.state) patch.state = incoming.state;
         if (!existing.source && incoming.source) patch.source = incoming.source;
+        // Add extended fields when missing
+        if (!existing.station && incoming.station) patch.station = incoming.station;
+        if (!existing.district && incoming.district) patch.district = incoming.district;
+        if (!existing.pincode && incoming.pincode) patch.pincode = incoming.pincode;
+        if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
 
         // Assignment logic:
-        // - If existing has assignee, keep it and notify them about duplicate clubbing
-        // - Else if bulk assignedTo provided, assign and notify
         let assignedJustNow = false;
         if (!existing.assignedTo && args.assignedTo) {
           patch.assignedTo = args.assignedTo;
@@ -462,7 +469,7 @@ export const bulkCreateLeads = mutation({
           relatedLeadId: existing._id,
         });
       } else {
-        // Create fresh lead
+        // Create fresh lead including extended fields
         const leadId = await ctx.db.insert("leads", {
           ...incoming,
           status: LEAD_STATUS.YET_TO_DECIDE,
