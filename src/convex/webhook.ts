@@ -61,7 +61,114 @@ export const insertLog = internalMutation({
   },
 });
 
-// Create a lead from a webhook source (IndiaMART etc.)
+// Create a lead from Google Script data with new column structure
+export const createLeadFromGoogleScript = internalMutation({
+  args: {
+    serialNo: v.optional(v.number()),
+    source: v.optional(v.string()),
+    name: v.string(),
+    subject: v.string(),
+    email: v.string(),
+    mobileNo: v.string(),
+    message: v.string(),
+    altEmail: v.optional(v.string()),
+    altMobileNo: v.optional(v.string()),
+    state: v.string(),
+    station: v.optional(v.string()),
+    district: v.optional(v.string()),
+    pincode: v.optional(v.string()),
+    agencyName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Normalize and ignore placeholder email for dedup
+    const mobile = (args.mobileNo || "").trim();
+    const rawEmail = (args.email || "").trim().toLowerCase();
+    const emailForDedup = rawEmail && rawEmail !== "unknown@example.com" ? rawEmail : "";
+
+    // Dedup by mobile or email (skip placeholder/empty email)
+    const byMobile = mobile
+      ? await ctx.db
+          .query("leads")
+          .withIndex("mobileNo", (q) => q.eq("mobileNo", mobile))
+          .unique()
+      : null;
+
+    const existing =
+      byMobile ||
+      (emailForDedup
+        ? await ctx.db
+            .query("leads")
+            .withIndex("email", (q) => q.eq("email", emailForDedup))
+            .unique()
+        : null);
+
+    if (existing) {
+      // Club fields into existing
+      const patch: Record<string, any> = {};
+      if (!existing.name && args.name) patch.name = args.name;
+      if (!existing.subject && args.subject) patch.subject = args.subject;
+      if (!existing.message && args.message) patch.message = args.message;
+      if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
+      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.state && args.state) patch.state = args.state;
+      if (!existing.source && args.source) patch.source = args.source;
+      if (!existing.station && args.station) patch.station = args.station;
+      if (!existing.district && args.district) patch.district = args.district;
+      if (!existing.pincode && args.pincode) patch.pincode = args.pincode;
+      if (!existing.agencyName && args.agencyName) patch.agencyName = args.agencyName;
+      if (args.serialNo && !existing.serialNo) patch.serialNo = args.serialNo;
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+
+      // If it had an assignee, notify them
+      if (existing.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId: existing.assignedTo,
+          title: "Duplicate Lead Clubbed",
+          message: `A Google Script lead (source: ${args.source || "unknown"}) was clubbed into your assigned lead.`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: existing._id,
+        });
+      }
+
+      await ctx.db.insert("auditLogs", {
+        userId: await ensureLoggingUserId(ctx),
+        action: "CLUB_DUPLICATE_LEAD",
+        details: `Google Script clubbed into existing lead ${existing._id}`,
+        timestamp: Date.now(),
+        relatedLeadId: existing._id,
+      });
+      // Return explicit result for caller
+      return false;
+    }
+
+    // Insert new lead with new structure
+    await ctx.db.insert("leads", {
+      serialNo: args.serialNo,
+      source: args.source || "google_script",
+      name: args.name,
+      subject: args.subject,
+      email: rawEmail,
+      mobileNo: mobile,
+      message: args.message,
+      altEmail: args.altEmail,
+      altMobileNo: args.altMobileNo,
+      state: args.state,
+      station: args.station,
+      district: args.district,
+      pincode: args.pincode,
+      agencyName: args.agencyName,
+      status: "yet_to_decide",
+    });
+    // Return explicit creation result
+    return true;
+  },
+});
+
+// Create a lead from a webhook source (IndiaMART etc.) - keeping for backward compatibility
 export const createLeadFromSource = internalMutation({
   args: {
     name: v.string(),

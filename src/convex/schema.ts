@@ -48,23 +48,31 @@ const schema = defineSchema(
       .index("username", ["username"]),
 
     leads: defineTable({
-      name: v.string(),
-      subject: v.string(),
-      message: v.string(),
-      mobileNo: v.string(),
-      email: v.string(),
-      altMobileNo: v.optional(v.string()),
-      altEmail: v.optional(v.string()),
-      state: v.string(),
+      serialNo: v.optional(v.number()), // Column A
+      source: v.optional(v.string()), // Column B - "Pharmavends", "Indiamart", etc.
+      name: v.string(), // Column C
+      subject: v.string(), // Column D
+      email: v.string(), // Column E
+      mobileNo: v.string(), // Column F
+      message: v.string(), // Column G
+      altEmail: v.optional(v.string()), // Column H
+      altMobileNo: v.optional(v.string()), // Column I
+      assignedTo: v.optional(v.id("users")), // Column J (will be mapped to user ID)
+      relevance: v.optional(v.string()), // Column L
+      state: v.string(), // Column M
+      station: v.optional(v.string()), // Column N
+      district: v.optional(v.string()), // Column O
+      pincode: v.optional(v.string()), // Column P
+      agencyName: v.optional(v.string()), // Column Q
       nextFollowup: v.optional(v.number()), // timestamp
-      assignedTo: v.optional(v.id("users")),
       status: v.optional(leadStatusValidator),
-      source: v.optional(v.string()), // "indiamart", "pharmavends", "manual"
     }).index("assignedTo", ["assignedTo"])
       .index("nextFollowup", ["nextFollowup"])
       .index("status", ["status"])
       .index("mobileNo", ["mobileNo"])
-      .index("email", ["email"]),
+      .index("email", ["email"])
+      .index("source", ["source"])
+      .index("serialNo", ["serialNo"]),
 
     comments: defineTable({
       leadId: v.id("leads"),
