@@ -40,6 +40,8 @@ export default function WebhookLogsPage() {
 
   // moved: envWebhookBase/isWebhookUrlConfigured/listeningUrl are defined above
   const [logs, setLogs] = useState<any[]>([]);
+  // NEW: capture last GET response output
+  const [lastGetOutput, setLastGetOutput] = useState<string>("");
 
   async function loadLogs() {
     if (!isWebhookUrlConfigured) return;
@@ -124,10 +126,14 @@ export default function WebhookLogsPage() {
                 }
                 try {
                   const res = await fetch(listeningUrl, { method: "GET" });
-                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  const bodyText = await res.text().catch(() => "");
+                  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+                  // Save the response so it's visible on the page
+                  setLastGetOutput(`HTTP ${res.status} ${res.statusText}\n\n${bodyText}`);
                   toast.success("GET request sent");
                   await loadLogs();
                 } catch (e: any) {
+                  setLastGetOutput(`Error: ${e?.message || "Failed to send GET"}`);
                   toast.error(e?.message || "Failed to send GET");
                 }
               }}
@@ -174,6 +180,18 @@ export default function WebhookLogsPage() {
             {isWebhookUrlConfigured ? listeningUrl : "(not configured)"}
           </span>
         </div>
+
+        {/* NEW: Show the last GET response, if any */}
+        {lastGetOutput && (
+          <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+            <CardHeader>
+              <CardTitle>Last GET Response</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-xs whitespace-pre-wrap break-words">{lastGetOutput}</pre>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader>
