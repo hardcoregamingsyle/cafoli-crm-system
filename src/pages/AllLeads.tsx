@@ -274,9 +274,35 @@ export default function AllLeadsPage() {
                         <div className="text-xs text-gray-500">District</div>
                         <div className="text-sm">{lead.district || "-"}</div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Station</div>
-                        <div className="text-sm">{lead.station || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Station (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.station || ""}
+                            placeholder="Enter station"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  station: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Station saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save station");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
                     </div>
 

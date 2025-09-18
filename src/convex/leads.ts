@@ -681,6 +681,7 @@ export const updateLeadDetails = mutation({
     leadId: v.id("leads"),
     agencyName: v.optional(v.string()),
     pincode: v.optional(v.string()),
+    station: v.optional(v.string()),
     currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
@@ -724,6 +725,9 @@ export const updateLeadDetails = mutation({
           patch.district = mapping.district;
         }
       }
+    }
+    if (typeof args.station !== "undefined") {
+      patch.station = args.station;
     }
 
     if (Object.keys(patch).length > 0) {
