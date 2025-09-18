@@ -84,9 +84,15 @@ export function Layout({ children }: LayoutProps) {
         return;
       }
 
+      // Add auth guard and use currentUser from component scope (avoid calling hooks here)
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+
       await importPincodeMappings({
         records,
-        currentUserId: (useCrmAuth().currentUser?._id as any) || (null as any),
+        currentUserId: currentUser._id,
       });
 
       toast.success(`Imported/updated ${records.length} pincode mapping(s)`);
