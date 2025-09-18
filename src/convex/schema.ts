@@ -99,6 +99,13 @@ const schema = defineSchema(
       relatedLeadId: v.optional(v.id("leads")),
     }).index("userId", ["userId"])
       .index("timestamp", ["timestamp"]),
+
+    // Add: Pincode mappings table
+    pincodeMappings: defineTable({
+      pincode: v.string(),
+      district: v.string(),
+      state: v.string(),
+    }).index("pincode", ["pincode"]),
   },
   {
     schemaValidation: false,

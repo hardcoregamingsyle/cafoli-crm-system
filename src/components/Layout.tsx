@@ -27,9 +27,11 @@ export function Layout({ children }: LayoutProps) {
   const assignableUsers = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
+  const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
+  const pincodeCsvInputRef = useRef<HTMLInputElement | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
 
@@ -49,6 +51,48 @@ export function Layout({ children }: LayoutProps) {
       line.split(",").map((c) => c.trim())
     );
     return rows;
+  };
+
+  // Add: parse Pincode CSV (expects header row: Pincode,District,State)
+  const handleImportPincodeCsv = async (file: File) => {
+    try {
+      if (file.size === 0) {
+        toast.error("The selected CSV file is empty.");
+        return;
+      }
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length <= 1) {
+        toast("No rows found beyond headers.");
+        return;
+      }
+      const dataLines = lines.slice(1); // skip headers
+      const rows = dataLines
+        .map((line) => line.split(",").map((c) => c.trim()))
+        .filter((cols) => cols.length >= 3);
+
+      const records = rows
+        .map((cols) => ({
+          pincode: (cols[0] ?? "").toString().trim(),
+          district: (cols[1] ?? "").toString().trim(),
+          state: (cols[2] ?? "").toString().trim(),
+        }))
+        .filter((r) => !!r.pincode && (!!r.district || !!r.state));
+
+      if (records.length === 0) {
+        toast("No valid pincode mappings found.");
+        return;
+      }
+
+      await importPincodeMappings({
+        records,
+        currentUserId: (useCrmAuth().currentUser?._id as any) || (null as any),
+      });
+
+      toast.success(`Imported/updated ${records.length} pincode mapping(s)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to import pincode CSV");
+    }
   };
 
   // Build lead objects from parsed CSV using fixed column order
@@ -342,6 +386,28 @@ export function Layout({ children }: LayoutProps) {
                         toast.error("Select an assignee first");
                         inputEl.value = "";
                       }
+                    }}
+                  />
+                  {/* New: Import Pincode .csv */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => pincodeCsvInputRef.current?.click()}
+                  >
+                    Import Pincode .csv
+                  </Button>
+                  <input
+                    ref={pincodeCsvInputRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const inputEl = e.currentTarget;
+                      const file = inputEl.files?.[0];
+                      if (!file) return;
+                      await handleImportPincodeCsv(file);
+                      inputEl.value = "";
                     }}
                   />
                 </div>

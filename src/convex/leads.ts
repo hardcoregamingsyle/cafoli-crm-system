@@ -699,7 +699,32 @@ export const updateLeadDetails = mutation({
 
     const patch: Record<string, any> = {};
     if (typeof args.agencyName !== "undefined") patch.agencyName = args.agencyName;
-    if (typeof args.pincode !== "undefined") patch.pincode = args.pincode;
+    if (typeof args.pincode !== "undefined") {
+      patch.pincode = args.pincode;
+
+      // Auto-fill state and district based on pincode mapping
+      const pin = (args.pincode || "").toString().trim();
+      if (pin) {
+        let mapping: any = null;
+        try {
+          mapping = await ctx.db
+            .query("pincodeMappings")
+            .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+            .unique();
+        } catch {
+          // ignore unique errors if duplicates accidentally exist
+          const all = await ctx.db
+            .query("pincodeMappings")
+            .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+            .collect();
+          mapping = all[0] || null;
+        }
+        if (mapping) {
+          patch.state = mapping.state;
+          patch.district = mapping.district;
+        }
+      }
+    }
 
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(args.leadId, patch);
@@ -712,5 +737,61 @@ export const updateLeadDetails = mutation({
         relatedLeadId: args.leadId,
       });
     }
+  },
+});
+
+// Admin-only: bulk import pincode mappings from CSV
+export const bulkImportPincodeMappings = mutation({
+  args: {
+    records: v.array(
+      v.object({
+        pincode: v.string(),
+        district: v.string(),
+        state: v.string(),
+      })
+    ),
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    let upserts = 0;
+    for (const rec of args.records) {
+      const pin = (rec.pincode || "").toString().trim();
+      const district = (rec.district || "").toString().trim();
+      const state = (rec.state || "").toString().trim();
+      if (!pin) continue;
+
+      let existing: any = null;
+      try {
+        existing = await ctx.db
+          .query("pincodeMappings")
+          .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+          .unique();
+      } catch {
+        const all = await ctx.db
+          .query("pincodeMappings")
+          .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+          .collect();
+        existing = all[0] || null;
+      }
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { district, state });
+      } else {
+        await ctx.db.insert("pincodeMappings", { pincode: pin, district, state });
+      }
+      upserts++;
+    }
+
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: "IMPORT_PINCODE_MAPPINGS",
+      details: `Imported/updated ${upserts} pincode mapping(s)`,
+      timestamp: Date.now(),
+    });
   },
 });
