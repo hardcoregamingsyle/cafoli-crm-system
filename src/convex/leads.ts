@@ -667,3 +667,43 @@ export const deleteLeadAdmin = mutation({
     });
   },
 });
+
+// Add: Update lead details (agencyName, pincode). Admin/Manager only.
+export const updateLeadDetails = mutation({
+  args: {
+    leadId: v.id("leads"),
+    agencyName: v.optional(v.string()),
+    pincode: v.optional(v.string()),
+    currentUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await ctx.db.get(args.currentUserId)
+      : await getCurrentUser(ctx);
+
+    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+      throw new Error("Unauthorized");
+    }
+
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+
+    const patch: Record<string, any> = {};
+    if (typeof args.agencyName !== "undefined") patch.agencyName = args.agencyName;
+    if (typeof args.pincode !== "undefined") patch.pincode = args.pincode;
+
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(args.leadId, patch);
+
+      await ctx.db.insert("auditLogs", {
+        userId: currentUser._id,
+        action: "UPDATE_LEAD_DETAILS",
+        details: `Updated details for lead "${lead.name}" (${String(args.leadId)})`,
+        timestamp: Date.now(),
+        relatedLeadId: args.leadId,
+      });
+    }
+  },
+});

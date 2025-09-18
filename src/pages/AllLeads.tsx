@@ -39,6 +39,8 @@ export default function AllLeadsPage() {
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
   const deleteLeadAdmin = useMutation(api.leads.deleteLeadAdmin);
+  const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
+  const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -171,85 +173,114 @@ export default function AllLeadsPage() {
               {(leads ?? []).map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
-                      <div className="text-sm">
-                        <div className="font-medium">{lead.name} <span className="text-gray-500">• {lead.subject}</span></div>
-                        <div className="text-xs text-gray-600 line-clamp-1">{lead.message}</div>
+                    <div className="flex flex-col w-full gap-2">
+                      {/* Top line: Name — Source — Assigned To (read-only) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="text-sm font-medium">
+                          {lead.name || "-"}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                          <span className="text-gray-500">
+                            Source: <span className="text-gray-800">{lead.source || "-"}</span>
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-gray-500">
+                            Assigned To: <span className="text-gray-800">{lead.assignedUserName || "-"}</span>
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {lead.assignedTo ? (
-                          <Badge variant="secondary">Assigned {lead.assignedUserName ? `• ${lead.assignedUserName}` : ""}</Badge>
-                        ) : (
-                          <Badge variant="outline">Unassigned</Badge>
-                        )}
-                        <Badge className="capitalize">{lead.status || "yet_to_decide"}</Badge>
+                      {/* Second line: Subject */}
+                      <div className="text-xs text-gray-600">
+                        Subject: <span className="text-gray-800">{lead.subject || "-"}</span>
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="grid md:grid-cols-2 gap-4 py-3">
-                      {/* Name */}
-                      <div>
-                        <div className="text-xs text-gray-500">Name</div>
-                        <div className="text-sm">{lead.name || "-"}</div>
-                      </div>
-                      {/* Subject */}
-                      <div>
-                        <div className="text-xs text-gray-500">Subject</div>
-                        <div className="text-sm">{lead.subject || "-"}</div>
-                      </div>
-                      {/* Message (full width on md) */}
+                    {/* Message */}
+                    <div className="grid gap-4 py-3">
                       <div className="md:col-span-2">
                         <div className="text-xs text-gray-500">Message</div>
                         <div className="text-sm break-words">{lead.message || "-"}</div>
                       </div>
+                    </div>
 
-                      {/* Mobile No */}
-                      <div>
-                        <div className="text-xs text-gray-500">Mobile No.</div>
-                        <div className="text-sm">{lead.mobileNo || "-"}</div>
+                    {/* Agency Name (Manual Input), Pincode (Manual Input) — State — District — Station */}
+                    <div className="grid md:grid-cols-5 gap-4 py-2">
+                      <div className="md:col-span-2 space-y-1">
+                        <div className="text-xs text-gray-500">Agency Name (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.agencyName || ""}
+                            placeholder="Enter agency name"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  agencyName: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Agency name saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save agency name");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
-                      {/* Alt. Mobile */}
-                      <div>
-                        <div className="text-xs text-gray-500">Alt. Mobile</div>
-                        <div className="text-sm">{lead.altMobileNo || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Pincode (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.pincode || ""}
+                            placeholder="Enter pincode"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  pincode: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Pincode saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save pincode");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
-
-                      {/* Email */}
-                      <div>
-                        <div className="text-xs text-gray-500">Email</div>
-                        <div className="text-sm break-all">{lead.email || "-"}</div>
-                      </div>
-                      {/* Alt. Email */}
-                      <div>
-                        <div className="text-xs text-gray-500">Alt. Email</div>
-                        <div className="text-sm break-all">{lead.altEmail || "-"}</div>
-                      </div>
-
-                      {/* State */}
                       <div>
                         <div className="text-xs text-gray-500">State</div>
                         <div className="text-sm">{lead.state || "-"}</div>
                       </div>
-                      {/* Assigned To */}
                       <div>
-                        <div className="text-xs text-gray-500">Assigned To</div>
-                        <div className="text-sm">{lead.assignedUserName || "-"}</div>
+                        <div className="text-xs text-gray-500">District</div>
+                        <div className="text-sm">{lead.district || "-"}</div>
                       </div>
-
-                      {/* Relevance */}
                       <div>
-                        <div className="text-xs text-gray-500">Relevance</div>
-                        <div className="text-sm capitalize">{lead.status || "yet_to_decide"}</div>
-                      </div>
-                      {/* Next Followup */}
-                      <div>
-                        <div className="text-xs text-gray-500">Next Followup</div>
-                        <div className="text-sm">{lead.nextFollowup ? new Date(lead.nextFollowup).toLocaleString() : "Not set"}</div>
+                        <div className="text-xs text-gray-500">Station</div>
+                        <div className="text-sm">{lead.station || "-"}</div>
                       </div>
                     </div>
 
-                    {/* Controls: Assign, Followup, Comments */}
+                    {/* Assign To (Dynamic Dropdown) and Relevance (Dropdown for Managers) */}
                     <div className="grid md:grid-cols-3 gap-4 mt-4">
                       {/* Assign To */}
                       <div className="space-y-2">
@@ -284,7 +315,38 @@ export default function AllLeadsPage() {
                         </Select>
                       </div>
 
-                      {/* Followup */}
+                      {/* Relevance (Managers only; Admin is not permitted by backend) */}
+                      {currentUser.role === ROLES.MANAGER && (
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-500">Relevance</div>
+                          <Select
+                            defaultValue={String(lead.status || "yet_to_decide")}
+                            onValueChange={async (val) => {
+                              try {
+                                await updateLeadStatus({ leadId: lead._id, status: val as any, currentUserId: currentUser._id });
+                                if (val === "not_relevant") {
+                                  toast.success("Lead deleted");
+                                } else if (val === "relevant") {
+                                  toast.success("Marked relevant");
+                                } else {
+                                  toast.success("Marked yet-to-decide");
+                                }
+                              } catch (e: any) {
+                                toast.error(e.message || "Failed to update status");
+                              }
+                            }}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="relevant">Relevant</SelectItem>
+                              <SelectItem value="not_relevant">Not-Relevant</SelectItem>
+                              <SelectItem value="yet_to_decide">Yet-to-Decide</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {/* Next Followup */}
                       <div className="space-y-2">
                         <div className="text-xs text-gray-500">Set Next Followup</div>
                         <div className="flex items-center gap-2">
@@ -330,10 +392,30 @@ export default function AllLeadsPage() {
                           )}
                         </div>
                       </div>
-
-                      {/* Comments */}
-                      <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
+
+                    {/* Contacts */}
+                    <div className="grid md:grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <div className="text-xs text-gray-500">Mobile No.</div>
+                        <div className="text-sm">{lead.mobileNo || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Alt Mobile No.</div>
+                        <div className="text-sm">{lead.altMobileNo || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Email</div>
+                        <div className="text-sm break-all">{lead.email || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Alt Email</div>
+                        <div className="text-sm break-all">{lead.altEmail || "-"}</div>
+                      </div>
+                    </div>
+
+                    {/* Comments */}
+                    <CommentsBox leadId={String(lead._id)} currentUserId={String(currentUser._id)} />
 
                     {/* Admin-only controls */}
                     {currentUser.role === ROLES.ADMIN && (
