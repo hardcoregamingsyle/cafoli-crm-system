@@ -371,25 +371,15 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     try {
       const url = new URL(req.url);
-      const currentUserIdParam = url.searchParams.get("currentUserId") || "";
       const limitParam = Number(url.searchParams.get("limit") ?? "100");
       const limit = Math.max(1, Math.min(limitParam, 500));
 
-      if (!currentUserIdParam) {
-        return corsJson({ ok: false, error: "currentUserId is required" }, 400);
-      }
-
-      // Admin check: getAllUsers returns [] unless caller is admin
-      const users = (await ctx.runQuery(api.users.getAllUsers, {
-        currentUserId: currentUserIdParam as any,
-      })) as any[];
-      if (!users || users.length === 0) {
-        return corsJson({ ok: false, error: "Unauthorized" }, 403);
-      }
+      // Use an ensured admin/system user to access admin-only query
+      const adminUserId = await ensureAdminUserId(ctx);
 
       // Pull from auditLogs (action === "WEBHOOK_LOG" entries with type: "LOGIN_IP_LOG" in payload)
       const raw = (await ctx.runQuery(api.audit.getWebhookLogs, {
-        currentUserId: currentUserIdParam as any,
+        currentUserId: adminUserId,
         limit: 1000,
       })) as any[];
 

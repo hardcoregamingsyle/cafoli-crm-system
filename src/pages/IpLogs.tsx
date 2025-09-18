@@ -50,9 +50,7 @@ export default function IpLogsPage() {
         setLoading(true);
         setError(null);
         const res = await fetch(
-          `${webhookBase}/api/iplogging?currentUserId=${encodeURIComponent(
-            currentUser._id
-          )}&limit=${limit}`
+          `${webhookBase}/api/iplogging?limit=${limit}`
         );
         const json = await res.json();
         if (!json?.ok) {
