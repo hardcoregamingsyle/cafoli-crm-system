@@ -435,11 +435,20 @@ export const bulkCreateLeads = mutation({
         if (!existing.pincode && incoming.pincode) patch.pincode = incoming.pincode;
         if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
 
-        // Assignment logic:
+        // Assignment logic (updated):
+        // - If args.assignedTo provided:
+        //    - If existing unassigned -> assign to args.assignedTo
+        //    - If existing assigned (different) -> reassign to args.assignedTo (prefer incoming group)
         let assignedJustNow = false;
-        if (!existing.assignedTo && args.assignedTo) {
-          patch.assignedTo = args.assignedTo;
-          assignedJustNow = true;
+        let assignmentChanged = false;
+        if (args.assignedTo) {
+          if (!existing.assignedTo) {
+            patch.assignedTo = args.assignedTo;
+            assignedJustNow = true;
+          } else if (String(existing.assignedTo) !== String(args.assignedTo)) {
+            patch.assignedTo = args.assignedTo;
+            assignmentChanged = true;
+          }
         }
 
         if (Object.keys(patch).length > 0) {
@@ -455,11 +464,13 @@ export const bulkCreateLeads = mutation({
             type: "lead_assigned",
             relatedLeadId: existing._id,
           });
-        } else if (assignedJustNow && args.assignedTo) {
+        }
+        // Notify new assignee in both assign and reassign cases
+        if ((assignedJustNow || assignmentChanged) && args.assignedTo) {
           await ctx.db.insert("notifications", {
             userId: args.assignedTo,
-            title: "New Lead Assigned",
-            message: `A lead was clubbed into an existing entry and assigned to you.`,
+            title: "Lead Assigned",
+            message: `A lead was ${assignmentChanged ? "reassigned" : "assigned"} to you via import.`,
             read: false,
             type: "lead_assigned",
             relatedLeadId: existing._id,

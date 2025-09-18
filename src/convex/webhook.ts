@@ -73,6 +73,8 @@ export const createLeadFromGoogleScript = internalMutation({
     message: v.string(),
     altEmail: v.optional(v.string()),
     altMobileNo: v.optional(v.string()),
+    // NEW: incoming optional assignee name (Column J)
+    assigneeName: v.optional(v.string()),
     state: v.string(),
     station: v.optional(v.string()),
     district: v.optional(v.string()),
@@ -80,6 +82,33 @@ export const createLeadFromGoogleScript = internalMutation({
     agencyName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Resolve incoming assigneeId if provided
+    let incomingAssigneeId: any = null;
+    const targetName = (args.assigneeName ?? "").trim().toLowerCase();
+    if (targetName) {
+      try {
+        // Try username via index first
+        const byUsername = await ctx.db
+          .query("users")
+          .withIndex("username", (q: any) => q.eq("username", args.assigneeName))
+          .unique();
+        if (byUsername?._id) {
+          incomingAssigneeId = byUsername._id;
+        } else {
+          // Fallback scan by name/username (case-insensitive)
+          const allUsers = await ctx.db.query("users").collect();
+          const found = allUsers.find((u: any) => {
+            const nm = String(u.name ?? "").trim().toLowerCase();
+            const un = String(u.username ?? "").trim().toLowerCase();
+            return nm === targetName || un === targetName;
+          });
+          if (found?._id) incomingAssigneeId = found._id;
+        }
+      } catch {
+        // ignore lookup errors; keep unassigned if unresolved
+      }
+    }
+
     // Normalize and ignore placeholder email for dedup
     const mobile = (args.mobileNo || "").trim();
     const rawEmail = (args.email || "").trim().toLowerCase();
@@ -89,7 +118,7 @@ export const createLeadFromGoogleScript = internalMutation({
     const byMobile = mobile
       ? await ctx.db
           .query("leads")
-          .withIndex("mobileNo", (q) => q.eq("mobileNo", mobile))
+          .withIndex("mobileNo", (q: any) => q.eq("mobileNo", mobile))
           .unique()
       : null;
 
@@ -98,7 +127,7 @@ export const createLeadFromGoogleScript = internalMutation({
       (emailForDedup
         ? await ctx.db
             .query("leads")
-            .withIndex("email", (q) => q.eq("email", emailForDedup))
+            .withIndex("email", (q: any) => q.eq("email", emailForDedup))
             .unique()
         : null);
 
@@ -118,16 +147,40 @@ export const createLeadFromGoogleScript = internalMutation({
       if (!existing.agencyName && args.agencyName) patch.agencyName = args.agencyName;
       if (args.serialNo && !existing.serialNo) patch.serialNo = args.serialNo;
 
+      // Assignment rule:
+      // - If incoming has assignee:
+      //    - If existing unassigned -> assign to incoming
+      //    - If existing assigned (different) -> reassign to incoming (prefer incoming)
+      // - Else keep existing as-is
+      if (incomingAssigneeId) {
+        if (!existing.assignedTo) {
+          patch.assignedTo = incomingAssigneeId;
+        } else if (String(existing.assignedTo) !== String(incomingAssigneeId)) {
+          patch.assignedTo = incomingAssigneeId;
+        }
+      }
+
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
       }
 
-      // If it had an assignee, notify them
+      // If it had an assignee before, notify them about clubbing
       if (existing.assignedTo) {
         await ctx.db.insert("notifications", {
           userId: existing.assignedTo,
           title: "Duplicate Lead Clubbed",
           message: `A Google Script lead (source: ${args.source || "unknown"}) was clubbed into your assigned lead.`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: existing._id,
+        });
+      }
+      // If reassigned to a different user, also notify new assignee
+      if (incomingAssigneeId && String(existing.assignedTo) !== String(incomingAssigneeId)) {
+        await ctx.db.insert("notifications", {
+          userId: incomingAssigneeId,
+          title: "Lead Assigned",
+          message: "A lead has been assigned to you from Google Script import.",
           read: false,
           type: "lead_assigned",
           relatedLeadId: existing._id,
@@ -145,7 +198,7 @@ export const createLeadFromGoogleScript = internalMutation({
       return false;
     }
 
-    // Insert new lead with new structure
+    // Insert new lead with optional assignment
     await ctx.db.insert("leads", {
       serialNo: args.serialNo,
       source: args.source || "google_script",
@@ -161,6 +214,7 @@ export const createLeadFromGoogleScript = internalMutation({
       district: args.district,
       pincode: args.pincode,
       agencyName: args.agencyName,
+      assignedTo: incomingAssigneeId || undefined,
       status: "yet_to_decide",
     });
     // Return explicit creation result

@@ -27,6 +27,8 @@ function mapColumnDataToLead(item: any) {
     message: item["Column G"] || "",
     altEmail: cleanEmail(item["Column H"]) || undefined,
     altMobileNo: cleanPhoneNumber(item["Column I"]) || undefined,
+    // NEW: Column J - assigneeName
+    assigneeName: item["Column J"] || undefined,
     state: item["Column M"] || "Unknown",
     station: item["Column N"] || undefined,
     district: item["Column O"] || undefined,
@@ -140,8 +142,8 @@ const crons = cronJobs();
 
 // Update: Run every 2 minutes to fetch leads from Google Script (Convex doesn't support seconds granularity)
 crons.interval(
-  "Fetch Google Script leads every 2 minutes",
-  { minutes: 2 },
+  "Fetch Google Script leads every 5 minutes",
+  { minutes: 5 },
   internal.crons.fetchGoogleScriptLeads,
   {}
 );
