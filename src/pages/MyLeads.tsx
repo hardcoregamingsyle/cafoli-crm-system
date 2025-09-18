@@ -32,6 +32,7 @@ export default function MyLeadsPage() {
   const leads = useQuery(api.leads.getMyLeads, { currentUserId: currentUser?._id });
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
+  const assignLead = useMutation(api.leads.assignLead);
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
@@ -152,6 +153,31 @@ export default function MyLeadsPage() {
                           </Button>
                         </div>
                       </div>
+
+                      {currentUser.role === ROLES.MANAGER && (
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-500">Assignment</div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await assignLead({
+                                    leadId: lead._id,
+                                    assignedTo: undefined as any,
+                                    currentUserId: currentUser._id,
+                                  });
+                                  toast.success("Lead unassigned");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Failed to unassign");
+                                }
+                              }}
+                            >
+                              Unassign from me
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
                       <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
