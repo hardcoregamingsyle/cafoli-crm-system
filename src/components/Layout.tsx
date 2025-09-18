@@ -90,12 +90,23 @@ export function Layout({ children }: LayoutProps) {
         return;
       }
 
-      await importPincodeMappings({
-        records,
-        currentUserId: currentUser._id,
-      });
+      // Batch the records to stay under Convex's array arg limit (<= 8192)
+      const BATCH_SIZE = 2000; // safe chunk size well below 8192
+      const total = records.length;
+      const totalBatches = Math.ceil(total / BATCH_SIZE);
 
-      toast.success(`Imported/updated ${records.length} pincode mapping(s)`);
+      toast(`Importing ${total} mappings in ${totalBatches} batch(es)...`);
+
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const batch = records.slice(i, i + BATCH_SIZE);
+        // eslint-disable-next-line no-await-in-loop
+        await importPincodeMappings({
+          records: batch,
+          currentUserId: currentUser._id,
+        });
+      }
+
+      toast.success(`Imported/updated ${records.length} pincode mapping(s) in ${totalBatches} batch(es)`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to import pincode CSV");
     }
