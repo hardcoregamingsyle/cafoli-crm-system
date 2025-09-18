@@ -140,8 +140,8 @@ const crons = cronJobs();
 
 // Run every 15 minutes to fetch leads from Google Script
 crons.cron(
-  "Fetch Google Script leads every 15 minutes",
-  "*/15 * * * *",
+  "Fetch Google Script leads every 1 minute",
+  "* * * * *",
   internal.crons.fetchGoogleScriptLeads,
   {}
 );
