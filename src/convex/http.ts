@@ -80,6 +80,41 @@ async function ensureAdminUserId(ctx: any) {
   return ownerId;
 }
 
+// Add: helper to extract client IP from headers
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    // XFF may contain a list: client, proxy1, proxy2...
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return null;
+}
+
+// Add: fetch ipstack data if configured
+async function ipstackLookup(ip: string): Promise<any | null> {
+  try {
+    // Env vars in Convex httpAction are available via process.env
+    const key = process.env.IPSTACK_API_KEY;
+    if (!key) return null;
+    // fields kept concise; add more if needed
+    const url = `http://api.ipstack.com/${encodeURIComponent(
+      ip
+    )}?access_key=${encodeURIComponent(key)}&fields=ip,city,region_name,country_name,connection.isp`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json?.success === false) return null;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
 // Log webhooks for debugging/recordkeeping
 http.route({
   path: "/api/webhook/logs",
@@ -243,6 +278,151 @@ http.route({
       return corsJson({ ok: true, count, latest: summary }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
+// New: CORS preflight for /api/iplogging
+http.route({
+  path: "/api/iplogging",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+// New: POST /api/iplogging — log a login with IP geolocation enrichment
+http.route({
+  path: "/api/iplogging",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      // Parse JSON body with { username }
+      let body: any = {};
+      try {
+        body = await req.json();
+      } catch {
+        // ignore
+      }
+      const username = (body?.username ?? "").toString().trim();
+
+      const ip = getClientIp(req) || "Unknown";
+      const ua = req.headers.get("user-agent") || "Unknown";
+
+      const ipInfo = ip !== "Unknown" ? await ipstackLookup(ip) : null;
+
+      // Build formatted details (human-readable)
+      const lines: string[] = [];
+      lines.push("LOGIN IP LOG");
+      lines.push(`Username: ${username || "-"}`);
+      lines.push(`IP: ${ip}`);
+      if (ipInfo) {
+        lines.push(`City: ${ipInfo.city ?? "-"}`);
+        lines.push(`Region: ${ipInfo.region_name ?? "-"}`);
+        lines.push(`Country: ${ipInfo.country_name ?? "-"}`);
+        lines.push(`ISP: ${ipInfo?.connection?.isp ?? "-"}`);
+      } else {
+        lines.push("Geolocation: (ipstack disabled or unavailable)");
+      }
+      lines.push(`User-Agent: ${ua}`);
+      const details = lines.join("\n");
+
+      // Store in auditLogs
+      // Use an admin/system id for userId via ensureAdminUserId (same pattern as other endpoints)
+      const systemUserId = await ensureAdminUserId(ctx);
+      await ctx.runMutation(internal.webhook.insertLog, {
+        payload: {
+          type: "LOGIN_IP_LOG",
+          username,
+          ip,
+          userAgent: ua,
+          ipstack: ipInfo,
+          formatted: details,
+          ts: new Date().toISOString(),
+        },
+      });
+
+      // (removed optional insertLoginLog call — already persisted via internal.webhook.insertLog)
+
+      return corsJson(
+        {
+          ok: true,
+          username,
+          ip,
+          city: ipInfo?.city ?? null,
+          region: ipInfo?.region_name ?? null,
+          country: ipInfo?.country_name ?? null,
+          isp: ipInfo?.connection?.isp ?? null,
+          userAgent: ua,
+          formatted: details,
+        },
+        200
+      );
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e?.message || "error" }, 500);
+    }
+  }),
+});
+
+// New: GET /api/iplogging — Admin-only view of latest login IP logs (formatted)
+http.route({
+  path: "/api/iplogging",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const currentUserIdParam = url.searchParams.get("currentUserId") || "";
+      const limitParam = Number(url.searchParams.get("limit") ?? "100");
+      const limit = Math.max(1, Math.min(limitParam, 500));
+
+      if (!currentUserIdParam) {
+        return corsJson({ ok: false, error: "currentUserId is required" }, 400);
+      }
+
+      // Admin check: getAllUsers returns [] unless caller is admin
+      const users = (await ctx.runQuery(api.users.getAllUsers, {
+        currentUserId: currentUserIdParam as any,
+      })) as any[];
+      if (!users || users.length === 0) {
+        return corsJson({ ok: false, error: "Unauthorized" }, 403);
+      }
+
+      // Pull from auditLogs (action === "WEBHOOK_LOG" entries with type: "LOGIN_IP_LOG" in payload)
+      const raw = (await ctx.runQuery(api.audit.getWebhookLogs, {
+        currentUserId: currentUserIdParam as any,
+        limit: 1000,
+      })) as any[];
+
+      const loginLogs = raw
+        .filter((l) => {
+          try {
+            const d = JSON.parse(l.details || "{}");
+            return d?.type === "LOGIN_IP_LOG";
+          } catch {
+            return false;
+          }
+        })
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, limit)
+        .map((l) => {
+          const d = JSON.parse(l.details || "{}");
+          return {
+            _id: l._id,
+            timestamp: l.timestamp,
+            username: d.username ?? null,
+            ip: d.ip ?? null,
+            city: d.ipstack?.city ?? null,
+            region: d.ipstack?.region_name ?? null,
+            country: d.ipstack?.country_name ?? null,
+            isp: d.ipstack?.connection?.isp ?? null,
+            userAgent: d.userAgent ?? null,
+            formatted: d.formatted ?? null,
+          };
+        });
+
+      return corsJson({ ok: true, count: loginLogs.length, logs: loginLogs }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e?.message || "error" }, 500);
     }
   }),
 });
