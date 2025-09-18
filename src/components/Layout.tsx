@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download } from "lucide-react";
+import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
@@ -11,6 +11,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,6 +36,22 @@ export function Layout({ children }: LayoutProps) {
   const pincodeCsvInputRef = useRef<HTMLInputElement | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [leadForm, setLeadForm] = useState({
+    name: "",
+    mobileNo: "",
+    email: "",
+    subject: "",
+    message: "",
+    altMobileNo: "",
+    altEmail: "",
+    state: "",
+    source: "",
+    station: "",
+    district: "",
+    pincode: "",
+    agencyName: "",
+  });
 
   useEffect(() => {
     initializeAuth();
@@ -263,6 +281,7 @@ export function Layout({ children }: LayoutProps) {
   }
 
   const isAdmin = currentUser.role === ROLES.ADMIN;
+  const isManager = currentUser.role === ROLES.MANAGER;
 
   const navigationItems = [
     { 
@@ -451,6 +470,19 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               )}
 
+              {/* Add Lead (Admin + Manager) */}
+              {(isAdmin || isManager) && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 hidden sm:inline-flex"
+                  onClick={() => setAddDialogOpen(true)}
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Add Lead
+                </Button>
+              )}
+
               {/* Notifications */}
               <Button
                 variant="ghost"
@@ -535,6 +567,159 @@ export function Layout({ children }: LayoutProps) {
                 }}
               >
                 Choose CSV & Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Add Lead Dialog (Admin + Manager) */}
+      {(isAdmin || isManager) && (
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Lead Manually</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Left column */}
+              <div className="space-y-2">
+                <Input
+                  placeholder="Name (required)"
+                  value={leadForm.name}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, name: e.target.value }))}
+                />
+                <Input
+                  placeholder="Mobile No (required)"
+                  value={leadForm.mobileNo}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, mobileNo: e.target.value }))}
+                />
+                <Input
+                  placeholder="Email (required)"
+                  value={leadForm.email}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
+                />
+                <Input
+                  placeholder="Alt Mobile"
+                  value={leadForm.altMobileNo}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, altMobileNo: e.target.value }))}
+                />
+                <Input
+                  placeholder="Alt Email"
+                  value={leadForm.altEmail}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, altEmail: e.target.value }))}
+                />
+                <Input
+                  placeholder="State (required)"
+                  value={leadForm.state}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, state: e.target.value }))}
+                />
+                <Input
+                  placeholder="Source"
+                  value={leadForm.source}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, source: e.target.value }))}
+                />
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-2">
+                <Input
+                  placeholder="Subject (required)"
+                  value={leadForm.subject}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, subject: e.target.value }))}
+                />
+                <Textarea
+                  placeholder="Message (required)"
+                  value={leadForm.message}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, message: e.target.value }))}
+                />
+                <Input
+                  placeholder="Station"
+                  value={leadForm.station}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, station: e.target.value }))}
+                />
+                <Input
+                  placeholder="District"
+                  value={leadForm.district}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, district: e.target.value }))}
+                />
+                <Input
+                  placeholder="Pincode"
+                  value={leadForm.pincode}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, pincode: e.target.value }))}
+                />
+                <Input
+                  placeholder="Agency Name"
+                  value={leadForm.agencyName}
+                  onChange={(e: any) => setLeadForm((f) => ({ ...f, agencyName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddDialogOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    if (!currentUser?._id) {
+                      toast.error("Not authenticated");
+                      return;
+                    }
+                    const req = ["name", "mobileNo", "email", "subject", "message", "state"] as const;
+                    for (const k of req) {
+                      if (!String(leadForm[k]).trim()) {
+                        toast.error(`Missing required: ${k}`);
+                        return;
+                      }
+                    }
+                    await bulkCreateLeads({
+                      leads: [
+                        {
+                          name: leadForm.name,
+                          subject: leadForm.subject,
+                          message: leadForm.message,
+                          mobileNo: leadForm.mobileNo,
+                          email: leadForm.email,
+                          altMobileNo: leadForm.altMobileNo || "",
+                          altEmail: leadForm.altEmail || "",
+                          state: leadForm.state,
+                          source: leadForm.source || "manual",
+                          station: leadForm.station || undefined,
+                          district: leadForm.district || undefined,
+                          pincode: leadForm.pincode || undefined,
+                          agencyName: leadForm.agencyName || undefined,
+                        },
+                      ],
+                      currentUserId: currentUser._id,
+                    });
+                    toast.success("Lead added");
+                    setAddDialogOpen(false);
+                    setLeadForm({
+                      name: "",
+                      mobileNo: "",
+                      email: "",
+                      subject: "",
+                      message: "",
+                      altMobileNo: "",
+                      altEmail: "",
+                      state: "",
+                      source: "",
+                      station: "",
+                      district: "",
+                      pincode: "",
+                      agencyName: "",
+                    });
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to add lead");
+                  }
+                }}
+              >
+                Save Lead
               </Button>
             </DialogFooter>
           </DialogContent>
