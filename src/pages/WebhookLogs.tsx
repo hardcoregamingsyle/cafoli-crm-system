@@ -46,6 +46,9 @@ export default function WebhookLogsPage() {
   // Add bulk import mutation
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
 
+  // Also fetch users so we can resolve assignees from Column J
+  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id as any }) ?? [];
+
   async function loadLogs() {
     if (!isWebhookUrlConfigured) return;
     try {
@@ -146,15 +149,27 @@ export default function WebhookLogsPage() {
                   }
 
                   if (Array.isArray(parsed)) {
-                    // Map Column A..P/Q -> lead fields
-                    // A/Serial No. B/Source C/Name D/Subject E/Email F/Mobile G/Message
-                    // H/Alt_Email I/Alt_Mobile J/Assigned_To L/Relevance
-                    // M/State N/Station O/District P/Pincode Q/Agency Name
-                    const leads = parsed.map((row: any) => {
+                    // Map Column A..Q -> lead fields + assigned-to (Column J)
+                    const getUsersList = Array.isArray(users) ? users : [];
+                    const findUserIdByName = (name: string): string | undefined => {
+                      if (!name) return undefined;
+                      const target = name.trim().toLowerCase();
+                      const found = getUsersList.find((u: any) => {
+                        const nm = String(u.name ?? "").trim().toLowerCase();
+                        const un = String(u.username ?? "").trim().toLowerCase();
+                        return nm === target || un === target;
+                      });
+                      return found?._id as string | undefined;
+                    };
+
+                    const rowsWithAssignee = parsed.map((row: any) => {
                       const get = (k: string) => (row && (row[k] ?? row[k.trim()])) ?? "";
                       const mobileRaw = String(get("Column F") ?? "").trim();
                       const mobile = mobileRaw.replace(/[^\d]/g, "");
-                      return {
+                      const assignedName = String(get("Column J") ?? "").trim();
+                      const assigneeId = findUserIdByName(assignedName);
+
+                      const lead = {
                         name: String(get("Column C") ?? "").trim(),
                         subject: String(get("Column D") ?? "").trim(),
                         message: String(get("Column G") ?? "").trim(),
@@ -169,16 +184,45 @@ export default function WebhookLogsPage() {
                         pincode: String(get("Column P") ?? "").trim() || undefined,
                         agencyName: String(get("Column Q") ?? "").trim() || undefined,
                       };
+
+                      return { lead, assigneeId };
                     })
                     // only keep those with a mobile number
-                    .filter((l: any) => !!l.mobileNo);
+                    .filter((entry: any) => !!entry.lead.mobileNo);
 
-                    if (leads.length > 0) {
-                      await bulkCreateLeads({
-                        leads,
-                        currentUserId: currentUser?._id as any,
-                      });
-                      toast.success(`Imported ${leads.length} lead(s) from GET response`);
+                    if (rowsWithAssignee.length > 0) {
+                      // Group by assigneeId: undefined -> unassigned
+                      const groups = new Map<string | undefined, any[]>();
+                      for (const entry of rowsWithAssignee) {
+                        const key = entry.assigneeId || undefined;
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key)!.push(entry.lead);
+                      }
+
+                      // Process unassigned first (key: undefined)
+                      const unassignedLeads = groups.get(undefined) ?? [];
+                      if (unassignedLeads.length > 0) {
+                        await bulkCreateLeads({
+                          leads: unassignedLeads,
+                          currentUserId: currentUser?._id as any,
+                        });
+                      }
+
+                      // Then process each assigned group
+                      for (const [assigneeId, leadsArr] of groups.entries()) {
+                        if (!assigneeId) continue;
+                        await bulkCreateLeads({
+                          leads: leadsArr,
+                          assignedTo: assigneeId as any,
+                          currentUserId: currentUser?._id as any,
+                        });
+                      }
+
+                      const totalImported = rowsWithAssignee.length;
+                      const assignedCount = [...groups.entries()].reduce((acc, [k, v]) => acc + (k ? v.length : 0), 0);
+                      const unassignedCount = unassignedLeads.length;
+
+                      toast.success(`Imported ${totalImported} lead(s) from GET response. Assigned=${assignedCount}, Unassigned=${unassignedCount}`);
                     } else {
                       toast("No valid rows with a mobile number to import.");
                     }
