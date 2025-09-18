@@ -162,13 +162,34 @@ export function Layout({ children }: LayoutProps) {
       if (skipped > 0) {
         toast(`Skipped ${skipped} row(s) with no mobile number.`);
       }
-      await bulkCreateLeads({
-        leads,
-        assignedTo: assignedTo ? (assignedTo as any) : undefined,
-        // pass current user for authorization
-        currentUserId: currentUser._id,
-      });
-      toast.success(`Imported ${leads.length} lead(s)${assignedTo ? " and assigned" : ""}`);
+
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+
+      // Batch the leads to stay under Convex's array arg limit (<= 8192)
+      const BATCH_SIZE = 2000; // safe chunk size well below 8192
+      const total = leads.length;
+      const totalBatches = Math.ceil(total / BATCH_SIZE);
+
+      toast(`Importing ${total} lead(s) in ${totalBatches} batch(es)...`);
+
+      let imported = 0;
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const batch = leads.slice(i, i + BATCH_SIZE);
+        // eslint-disable-next-line no-await-in-loop
+        await bulkCreateLeads({
+          leads: batch,
+          assignedTo: assignedTo ? (assignedTo as any) : undefined,
+          currentUserId: currentUser._id,
+        });
+        imported += batch.length;
+      }
+
+      toast.success(
+        `Imported ${imported} lead(s)${assignedTo ? " and assigned" : ""} in ${totalBatches} batch(es)`
+      );
     } catch (e: any) {
       toast.error(e.message || "Failed to import");
     }
