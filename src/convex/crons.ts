@@ -138,10 +138,10 @@ export const fetchGoogleScriptLeads = internalAction({
 
 const crons = cronJobs();
 
-// Run at minute 2 and 29 of every hour to fetch leads from Google Script
-crons.cron(
-  "Fetch Google Script leads at minute 2 and 29",
-  "2,29 * * * *",
+// Update: Run every 2 minutes to fetch leads from Google Script (Convex doesn't support seconds granularity)
+crons.interval(
+  "Fetch Google Script leads every 2 minutes",
+  { minutes: 2 },
   internal.crons.fetchGoogleScriptLeads,
   {}
 );
