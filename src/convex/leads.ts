@@ -197,18 +197,32 @@ export const assignLead = mutation({
     const currentUser = args.currentUserId
       ? await ctx.db.get(args.currentUserId)
       : await getCurrentUser(ctx);
-    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+    if (!currentUser) {
       throw new Error("Unauthorized");
     }
-    
+
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
     }
-    
+
+    // Authorization:
+    // - Admin/Manager: can assign/unassign freely
+    // - Staff: can only unassign themselves (assignedTo must be undefined and lead.assignedTo === currentUser._id)
+    const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
+    const isStaffUnassigningSelf =
+      currentUser.role !== ROLES.ADMIN &&
+      currentUser.role !== ROLES.MANAGER &&
+      args.assignedTo === undefined &&
+      String(lead.assignedTo ?? "") === String(currentUser._id);
+
+    if (!isAdminOrManager && !isStaffUnassigningSelf) {
+      throw new Error("Unauthorized");
+    }
+
     await ctx.db.patch(args.leadId, { assignedTo: args.assignedTo });
-    
-    // Create notification if assigning to someone
+
+    // Create notification if assigning to someone (skip unassign)
     if (args.assignedTo) {
       await ctx.db.insert("notifications", {
         userId: args.assignedTo,
@@ -219,8 +233,8 @@ export const assignLead = mutation({
         relatedLeadId: args.leadId,
       });
     }
-    
-    // Log the action
+
+    // Log the action (covers assign, reassign, or unassign)
     const assignedUser = args.assignedTo ? await ctx.db.get(args.assignedTo) : null;
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,

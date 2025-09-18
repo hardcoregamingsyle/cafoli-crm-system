@@ -154,7 +154,7 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
 
-                      {currentUser.role === ROLES.MANAGER && (
+                      {currentUser.role !== ROLES.ADMIN && (
                         <div className="space-y-2">
                           <div className="text-xs text-gray-500">Assignment</div>
                           <div className="flex items-center gap-2">
