@@ -42,6 +42,21 @@ export default function Login() {
     try {
       const user = await login(username, password);
       toast.success("Login successful!");
+
+      // Add: POST to Convex HTTP endpoint to log IP + geolocation
+      try {
+        const webhookBase = import.meta.env.VITE_WEBHOOK_URL as string | undefined;
+        if (webhookBase && webhookBase.startsWith("http")) {
+          await fetch(`${webhookBase}/api/iplogging`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          }).catch(() => {});
+        }
+      } catch {
+        // Swallow errors; do not block login UX
+      }
+
       // Redirect per role logic
       if (user.role === "admin" || user.role === "manager") {
         navigate("/all_leads");
