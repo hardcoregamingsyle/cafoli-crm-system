@@ -141,7 +141,7 @@ export default function AllLeadsPage() {
         </div>
 
         {/* Debug banner: shows server vs UI counts to diagnose deployment mismatch */}
-        {isWebhookUrlConfigured && (
+        {currentUser.role === ROLES.ADMIN && isWebhookUrlConfigured && (
           <div className="text-xs sm:text-sm border rounded-md p-3 bg-white/80 backdrop-blur-sm border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <span className="font-medium">Server leads:</span> {serverCount ?? "—"}{" "}
