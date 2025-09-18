@@ -46,11 +46,16 @@ export const getAllLeads = query({
     
     let leads = await ctx.db.query("leads").collect();
     
-    // Apply filter
-    if (args.filter === "assigned") {
-      leads = leads.filter(lead => lead.assignedTo !== undefined);
-    } else if (args.filter === "unassigned") {
-      leads = leads.filter(lead => lead.assignedTo === undefined);
+    // Enforce: Managers can only see Unassigned leads on /all_leads
+    if (currentUser.role === ROLES.MANAGER) {
+      leads = leads.filter((lead) => lead.assignedTo === undefined);
+    } else {
+      // Apply filter for Admin only
+      if (args.filter === "assigned") {
+        leads = leads.filter(lead => lead.assignedTo !== undefined);
+      } else if (args.filter === "unassigned") {
+        leads = leads.filter(lead => lead.assignedTo === undefined);
+      }
     }
     
     // Sort oldest to newest
