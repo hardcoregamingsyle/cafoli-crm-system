@@ -342,7 +342,7 @@ export const importFromWebhookLogs = mutation({
         const altMobileNo = fallback(r, ["SENDER_MOBILE_ALT", "SENDER_PHONE_ALT", "altMobileNo", "altMobile", "altPhone"], "");
         const altEmail = fallback(r, ["SENDER_EMAIL_ALT", "altEmail"], "");
         const state = fallback(r, ["SENDER_STATE", "state", "region"], "Unknown");
-        const source = "indiamart";
+        const source = "webhook";
 
         // Require at least a mobile or an email to be useful
         if (!mobileNo && !email) {
