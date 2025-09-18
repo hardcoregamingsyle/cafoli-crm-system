@@ -8,6 +8,8 @@ export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
     currentUserId: v.optional(v.id("users")),
+    // Add: optional assignee filter ("unassigned" or a specific user id)
+    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"))),
   },
   handler: async (ctx, args) => {
     // Resolve current user using passed id or session
@@ -50,11 +52,21 @@ export const getAllLeads = query({
     if (currentUser.role === ROLES.MANAGER) {
       leads = leads.filter((lead) => lead.assignedTo === undefined);
     } else {
-      // Apply filter for Admin only
-      if (args.filter === "assigned") {
-        leads = leads.filter(lead => lead.assignedTo !== undefined);
-      } else if (args.filter === "unassigned") {
-        leads = leads.filter(lead => lead.assignedTo === undefined);
+      // Admin filters
+      // New: assigneeId (overrides generic filter if provided)
+      if (typeof args.assigneeId !== "undefined") {
+        if (args.assigneeId === "unassigned") {
+          leads = leads.filter((l) => l.assignedTo === undefined);
+        } else {
+          leads = leads.filter((l) => String(l.assignedTo ?? "") === String(args.assigneeId));
+        }
+      } else {
+        // Existing: Apply filter for Admin only
+        if (args.filter === "assigned") {
+          leads = leads.filter(lead => lead.assignedTo !== undefined);
+        } else if (args.filter === "unassigned") {
+          leads = leads.filter(lead => lead.assignedTo === undefined);
+        }
       }
     }
     

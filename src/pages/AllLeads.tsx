@@ -32,7 +32,18 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
-  const leads = useQuery(api.leads.getAllLeads, { filter, currentUserId: currentUser?._id });
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const leads = useQuery(api.leads.getAllLeads, {
+    // keep your existing filter if present
+    // filter,
+    currentUserId: currentUser?._id as any,
+    assigneeId:
+      assigneeFilter === "all"
+        ? undefined
+        : assigneeFilter === "unassigned"
+        ? ("unassigned" as any)
+        : (assigneeFilter as any),
+  });
   const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }); // Admin only
   const assignable = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
@@ -137,6 +148,26 @@ export default function AllLeadsPage() {
             <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
             <Button variant={filter === "assigned" ? "default" : "outline"} onClick={() => setFilter("assigned")}>Assigned</Button>
             <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
+            <div className="w-56">
+              <Select
+                value={assigneeFilter}
+                onValueChange={(val) => setAssigneeFilter(val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {/* Dynamically list all users as options */}
+                  {(users ?? []).map((u: any) => (
+                    <SelectItem key={String(u._id)} value={String(u._id)}>
+                      {u.name || u.username || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
