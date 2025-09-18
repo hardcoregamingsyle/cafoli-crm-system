@@ -116,6 +116,27 @@ export default function WebhookLogsPage() {
             >
               Test Log
             </Button>
+            {/* New: Send a raw GET to the webhook URL without params */}
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!isWebhookUrlConfigured) {
+                  toast.error("VITE_WEBHOOK_URL is not configured.");
+                  return;
+                }
+                try {
+                  const res = await fetch(listeningUrl, { method: "GET" });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  toast.success("GET request sent");
+                  await loadLogs();
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to send GET");
+                }
+              }}
+              disabled={!isWebhookUrlConfigured}
+            >
+              Send GET
+            </Button>
             <Button
               variant="default"
               onClick={async () => {
@@ -125,7 +146,7 @@ export default function WebhookLogsPage() {
                     return;
                   }
                   const res = await fetch(
-                    `${envWebhookBase!.replace(/\/+$/, "")}/api/webhook/import_from_logs`,
+                    `${envWebhookBase!.replace(/\/*$/, "")}/api/webhook/import_from_logs`,
                     { method: "POST" }
                   );
                   const json = await res.json();
