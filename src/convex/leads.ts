@@ -721,6 +721,18 @@ export const deleteLeadAdmin = mutation({
 export const updateLeadDetails = mutation({
   args: {
     leadId: v.id("leads"),
+    // Added editable fields
+    name: v.optional(v.string()),
+    subject: v.optional(v.string()),
+    message: v.optional(v.string()),
+    mobileNo: v.optional(v.string()),
+    altMobileNo: v.optional(v.string()),
+    email: v.optional(v.string()),
+    altEmail: v.optional(v.string()),
+    state: v.optional(v.string()),
+    district: v.optional(v.string()),
+    source: v.optional(v.string()),
+    // Existing fields
     agencyName: v.optional(v.string()),
     pincode: v.optional(v.string()),
     station: v.optional(v.string()),
@@ -741,11 +753,24 @@ export const updateLeadDetails = mutation({
     }
 
     const patch: Record<string, any> = {};
+    // Added: map new optional fields
+    if (typeof args.name !== "undefined") patch.name = args.name;
+    if (typeof args.subject !== "undefined") patch.subject = args.subject;
+    if (typeof args.message !== "undefined") patch.message = args.message;
+    if (typeof args.mobileNo !== "undefined") patch.mobileNo = args.mobileNo;
+    if (typeof args.altMobileNo !== "undefined") patch.altMobileNo = args.altMobileNo;
+    if (typeof args.email !== "undefined") patch.email = (args.email || "").toLowerCase();
+    if (typeof args.altEmail !== "undefined") patch.altEmail = args.altEmail ? args.altEmail.toLowerCase() : args.altEmail;
+    if (typeof args.state !== "undefined") patch.state = args.state;
+    if (typeof args.district !== "undefined") patch.district = args.district;
+    if (typeof args.source !== "undefined") patch.source = args.source;
+
     if (typeof args.agencyName !== "undefined") patch.agencyName = args.agencyName;
+
+    // Maintain auto-fill from pincode, but allow manual override for state/district
     if (typeof args.pincode !== "undefined") {
       patch.pincode = args.pincode;
 
-      // Auto-fill state and district based on pincode mapping
       const pin = (args.pincode || "").toString().trim();
       if (pin) {
         let mapping: any = null;
@@ -755,7 +780,6 @@ export const updateLeadDetails = mutation({
             .withIndex("pincode", (q: any) => q.eq("pincode", pin))
             .unique();
         } catch {
-          // ignore unique errors if duplicates accidentally exist
           const all = await ctx.db
             .query("pincodeMappings")
             .withIndex("pincode", (q: any) => q.eq("pincode", pin))
@@ -763,11 +787,17 @@ export const updateLeadDetails = mutation({
           mapping = all[0] || null;
         }
         if (mapping) {
-          patch.state = mapping.state;
-          patch.district = mapping.district;
+          // Only apply mapping if caller didn't provide explicit state/district in this update
+          if (typeof args.state === "undefined") {
+            patch.state = mapping.state;
+          }
+          if (typeof args.district === "undefined") {
+            patch.district = mapping.district;
+          }
         }
       }
     }
+
     if (typeof args.station !== "undefined") {
       patch.station = args.station;
     }

@@ -227,7 +227,106 @@ export default function AllLeadsPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    {/* Message */}
+                    {/* Editable Name/Subject/Message block */}
+                    <div className="grid md:grid-cols-3 gap-4 py-2">
+                      {/* Name (Manual Input) */}
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Name (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.name || ""}
+                            placeholder="Enter name"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  name: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Name saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save name");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Subject (Manual Input) */}
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Subject (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.subject || ""}
+                            placeholder="Enter subject"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  subject: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Subject saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save subject");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Message (Manual Input) */}
+                      <div className="space-y-1 md:col-span-1">
+                        <div className="text-xs text-gray-500">Message (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.message || ""}
+                            placeholder="Enter message"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  message: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Message saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save message");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Message (read-only) */}
                     <div className="grid gap-4 py-3">
                       <div className="md:col-span-2">
                         <div className="text-xs text-gray-500">Message</div>
@@ -235,7 +334,7 @@ export default function AllLeadsPage() {
                       </div>
                     </div>
 
-                    {/* Agency Name (Manual Input), Pincode (Manual Input) — State — District — Station */}
+                    {/* Agency Name (Manual Input), Pincode (Manual Input) — State (Manual Input) — District (Manual Input) — Station */}
                     <div className="grid md:grid-cols-5 gap-4 py-2">
                       <div className="md:col-span-2 space-y-1">
                         <div className="text-xs text-gray-500">Agency Name (Manual Input)</div>
@@ -298,12 +397,64 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">State</div>
-                        <div className="text-sm">{lead.state || "-"}</div>
+                        <div className="text-xs text-gray-500">State (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.state || ""}
+                            placeholder="Enter state"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  state: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("State saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save state");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">District</div>
-                        <div className="text-sm">{lead.district || "-"}</div>
+                        <div className="text-xs text-gray-500">District (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.district || ""}
+                            placeholder="Enter district"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  district: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("District saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save district");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="text-xs text-gray-500">Station (Manual Input)</div>
@@ -453,21 +604,125 @@ export default function AllLeadsPage() {
 
                     {/* Contacts */}
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <div className="text-xs text-gray-500">Mobile No.</div>
-                        <div className="text-sm">{lead.mobileNo || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Mobile No. (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.mobileNo || ""}
+                            placeholder="Enter mobile number"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  mobileNo: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Mobile saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save mobile");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Alt Mobile No.</div>
-                        <div className="text-sm">{lead.altMobileNo || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Alt Mobile No. (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.altMobileNo || ""}
+                            placeholder="Enter alt mobile number"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  altMobileNo: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Alt mobile saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save alt mobile");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Email</div>
-                        <div className="text-sm break-all">{lead.email || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Email (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.email || ""}
+                            placeholder="Enter email"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  email: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Email saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save email");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Alt Email</div>
-                        <div className="text-sm break-all">{lead.altEmail || "-"}</div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">Alt Email (Manual Input)</div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={lead.altEmail || ""}
+                            placeholder="Enter alt email"
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              const input = (e.currentTarget.previousElementSibling as any);
+                              const val = input?._val ?? input?.value ?? "";
+                              try {
+                                await updateLeadDetails({
+                                  leadId: lead._id,
+                                  altEmail: val,
+                                  currentUserId: currentUser._id,
+                                });
+                                toast.success("Alt email saved");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to save alt email");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
