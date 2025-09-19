@@ -32,7 +32,8 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<any>("all");
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const leads = useQuery(api.leads.getAllLeads, {
     // keep your existing filter if present
     // filter,
@@ -150,15 +151,10 @@ export default function AllLeadsPage() {
             <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
             <div className="w-56">
               <Select
-                value={typeof assigneeFilter === "string" ? assigneeFilter : String(assigneeFilter)}
+                value={assigneeFilter}
                 onValueChange={(val) => {
-                  if (val === "all" || val === "unassigned") {
-                    setAssigneeFilter(val);
-                    return;
-                  }
-                  const match = (users ?? []).find((u: any) => String(u._id) === val);
-                  // Store the actual Convex Id object if found; fallback to "all" on mismatch
-                  setAssigneeFilter(match?._id ?? "all");
+                  // Keep state as string only to prevent unstable object identity loops
+                  setAssigneeFilter(val);
                 }}
               >
                 <SelectTrigger>
@@ -525,7 +521,7 @@ export default function AllLeadsPage() {
                             <SelectItem value="self">Assign to Self</SelectItem>
                             <SelectItem value="unassign">Unassign</SelectItem>
                             {userOptions.map((u: any) => (
-                              <SelectItem key={u._id} value={u._id}>{u.name || u.username}</SelectItem>
+                              <SelectItem key={String(u._id)} value={String(u._id)}>{u.name || u.username}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
