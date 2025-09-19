@@ -8,8 +8,8 @@ export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
     currentUserId: v.optional(v.id("users")),
-    // Add: optional assignee filter ("unassigned" or a specific user id)
-    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"))),
+    // Allow "all" as a safe literal so frontend mistakes don't 500
+    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"), v.literal("all"))),
   },
   handler: async (ctx, args) => {
     try {
@@ -55,7 +55,7 @@ export const getAllLeads = query({
         leads = all.filter((l) => l.assignedTo === undefined);
       } else {
         // Admin
-        if (typeof args.assigneeId !== "undefined") {
+        if (typeof args.assigneeId !== "undefined" && args.assigneeId !== "all") {
           if (args.assigneeId === "unassigned") {
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => l.assignedTo === undefined);
@@ -67,7 +67,7 @@ export const getAllLeads = query({
               .collect();
           }
         } else {
-          // No assigneeId filter → fall back to optional generic filter
+          // No assigneeId filter or it's "all" → fall back to optional generic filter
           const all = await ctx.db.query("leads").collect();
           if (args.filter === "assigned") {
             leads = all.filter((l) => l.assignedTo !== undefined);
