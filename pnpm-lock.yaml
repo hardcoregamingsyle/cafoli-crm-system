@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@convex-dev/auth':
         specifier: ^0.0.86
-        version: 0.0.86(@auth/core@0.37.4)(convex@1.27.0(react@19.1.0))(react@19.1.0)
+        version: 0.0.86(@auth/core@0.37.4)(convex@1.27.1(react@19.1.0))(react@19.1.0)
       '@faker-js/faker':
         specifier: ^9.8.0
         version: 9.8.0
@@ -126,8 +126,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       convex:
-        specifier: ^1.27.0
-        version: 1.27.0(react@19.1.0)
+        specifier: ^1.27.1
+        version: 1.27.1(react@19.1.0)
       crud:
         specifier: link:convex-helpers/server/crud
         version: link:convex-helpers/server/crud
@@ -2097,8 +2097,8 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
-  convex@1.27.0:
-    resolution: {integrity: sha512-IHkqZX3GtY4nKFPTAR4mvWHHhDiQX9PM7EjpEv0pJWoMoq0On6oOL3iZ7Xz4Ls96dF7WJd4AjfitJsg2hUnLSQ==}
+  convex@1.27.1:
+    resolution: {integrity: sha512-kep7JFn5Bil9/OUZUsL1bgoo0G9DmEf7stkBW67+NqP2FrzBt2TX8yz4V6oKLygzepGy90Ura2FtqXawYKXYIg==}
     engines: {node: '>=18.0.0', npm: '>=7.0.0'}
     hasBin: true
     peerDependencies:
@@ -3436,10 +3436,10 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
 
-  '@convex-dev/auth@0.0.86(@auth/core@0.37.4)(convex@1.27.0(react@19.1.0))(react@19.1.0)':
+  '@convex-dev/auth@0.0.86(@auth/core@0.37.4)(convex@1.27.1(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@auth/core': 0.37.4
-      convex: 1.27.0(react@19.1.0)
+      convex: 1.27.1(react@19.1.0)
       cookie: 1.0.2
       is-network-error: 1.1.0
       jose: 5.10.0
@@ -5046,7 +5046,7 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex@1.27.0(react@19.1.0):
+  convex@1.27.1(react@19.1.0):
     dependencies:
       esbuild: 0.25.4
       jwt-decode: 4.0.0
