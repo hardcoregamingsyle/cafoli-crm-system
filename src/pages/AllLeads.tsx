@@ -34,19 +34,30 @@ export default function AllLeadsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const leads = useQuery(api.leads.getAllLeads, {
-    // keep your existing filter if present
-    // filter,
-    currentUserId: currentUser?._id as any,
-    assigneeId:
-      assigneeFilter === "all"
-        ? undefined
-        : assigneeFilter === "unassigned"
-        ? ("unassigned" as any)
-        : (assigneeFilter as any),
-  });
-  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }); // Admin only
-  const assignable = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }); // Admin + Manager
+  const leads = useQuery(
+    api.leads.getAllLeads,
+    currentUser
+      ? {
+          // keep your existing filter if present
+          // filter,
+          currentUserId: currentUser._id as any,
+          assigneeId:
+            assigneeFilter === "all"
+              ? undefined
+              : assigneeFilter === "unassigned"
+              ? ("unassigned" as any)
+              : (assigneeFilter as any),
+        }
+      : "skip"
+  );
+  const users = useQuery(
+    api.users.getAllUsers,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  ); // Admin only
+  const assignable = useQuery(
+    api.users.getAssignableUsers,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  ); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
