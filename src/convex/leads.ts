@@ -8,8 +8,8 @@ export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
     currentUserId: v.optional(v.id("users")),
-    // Allow "all" as a safe literal so frontend mistakes don't 500
-    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"), v.literal("all"))),
+    // Allow "all" and also tolerate empty string ("") from UI Selects to avoid pre-handler validation errors
+    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"), v.literal("all"), v.literal(""))),
   },
   handler: async (ctx, args) => {
     try {
@@ -55,19 +55,23 @@ export const getAllLeads = query({
         leads = all.filter((l) => l.assignedTo === undefined);
       } else {
         // Admin
-        if (typeof args.assigneeId !== "undefined" && args.assigneeId !== "all") {
-          if (args.assigneeId === "unassigned") {
+        // Normalize assigneeId: treat "" as "all" (no filter)
+        const normalizedAssignee =
+          typeof args.assigneeId === "string" && args.assigneeId.trim() === "" ? "all" : args.assigneeId;
+
+        if (typeof normalizedAssignee !== "undefined" && normalizedAssignee !== "all") {
+          if (normalizedAssignee === "unassigned") {
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => l.assignedTo === undefined);
           } else {
             // Use index for specific user
             leads = await ctx.db
               .query("leads")
-              .withIndex("assignedTo", (q: any) => q.eq("assignedTo", args.assigneeId!))
+              .withIndex("assignedTo", (q: any) => q.eq("assignedTo", normalizedAssignee as any))
               .collect();
           }
         } else {
-          // No assigneeId filter or it's "all" → fall back to optional generic filter
+          // No assigneeId filter or it's "all" (including empty string) → fall back to optional generic filter
           const all = await ctx.db.query("leads").collect();
           if (args.filter === "assigned") {
             leads = all.filter((l) => l.assignedTo !== undefined);
