@@ -45,46 +45,62 @@ export const getAllLeads = query({
     if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
       return [];
     }
-    
-    let leads = await ctx.db.query("leads").collect();
-    
-    // Enforce: Managers can only see Unassigned leads on /all_leads
+
+    // Build leads list with safer, index-aware paths
+    let leads: any[] = [];
     if (currentUser.role === ROLES.MANAGER) {
-      leads = leads.filter((lead) => lead.assignedTo === undefined);
+      // Managers: only unassigned
+      const all = await ctx.db.query("leads").collect();
+      leads = all.filter((l) => l.assignedTo === undefined);
     } else {
-      // Admin filters
-      // New: assigneeId (overrides generic filter if provided)
+      // Admin
       if (typeof args.assigneeId !== "undefined") {
         if (args.assigneeId === "unassigned") {
-          leads = leads.filter((l) => l.assignedTo === undefined);
+          const all = await ctx.db.query("leads").collect();
+          leads = all.filter((l) => l.assignedTo === undefined);
         } else {
-          leads = leads.filter((l) => String(l.assignedTo ?? "") === String(args.assigneeId));
+          // Use index for specific user
+          leads = await ctx.db
+            .query("leads")
+            .withIndex("assignedTo", (q: any) => q.eq("assignedTo", args.assigneeId!))
+            .collect();
         }
       } else {
-        // Existing: Apply filter for Admin only
+        // No assigneeId filter → fall back to optional generic filter
+        const all = await ctx.db.query("leads").collect();
         if (args.filter === "assigned") {
-          leads = leads.filter(lead => lead.assignedTo !== undefined);
+          leads = all.filter((l) => l.assignedTo !== undefined);
         } else if (args.filter === "unassigned") {
-          leads = leads.filter(lead => lead.assignedTo === undefined);
+          leads = all.filter((l) => l.assignedTo === undefined);
+        } else {
+          leads = all;
         }
       }
     }
-    
+
     // Sort oldest to newest
     leads.sort((a, b) => a._creationTime - b._creationTime);
-    
-    // Get assigned user names
+
+    // Safely attach assigned user names without throwing on legacy/bad data
     const leadsWithAssignedUser = await Promise.all(
       leads.map(async (lead) => {
-        let assignedUserName = null;
+        let assignedUserName: string | null = null;
         if (lead.assignedTo) {
-          const assignedUser = await ctx.db.get(lead.assignedTo);
-          assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+          try {
+            const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+            assignedUserName =
+              (assignedUser?.name as string | undefined) ||
+              (assignedUser?.username as string | undefined) ||
+              "Unknown";
+          } catch {
+            // In case of invalid/malformed assignedTo (legacy data), avoid throwing
+            assignedUserName = null;
+          }
         }
         return { ...lead, assignedUserName };
       })
     );
-    
+
     return leadsWithAssignedUser;
   },
 });
@@ -247,7 +263,7 @@ export const assignLead = mutation({
     }
 
     // Log the action (covers assign, reassign, or unassign)
-    const assignedUser = args.assignedTo ? await ctx.db.get(args.assignedTo) : null;
+    const assignedUser = (args.assignedTo ? await ctx.db.get(args.assignedTo) : null) as any;
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
       action: "ASSIGN_LEAD",
