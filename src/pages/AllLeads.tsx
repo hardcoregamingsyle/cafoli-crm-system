@@ -19,8 +19,14 @@ export default function AllLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
 
+  // Add: wait for auth to settle before running queries (prevents early invalid args in deploy)
+  const [authReady, setAuthReady] = useState(false);
+
   useEffect(() => {
     initializeAuth();
+    // Mark ready on next tick to allow localStorage-based auth to rehydrate
+    const t = setTimeout(() => setAuthReady(true), 50);
+    return () => clearTimeout(t);
   }, []); // run once to avoid re-run loops
 
   // Redirect unauthenticated users to login
@@ -36,7 +42,7 @@ export default function AllLeadsPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const leads = useQuery(
     api.leads.getAllLeads,
-    currentUser
+    currentUser && authReady
       ? {
           // keep your existing filter if present
           // filter,
@@ -52,11 +58,11 @@ export default function AllLeadsPage() {
   );
   const users = useQuery(
     api.users.getAllUsers,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   ); // Admin only
   const assignable = useQuery(
     api.users.getAssignableUsers,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   ); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
