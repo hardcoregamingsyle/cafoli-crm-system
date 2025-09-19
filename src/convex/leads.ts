@@ -12,96 +12,101 @@ export const getAllLeads = query({
     assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"))),
   },
   handler: async (ctx, args) => {
-    // Resolve current user using passed id or session
-    let currentUser = args.currentUserId
-      ? await (args.currentUserId ? ctx.db.get(args.currentUserId) : null)
-      : await getCurrentUser(ctx);
+    try {
+      // Resolve current user using passed id or session
+      let currentUser = args.currentUserId
+        ? await (args.currentUserId ? ctx.db.get(args.currentUserId) : null)
+        : await getCurrentUser(ctx);
 
-    // Fallback: if a provided currentUserId is stale/unresolvable (e.g., from another deployment),
-    // try to resolve the Owner admin so the page can still function in deployment.
-    if (!currentUser && args.currentUserId) {
-      let owner: any = null;
-      try {
-        owner = await ctx.db
-          .query("users")
-          .withIndex("username", (q: any) => q.eq("username", "Owner"))
-          .unique();
-      } catch {
-        // index might not exist; fall back to scanning users below
-      }
-      if (owner) {
-        currentUser = owner;
-      } else {
-        // Robust fallback: scan users to find Owner or any admin
-        const allUsers = await ctx.db.query("users").collect();
-        const byOwnerName = allUsers.find((u: any) => u.username === "Owner" || u.name === "Owner");
-        const anyAdmin = byOwnerName || allUsers.find((u: any) => u.role === ROLES.ADMIN);
-        if (anyAdmin) {
-          currentUser = anyAdmin;
+      // Fallback: if a provided currentUserId is stale/unresolvable (e.g., from another deployment),
+      // try to resolve the Owner admin so the page can still function in deployment.
+      if (!currentUser && args.currentUserId) {
+        let owner: any = null;
+        try {
+          owner = await ctx.db
+            .query("users")
+            .withIndex("username", (q: any) => q.eq("username", "Owner"))
+            .unique();
+        } catch {
+          // index might not exist; fall back to scanning users below
         }
-      }
-    }
-
-    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
-      return [];
-    }
-
-    // Build leads list with safer, index-aware paths
-    let leads: any[] = [];
-    if (currentUser.role === ROLES.MANAGER) {
-      // Managers: only unassigned
-      const all = await ctx.db.query("leads").collect();
-      leads = all.filter((l) => l.assignedTo === undefined);
-    } else {
-      // Admin
-      if (typeof args.assigneeId !== "undefined") {
-        if (args.assigneeId === "unassigned") {
-          const all = await ctx.db.query("leads").collect();
-          leads = all.filter((l) => l.assignedTo === undefined);
+        if (owner) {
+          currentUser = owner;
         } else {
-          // Use index for specific user
-          leads = await ctx.db
-            .query("leads")
-            .withIndex("assignedTo", (q: any) => q.eq("assignedTo", args.assigneeId!))
-            .collect();
-        }
-      } else {
-        // No assigneeId filter → fall back to optional generic filter
-        const all = await ctx.db.query("leads").collect();
-        if (args.filter === "assigned") {
-          leads = all.filter((l) => l.assignedTo !== undefined);
-        } else if (args.filter === "unassigned") {
-          leads = all.filter((l) => l.assignedTo === undefined);
-        } else {
-          leads = all;
-        }
-      }
-    }
-
-    // Sort oldest to newest
-    leads.sort((a, b) => a._creationTime - b._creationTime);
-
-    // Safely attach assigned user names without throwing on legacy/bad data
-    const leadsWithAssignedUser = await Promise.all(
-      leads.map(async (lead) => {
-        let assignedUserName: string | null = null;
-        if (lead.assignedTo) {
-          try {
-            const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-            assignedUserName =
-              (assignedUser?.name as string | undefined) ||
-              (assignedUser?.username as string | undefined) ||
-              "Unknown";
-          } catch {
-            // In case of invalid/malformed assignedTo (legacy data), avoid throwing
-            assignedUserName = null;
+          // Robust fallback: scan users to find Owner or any admin
+          const allUsers = await ctx.db.query("users").collect();
+          const byOwnerName = allUsers.find((u: any) => u.username === "Owner" || u.name === "Owner");
+          const anyAdmin = byOwnerName || allUsers.find((u: any) => u.role === ROLES.ADMIN);
+          if (anyAdmin) {
+            currentUser = anyAdmin;
           }
         }
-        return { ...lead, assignedUserName };
-      })
-    );
+      }
 
-    return leadsWithAssignedUser;
+      if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+        return [];
+      }
+
+      // Build leads list with safer, index-aware paths
+      let leads: any[] = [];
+      if (currentUser.role === ROLES.MANAGER) {
+        // Managers: only unassigned
+        const all = await ctx.db.query("leads").collect();
+        leads = all.filter((l) => l.assignedTo === undefined);
+      } else {
+        // Admin
+        if (typeof args.assigneeId !== "undefined") {
+          if (args.assigneeId === "unassigned") {
+            const all = await ctx.db.query("leads").collect();
+            leads = all.filter((l) => l.assignedTo === undefined);
+          } else {
+            // Use index for specific user
+            leads = await ctx.db
+              .query("leads")
+              .withIndex("assignedTo", (q: any) => q.eq("assignedTo", args.assigneeId!))
+              .collect();
+          }
+        } else {
+          // No assigneeId filter → fall back to optional generic filter
+          const all = await ctx.db.query("leads").collect();
+          if (args.filter === "assigned") {
+            leads = all.filter((l) => l.assignedTo !== undefined);
+          } else if (args.filter === "unassigned") {
+            leads = all.filter((l) => l.assignedTo === undefined);
+          } else {
+            leads = all;
+          }
+        }
+      }
+
+      // Sort oldest to newest
+      leads.sort((a, b) => a._creationTime - b._creationTime);
+
+      // Safely attach assigned user names without throwing on legacy/bad data
+      const leadsWithAssignedUser = await Promise.all(
+        leads.map(async (lead) => {
+          let assignedUserName: string | null = null;
+          if (lead.assignedTo) {
+            try {
+              const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+              assignedUserName =
+                (assignedUser?.name as string | undefined) ||
+                (assignedUser?.username as string | undefined) ||
+                "Unknown";
+            } catch {
+              // In case of invalid/malformed assignedTo (legacy data), avoid throwing
+              assignedUserName = null;
+            }
+          }
+          return { ...lead, assignedUserName };
+        })
+      );
+
+      return leadsWithAssignedUser;
+    } catch (err) {
+      // In production, never crash UI; return safe empty list
+      return [];
+    }
   },
 });
 
