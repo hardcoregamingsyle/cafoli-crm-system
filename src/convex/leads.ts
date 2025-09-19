@@ -615,6 +615,20 @@ export const runDeduplication = mutation({
         }
       }
 
+      // Preserve the original nextFollowup on the primary lead by not overriding it here.
+      // We intentionally do NOT copy nextFollowup from duplicates to keep the old one.
+
+      // Move comments from duplicate leads to the primary lead before deletion
+      for (const r of rest) {
+        const rComments = await ctx.db
+          .query("comments")
+          .withIndex("leadId", (q: any) => q.eq("leadId", r._id))
+          .collect();
+        for (const c of rComments) {
+          await ctx.db.patch(c._id, { leadId: primary._id });
+        }
+      }
+
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(primary._id, patch);
         mergedCount++;
