@@ -1,0 +1,15 @@
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+# SPA redirect: send all non-file routes to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: prevent aggressive caching of the SPA shell
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
