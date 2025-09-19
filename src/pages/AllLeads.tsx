@@ -32,7 +32,7 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<any>("all");
   const leads = useQuery(api.leads.getAllLeads, {
     // keep your existing filter if present
     // filter,
@@ -150,8 +150,16 @@ export default function AllLeadsPage() {
             <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
             <div className="w-56">
               <Select
-                value={assigneeFilter}
-                onValueChange={(val) => setAssigneeFilter(val)}
+                value={typeof assigneeFilter === "string" ? assigneeFilter : String(assigneeFilter)}
+                onValueChange={(val) => {
+                  if (val === "all" || val === "unassigned") {
+                    setAssigneeFilter(val);
+                    return;
+                  }
+                  const match = (users ?? []).find((u: any) => String(u._id) === val);
+                  // Store the actual Convex Id object if found; fallback to "all" on mismatch
+                  setAssigneeFilter(match?._id ?? "all");
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by Account" />
