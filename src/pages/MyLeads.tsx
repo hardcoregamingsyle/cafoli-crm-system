@@ -674,8 +674,7 @@ function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: st
         ' Best regards, The Cafoli Lifecare Team'
     );
     return `http://nimbusit.biz/api/SmsApi/SendSingleApi?UserID=cafolibiz&Password=rlon7188RL&SenderID=CAFOLI&Phno=${encodeURIComponent(
-      phone
-    )}&msg=${encodedMsg}&EntityID=1701173399090235346&TemplateID=1707173753089542085`;
+      phone)}&msg=${encodedMsg}&EntityID=1701173399090235346&TemplateID=1707173753089542085`;
   };
 
   return (
