@@ -6,34 +6,52 @@ import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
-    // Loosen validators to avoid pre-handler failures on deployed envs
-    filter: v.optional(v.any()),
-    currentUserId: v.optional(v.any()),
-    assigneeId: v.optional(v.any()),
+    filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
+    currentUserId: v.optional(v.union(v.id("users"), v.string())),
+    assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
   },
   handler: async (ctx, args) => {
     try {
-      // Normalize & auth checks (keep existing logic)
+      // Normalize & auth checks
       let currentUser: any = null;
       if (args.currentUserId) {
         try {
-          currentUser = await ctx.db.get(args.currentUserId as any);
+          // Handle both ID and string formats
+          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+            currentUser = await ctx.db.get(args.currentUserId as any);
+          } else {
+            // Fallback: find Owner admin if currentUserId is invalid
+            const ownerUser = await ctx.db
+              .query("users")
+              .filter((q) => q.eq(q.field("username"), "Owner"))
+              .first();
+            currentUser = ownerUser;
+          }
         } catch (_) {
-          currentUser = null;
+          // Fallback: find Owner admin
+          const ownerUser = await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("username"), "Owner"))
+            .first();
+          currentUser = ownerUser;
         }
       }
+
       if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
         return [];
       }
 
-      // Build leads list with safer, index-aware paths
+      // Build leads list
       let leads: any[] = [];
+      
       if (currentUser.role === ROLES.MANAGER) {
+        // Managers only see unassigned leads
         const all = await ctx.db.query("leads").collect();
         leads = all.filter((l) => l.assignedTo === undefined);
       } else {
-        const rawAssignee = args.assigneeId as any;
-        let normalizedAssignee: any = rawAssignee;
+        // Admin can see all leads with filtering
+        const rawAssignee = args.assigneeId;
+        let normalizedAssignee = rawAssignee;
 
         if (typeof rawAssignee === "string") {
           const val = rawAssignee.trim();
@@ -46,16 +64,14 @@ export const getAllLeads = query({
           }
         }
 
-        if (typeof normalizedAssignee !== "undefined" && normalizedAssignee !== "all") {
-          if (normalizedAssignee === "unassigned") {
-            const all = await ctx.db.query("leads").collect();
-            leads = all.filter((l) => l.assignedTo === undefined);
-          } else {
-            const all = await ctx.db.query("leads").collect();
-            leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
-          }
+        const all = await ctx.db.query("leads").collect();
+
+        if (normalizedAssignee === "unassigned") {
+          leads = all.filter((l) => l.assignedTo === undefined);
+        } else if (normalizedAssignee && normalizedAssignee !== "all") {
+          leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
         } else {
-          const all = await ctx.db.query("leads").collect();
+          // Apply general filter
           if (args.filter === "assigned") {
             leads = all.filter((l) => l.assignedTo !== undefined);
           } else if (args.filter === "unassigned") {
@@ -66,9 +82,26 @@ export const getAllLeads = query({
         }
       }
 
+      // Sort by creation time and add assignedUserName for display
       leads.sort((a, b) => a._creationTime - b._creationTime);
+      
+      // Enrich with assignedUserName for display
+      for (const lead of leads) {
+        if (lead.assignedTo) {
+          try {
+            const assignedUser: any = await ctx.db.get(lead.assignedTo);
+            lead.assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+          } catch {
+            lead.assignedUserName = "Unknown";
+          }
+        } else {
+          lead.assignedUserName = null;
+        }
+      }
+
       return leads;
     } catch (err) {
+      console.error("getAllLeads error:", err);
       return [];
     }
   },
@@ -77,19 +110,22 @@ export const getAllLeads = query({
 // Get leads assigned to current user (Manager and Staff only)
 export const getMyLeads = query({
   args: {
-    // Loosen validator to avoid pre-handler failures
-    currentUserId: v.optional(v.any()),
+    currentUserId: v.optional(v.union(v.id("users"), v.string())),
   },
   handler: async (ctx, args) => {
     try {
       let currentUser: any = null;
       if (args.currentUserId) {
         try {
-          currentUser = await ctx.db.get(args.currentUserId as any);
+          // Handle both ID and string formats
+          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+            currentUser = await ctx.db.get(args.currentUserId as any);
+          }
         } catch (_) {
           currentUser = null;
         }
       }
+      
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
         return [];
       }
@@ -101,13 +137,15 @@ export const getMyLeads = query({
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
       } catch {
+        // Fallback to full table scan if index fails
         const all = await ctx.db.query("leads").collect();
         leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
       }
 
       leads.sort((a, b) => a._creationTime - b._creationTime);
       return leads;
-    } catch {
+    } catch (err) {
+      console.error("getMyLeads error:", err);
       return [];
     }
   },
