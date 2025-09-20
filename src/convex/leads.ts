@@ -21,18 +21,36 @@ export const getAllLeads = query({
             currentUser = await ctx.db.get(args.currentUserId as any);
           } else {
             // Fallback: find Owner admin if currentUserId is invalid
-            const ownerUser = await ctx.db
-              .query("users")
-              .filter((q) => q.eq(q.field("username"), "Owner"))
-              .first();
+            let ownerUser = null as any;
+            try {
+              ownerUser = await ctx.db
+                .query("users")
+                .withIndex("username", (q: any) => q.eq("username", "Owner"))
+                .unique();
+            } catch {
+              const allOwners = await ctx.db
+                .query("users")
+                .withIndex("username", (q: any) => q.eq("username", "Owner"))
+                .collect();
+              ownerUser = allOwners[0] || null;
+            }
             currentUser = ownerUser;
           }
         } catch (_) {
-          // Fallback: find Owner admin
-          const ownerUser = await ctx.db
-            .query("users")
-            .filter((q) => q.eq(q.field("username"), "Owner"))
-            .first();
+          // Fallback: find Owner admin via indexed lookup with safe fallback
+          let ownerUser = null as any;
+          try {
+            ownerUser = await ctx.db
+              .query("users")
+              .withIndex("username", (q: any) => q.eq("username", "Owner"))
+              .unique();
+          } catch {
+            const allOwners = await ctx.db
+              .query("users")
+              .withIndex("username", (q: any) => q.eq("username", "Owner"))
+              .collect();
+            ownerUser = allOwners[0] || null;
+          }
           currentUser = ownerUser;
         }
       }
@@ -216,9 +234,14 @@ export const createLead = mutation({
         });
       }
 
-      // Audit log the clubbing
+      // Audit log the clubbing (replace .first() with a safe lookup)
+      let anyUserId: any = null;
+      const anyUsers = await ctx.db.query("users").collect();
+      if (anyUsers.length > 0) {
+        anyUserId = anyUsers[0]._id;
+      }
       await ctx.db.insert("auditLogs", {
-        userId: (await ctx.db.query("users").first())?._id as any,
+        userId: anyUserId,
         action: "CLUB_DUPLICATE_LEAD",
         details: `Clubbed new lead into existing lead ${existing._id}`,
         timestamp: Date.now(),
