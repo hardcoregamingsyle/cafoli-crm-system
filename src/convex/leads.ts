@@ -36,10 +36,14 @@ export const getAllLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // New: Do NOT call Convex Auth. Only use provided currentUserId if it's a real Id.
+      // Replace currentUser resolution with safe try/catch regardless of type
       let currentUser: any = null;
-      if (args.currentUserId && typeof args.currentUserId !== "string") {
-        currentUser = await ctx.db.get(args.currentUserId);
+      if (args.currentUserId) {
+        try {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        } catch (_) {
+          currentUser = null;
+        }
       }
       if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
         return [];
@@ -117,10 +121,14 @@ export const getMyLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // New: Do NOT call Convex Auth. Only use provided currentUserId if it's a real Id.
+      // Replace currentUser resolution with safe try/catch regardless of type
       let currentUser: any = null;
-      if (args.currentUserId && typeof args.currentUserId !== "string") {
-        currentUser = await ctx.db.get(args.currentUserId);
+      if (args.currentUserId) {
+        try {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        } catch (_) {
+          currentUser = null;
+        }
       }
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
         return [];
