@@ -7,8 +7,7 @@ import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
-    currentUserId: v.optional(v.id("users")),
-    // Broaden tolerance: accept any string and normalize server-side to avoid pre-handler validation errors
+    currentUserId: v.optional(v.union(v.id("users"), v.string(), v.literal(""))), // broadened to accept string/empty
     assigneeId: v.optional(
       v.union(
         v.id("users"),
@@ -21,10 +20,13 @@ export const getAllLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // Resolve current user using passed id or session
-      let currentUser = args.currentUserId
-        ? await (args.currentUserId ? ctx.db.get(args.currentUserId) : null)
-        : await getCurrentUser(ctx);
+      // Resolve current user using passed id or session, but avoid db.get on plain strings
+      let currentUser: any =
+        typeof args.currentUserId === "string"
+          ? await getCurrentUser(ctx)
+          : args.currentUserId
+          ? await ctx.db.get(args.currentUserId)
+          : await getCurrentUser(ctx);
 
       // Fallback: if a provided currentUserId is stale/unresolvable (e.g., from another deployment),
       // try to resolve the Owner admin so the page can still function in deployment.
@@ -135,12 +137,15 @@ export const getAllLeads = query({
 
 // Get leads assigned to current user (Manager and Staff only)
 export const getMyLeads = query({
-  args: { currentUserId: v.optional(v.id("users")) },
+  args: { currentUserId: v.optional(v.union(v.id("users"), v.string(), v.literal(""))) },
   handler: async (ctx, args) => {
     try {
-      const currentUser = args.currentUserId
-        ? await ctx.db.get(args.currentUserId)
-        : await getCurrentUser(ctx);
+      const currentUser: any =
+        typeof args.currentUserId === "string"
+          ? await getCurrentUser(ctx)
+          : args.currentUserId
+          ? await ctx.db.get(args.currentUserId)
+          : await getCurrentUser(ctx);
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
         return [];
       }
@@ -150,12 +155,9 @@ export const getMyLeads = query({
         .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
         .collect();
 
-      // Sort oldest to newest
       leads.sort((a, b) => a._creationTime - b._creationTime);
-
       return leads;
     } catch {
-      // Gracefully handle any unexpected errors
       return [];
     }
   },
