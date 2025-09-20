@@ -8,8 +8,16 @@ export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
     currentUserId: v.optional(v.id("users")),
-    // Allow "all" and also tolerate empty string ("") from UI Selects to avoid pre-handler validation errors
-    assigneeId: v.optional(v.union(v.id("users"), v.literal("unassigned"), v.literal("all"), v.literal(""))),
+    // Broaden tolerance: accept any string and normalize server-side to avoid pre-handler validation errors
+    assigneeId: v.optional(
+      v.union(
+        v.id("users"),
+        v.literal("unassigned"),
+        v.literal("all"),
+        v.literal(""),
+        v.string()
+      )
+    ),
   },
   handler: async (ctx, args) => {
     try {
@@ -55,16 +63,27 @@ export const getAllLeads = query({
         leads = all.filter((l) => l.assignedTo === undefined);
       } else {
         // Admin
-        // Normalize assigneeId: treat "" as "all" (no filter)
-        const normalizedAssignee =
-          typeof args.assigneeId === "string" && args.assigneeId.trim() === "" ? "all" : args.assigneeId;
+        // Normalize assigneeId: treat "" and "all" as no filter; keep "unassigned"; other strings treated as id-like
+        const rawAssignee = args.assigneeId as any;
+        let normalizedAssignee: any = rawAssignee;
+
+        if (typeof rawAssignee === "string") {
+          const val = rawAssignee.trim();
+          if (val === "" || val === "all") {
+            normalizedAssignee = "all";
+          } else if (val === "unassigned") {
+            normalizedAssignee = "unassigned";
+          } else {
+            // Treat arbitrary strings as id-like; index query below casts to any safely
+            normalizedAssignee = val;
+          }
+        }
 
         if (typeof normalizedAssignee !== "undefined" && normalizedAssignee !== "all") {
           if (normalizedAssignee === "unassigned") {
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => l.assignedTo === undefined);
           } else {
-            // Use index for specific user
             leads = await ctx.db
               .query("leads")
               .withIndex("assignedTo", (q: any) => q.eq("assignedTo", normalizedAssignee as any))
