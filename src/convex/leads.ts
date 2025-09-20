@@ -84,22 +84,23 @@ export const getAllLeads = query({
 
       // Sort by creation time and add assignedUserName for display
       leads.sort((a, b) => a._creationTime - b._creationTime);
-      
-      // Enrich with assignedUserName for display
+
+      // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
+      const enrichedLeads: any[] = [];
       for (const lead of leads) {
+        let assignedUserName: string | null = null;
         if (lead.assignedTo) {
           try {
-            const assignedUser: any = await ctx.db.get(lead.assignedTo);
-            lead.assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+            const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+            assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
           } catch {
-            lead.assignedUserName = "Unknown";
+            assignedUserName = "Unknown";
           }
-        } else {
-          lead.assignedUserName = null;
         }
+        enrichedLeads.push({ ...lead, assignedUserName });
       }
 
-      return leads;
+      return enrichedLeads;
     } catch (err) {
       console.error("getAllLeads error:", err);
       return [];
