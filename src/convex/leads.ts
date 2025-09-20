@@ -78,27 +78,8 @@ export const getAllLeads = query({
       // Sort oldest to newest
       leads.sort((a, b) => a._creationTime - b._creationTime);
 
-      // Safely attach assigned user names without throwing on legacy/bad data
-      const leadsWithAssignedUser = await Promise.all(
-        leads.map(async (lead) => {
-          let assignedUserName: string | null = null;
-          if (lead.assignedTo) {
-            try {
-              const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-              assignedUserName =
-                (assignedUser?.name as string | undefined) ||
-                (assignedUser?.username as string | undefined) ||
-                "Unknown";
-            } catch {
-              // In case of invalid/malformed assignedTo (legacy data), avoid throwing
-              assignedUserName = null;
-            }
-          }
-          return { ...lead, assignedUserName };
-        })
-      );
-
-      return leadsWithAssignedUser;
+      // Return leads directly to avoid any potential per-row enrichment errors in deployed environments
+      return leads;
     } catch (err) {
       return [];
     }
