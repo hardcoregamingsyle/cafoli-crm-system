@@ -76,7 +76,7 @@ export const getAllLeads = query({
           } else if (val === "unassigned") {
             normalizedAssignee = "unassigned";
           } else {
-            // Treat arbitrary strings as id-like; index query below casts to any safely
+            // Treat arbitrary strings as id-like
             normalizedAssignee = val;
           }
         }
@@ -86,10 +86,9 @@ export const getAllLeads = query({
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => l.assignedTo === undefined);
           } else {
-            leads = await ctx.db
-              .query("leads")
-              .withIndex("assignedTo", (q: any) => q.eq("assignedTo", normalizedAssignee as any))
-              .collect();
+            // SAFE fallback: avoid withIndex to prevent server errors on invalid/missing index or id format
+            const all = await ctx.db.query("leads").collect();
+            leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
           }
         } else {
           // No assigneeId filter or it's "all" (including empty string) → fall back to optional generic filter
@@ -150,10 +149,17 @@ export const getMyLeads = query({
         return [];
       }
 
-      const leads = await ctx.db
-        .query("leads")
-        .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
-        .collect();
+      // SAFE: Avoid hard reliance on index presence; fall back to full scan
+      let leads: any[] = [];
+      try {
+        leads = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
+          .collect();
+      } catch {
+        const all = await ctx.db.query("leads").collect();
+        leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+      }
 
       leads.sort((a, b) => a._creationTime - b._creationTime);
       return leads;
