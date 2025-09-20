@@ -20,39 +20,11 @@ export const getAllLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // Resolve current user using passed id or session, but avoid db.get on plain strings
-      let currentUser: any =
-        typeof args.currentUserId === "string"
-          ? await getCurrentUser(ctx)
-          : args.currentUserId
-          ? await ctx.db.get(args.currentUserId)
-          : await getCurrentUser(ctx);
-
-      // Fallback: if a provided currentUserId is stale/unresolvable (e.g., from another deployment),
-      // try to resolve the Owner admin so the page can still function in deployment.
-      if (!currentUser && args.currentUserId) {
-        let owner: any = null;
-        try {
-          owner = await ctx.db
-            .query("users")
-            .withIndex("username", (q: any) => q.eq("username", "Owner"))
-            .unique();
-        } catch {
-          // index might not exist; fall back to scanning users below
-        }
-        if (owner) {
-          currentUser = owner;
-        } else {
-          // Robust fallback: scan users to find Owner or any admin
-          const allUsers = await ctx.db.query("users").collect();
-          const byOwnerName = allUsers.find((u: any) => u.username === "Owner" || u.name === "Owner");
-          const anyAdmin = byOwnerName || allUsers.find((u: any) => u.role === ROLES.ADMIN);
-          if (anyAdmin) {
-            currentUser = anyAdmin;
-          }
-        }
+      // New: Do NOT call Convex Auth. Only use provided currentUserId if it's a real Id.
+      let currentUser: any = null;
+      if (args.currentUserId && typeof args.currentUserId !== "string") {
+        currentUser = await ctx.db.get(args.currentUserId);
       }
-
       if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
         return [];
       }
@@ -128,7 +100,6 @@ export const getAllLeads = query({
 
       return leadsWithAssignedUser;
     } catch (err) {
-      // In production, never crash UI; return safe empty list
       return [];
     }
   },
@@ -139,12 +110,11 @@ export const getMyLeads = query({
   args: { currentUserId: v.optional(v.union(v.id("users"), v.string(), v.literal(""))) },
   handler: async (ctx, args) => {
     try {
-      const currentUser: any =
-        typeof args.currentUserId === "string"
-          ? await getCurrentUser(ctx)
-          : args.currentUserId
-          ? await ctx.db.get(args.currentUserId)
-          : await getCurrentUser(ctx);
+      // New: Do NOT call Convex Auth. Only use provided currentUserId if it's a real Id.
+      let currentUser: any = null;
+      if (args.currentUserId && typeof args.currentUserId !== "string") {
+        currentUser = await ctx.db.get(args.currentUserId);
+      }
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
         return [];
       }
