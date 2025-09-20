@@ -6,15 +6,31 @@ import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
-    filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
-    currentUserId: v.optional(v.union(v.id("users"), v.string(), v.literal(""))), // broadened to accept string/empty
+    // Accept nulls to avoid pre-handler validation errors
+    filter: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("assigned"),
+        v.literal("unassigned"),
+        v.null()
+      )
+    ),
+    currentUserId: v.optional(
+      v.union(
+        v.id("users"),
+        v.string(),
+        v.literal(""),
+        v.null()
+      )
+    ),
     assigneeId: v.optional(
       v.union(
         v.id("users"),
         v.literal("unassigned"),
         v.literal("all"),
         v.literal(""),
-        v.string()
+        v.string(),
+        v.null()
       )
     ),
   },
@@ -88,7 +104,17 @@ export const getAllLeads = query({
 
 // Get leads assigned to current user (Manager and Staff only)
 export const getMyLeads = query({
-  args: { currentUserId: v.optional(v.union(v.id("users"), v.string(), v.literal(""))) },
+  args: { 
+    // Accept nulls to avoid pre-handler validation errors
+    currentUserId: v.optional(
+      v.union(
+        v.id("users"),
+        v.string(),
+        v.literal(""),
+        v.null()
+      )
+    )
+  },
   handler: async (ctx, args) => {
     try {
       // New: Do NOT call Convex Auth. Only use provided currentUserId if it's a real Id.
