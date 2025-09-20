@@ -137,22 +137,27 @@ export const getAllLeads = query({
 export const getMyLeads = query({
   args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    const currentUser = args.currentUserId
-      ? await ctx.db.get(args.currentUserId)
-      : await getCurrentUser(ctx);
-    if (!currentUser || currentUser.role === ROLES.ADMIN) {
+    try {
+      const currentUser = args.currentUserId
+        ? await ctx.db.get(args.currentUserId)
+        : await getCurrentUser(ctx);
+      if (!currentUser || currentUser.role === ROLES.ADMIN) {
+        return [];
+      }
+
+      const leads = await ctx.db
+        .query("leads")
+        .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
+        .collect();
+
+      // Sort oldest to newest
+      leads.sort((a, b) => a._creationTime - b._creationTime);
+
+      return leads;
+    } catch {
+      // Gracefully handle any unexpected errors
       return [];
     }
-    
-    const leads = await ctx.db
-      .query("leads")
-      .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
-      .collect();
-    
-    // Sort oldest to newest
-    leads.sort((a, b) => a._creationTime - b._creationTime);
-    
-    return leads;
   },
 });
 
