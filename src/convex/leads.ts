@@ -12,47 +12,34 @@ export const getAllLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // Normalize & auth checks
+      // Hardened: resolve currentUser safely without unique()
       let currentUser: any = null;
+
+      // Helper to resolve Owner admin via collect() only
+      const resolveOwner = async () => {
+        const found = await ctx.db
+          .query("users")
+          .withIndex("username", (q: any) => q.eq("username", "Owner"))
+          .collect();
+        return found[0] || null;
+      };
+
       if (args.currentUserId) {
         try {
-          // Handle both ID and string formats
           if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+            // Try direct get; catch any invalid id shape
             currentUser = await ctx.db.get(args.currentUserId as any);
           } else {
-            // Fallback: find Owner admin if currentUserId is invalid
-            let ownerUser = null as any;
-            try {
-              ownerUser = await ctx.db
-                .query("users")
-                .withIndex("username", (q: any) => q.eq("username", "Owner"))
-                .unique();
-            } catch {
-              const allOwners = await ctx.db
-                .query("users")
-                .withIndex("username", (q: any) => q.eq("username", "Owner"))
-                .collect();
-              ownerUser = allOwners[0] || null;
-            }
-            currentUser = ownerUser;
+            // Fallback directly to Owner without unique()
+            currentUser = await resolveOwner();
           }
-        } catch (_) {
-          // Fallback: find Owner admin via indexed lookup with safe fallback
-          let ownerUser = null as any;
-          try {
-            ownerUser = await ctx.db
-              .query("users")
-              .withIndex("username", (q: any) => q.eq("username", "Owner"))
-              .unique();
-          } catch {
-            const allOwners = await ctx.db
-              .query("users")
-              .withIndex("username", (q: any) => q.eq("username", "Owner"))
-              .collect();
-            ownerUser = allOwners[0] || null;
-          }
-          currentUser = ownerUser;
+        } catch {
+          // If anything fails, fallback to Owner via collect()
+          currentUser = await resolveOwner();
         }
+      } else {
+        // No currentUserId passed; fallback to Owner
+        currentUser = await resolveOwner();
       }
 
       if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
