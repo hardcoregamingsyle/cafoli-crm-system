@@ -6,37 +6,14 @@ import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
-    // Accept nulls to avoid pre-handler validation errors
-    filter: v.optional(
-      v.union(
-        v.literal("all"),
-        v.literal("assigned"),
-        v.literal("unassigned"),
-        v.null()
-      )
-    ),
-    currentUserId: v.optional(
-      v.union(
-        v.id("users"),
-        v.string(),
-        v.literal(""),
-        v.null()
-      )
-    ),
-    assigneeId: v.optional(
-      v.union(
-        v.id("users"),
-        v.literal("unassigned"),
-        v.literal("all"),
-        v.literal(""),
-        v.string(),
-        v.null()
-      )
-    ),
+    // Loosen validators to avoid pre-handler failures on deployed envs
+    filter: v.optional(v.any()),
+    currentUserId: v.optional(v.any()),
+    assigneeId: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     try {
-      // Replace currentUser resolution with safe try/catch regardless of type
+      // Normalize & auth checks (keep existing logic)
       let currentUser: any = null;
       if (args.currentUserId) {
         try {
@@ -52,12 +29,9 @@ export const getAllLeads = query({
       // Build leads list with safer, index-aware paths
       let leads: any[] = [];
       if (currentUser.role === ROLES.MANAGER) {
-        // Managers: only unassigned
         const all = await ctx.db.query("leads").collect();
         leads = all.filter((l) => l.assignedTo === undefined);
       } else {
-        // Admin
-        // Normalize assigneeId: treat "" and "all" as no filter; keep "unassigned"; other strings treated as id-like
         const rawAssignee = args.assigneeId as any;
         let normalizedAssignee: any = rawAssignee;
 
@@ -68,7 +42,6 @@ export const getAllLeads = query({
           } else if (val === "unassigned") {
             normalizedAssignee = "unassigned";
           } else {
-            // Treat arbitrary strings as id-like
             normalizedAssignee = val;
           }
         }
@@ -78,12 +51,10 @@ export const getAllLeads = query({
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => l.assignedTo === undefined);
           } else {
-            // SAFE fallback: avoid withIndex to prevent server errors on invalid/missing index or id format
             const all = await ctx.db.query("leads").collect();
             leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
           }
         } else {
-          // No assigneeId filter or it's "all" (including empty string) → fall back to optional generic filter
           const all = await ctx.db.query("leads").collect();
           if (args.filter === "assigned") {
             leads = all.filter((l) => l.assignedTo !== undefined);
@@ -95,10 +66,7 @@ export const getAllLeads = query({
         }
       }
 
-      // Sort oldest to newest
       leads.sort((a, b) => a._creationTime - b._creationTime);
-
-      // Return leads directly to avoid any potential per-row enrichment errors in deployed environments
       return leads;
     } catch (err) {
       return [];
@@ -108,20 +76,12 @@ export const getAllLeads = query({
 
 // Get leads assigned to current user (Manager and Staff only)
 export const getMyLeads = query({
-  args: { 
-    // Accept nulls to avoid pre-handler validation errors
-    currentUserId: v.optional(
-      v.union(
-        v.id("users"),
-        v.string(),
-        v.literal(""),
-        v.null()
-      )
-    )
+  args: {
+    // Loosen validator to avoid pre-handler failures
+    currentUserId: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     try {
-      // Replace currentUser resolution with safe try/catch regardless of type
       let currentUser: any = null;
       if (args.currentUserId) {
         try {
@@ -134,7 +94,6 @@ export const getMyLeads = query({
         return [];
       }
 
-      // SAFE: Avoid hard reliance on index presence; fall back to full scan
       let leads: any[] = [];
       try {
         leads = await ctx.db
