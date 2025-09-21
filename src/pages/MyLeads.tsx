@@ -33,6 +33,7 @@ export default function MyLeadsPage() {
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
+  const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
@@ -112,41 +113,11 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadStatus; // ... keep existing code reference avoidance
-                                } catch {}
-                                try {
-                                  await assignLead; // ... keep existing code reference avoidance
-                                } catch {}
-                                try {
-                                  await setNextFollowup; // ... keep existing code reference avoidance
-                                } catch {}
-                                try {
-                                  await (useMutation as any); // ... keep existing code reference avoidance
-                                } catch {}
-                                try {
-                                  await (api as any); // ... keep existing code reference avoidance
-                                } catch {}
-                                try {
-                                  await (await import("@/convex/_generated/api"));
-                                } catch {}
-                                try {
-                                  await (await import("convex/react"));
-                                } catch {}
-                                try {
-                                  // real save:
-                                  await (useMutation as any);
-                                } catch {}
-                                try {
-                                  // actual mutation call
-                                  await (await import("@/convex/_generated/api"));
-                                } catch {}
-                                try {
-                                  // final
-                                  await (await import("sonner"));
-                                } catch {}
-                                try {
-                                  await (await import("@/convex/_generated/api"));
-                                } catch {}
+                                  await updateLeadDetails({ leadId: lead._id, name: val, currentUserId: currentUser._id });
+                                  toast.success("Name saved");
+                                } catch (err: any) {
+                                  toast.error(err?.message || "Failed to save name");
+                                }
                               }}
                             >
                               Save
@@ -171,18 +142,11 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await (useMutation as any);
-                                } catch {}
-                                try {
-                                  await (await import("@/convex/_generated/api"));
-                                } catch {}
-                                try {
-                                  await (await import("sonner"));
-                                } catch {}
-                                try {
-                                  // actual mutation call
-                                  await (await import("@/convex/_generated/api"));
-                                } catch {}
+                                  await updateLeadDetails({ leadId: lead._id, subject: val, currentUserId: currentUser._id });
+                                  toast.success("Subject saved");
+                                } catch (err: any) {
+                                  toast.error(err?.message || "Failed to save subject");
+                                }
                               }}
                             >
                               Save
@@ -207,13 +171,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, message: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Message saved");
+                                  toast.success("Message saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save message");
+                                  toast.error(err?.message || "Failed to save message");
                                 }
                               }}
                             >
@@ -242,13 +203,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, agencyName: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Agency name saved");
+                                  toast.success("Agency name saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save agency name");
+                                  toast.error(err?.message || "Failed to save agency name");
                                 }
                               }}
                             >
@@ -274,13 +232,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, pincode: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Pincode saved");
+                                  toast.success("Pincode saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save pincode");
+                                  toast.error(err?.message || "Failed to save pincode");
                                 }
                               }}
                             >
@@ -306,13 +261,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, state: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("State saved");
+                                  toast.success("State saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save state");
+                                  toast.error(err?.message || "Failed to save state");
                                 }
                               }}
                             >
@@ -338,13 +290,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, district: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("District saved");
+                                  toast.success("District saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save district");
+                                  toast.error(err?.message || "Failed to save district");
                                 }
                               }}
                             >
@@ -370,13 +319,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, station: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Station saved");
+                                  toast.success("Station saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save station");
+                                  toast.error(err?.message || "Failed to save station");
                                 }
                               }}
                             >
@@ -405,13 +351,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, mobileNo: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Mobile saved");
+                                  toast.success("Mobile saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save mobile");
+                                  toast.error(err?.message || "Failed to save mobile");
                                 }
                               }}
                             >
@@ -437,13 +380,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, altMobileNo: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Alt mobile saved");
+                                  toast.success("Alt mobile saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save alt mobile");
+                                  toast.error(err?.message || "Failed to save alt mobile");
                                 }
                               }}
                             >
@@ -469,13 +409,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, email: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Email saved");
+                                  toast.success("Email saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save email");
+                                  toast.error(err?.message || "Failed to save email");
                                 }
                               }}
                             >
@@ -501,13 +438,10 @@ export default function MyLeadsPage() {
                                 const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  const { api } = await import("@/convex/_generated/api");
-                                  const { useMutation } = await import("convex/react");
-                                  const updateLeadDetails = (useMutation as any)(api.leads.updateLeadDetails);
                                   await updateLeadDetails({ leadId: lead._id, altEmail: val, currentUserId: currentUser._id });
-                                  (await import("sonner")).toast.success("Alt email saved");
+                                  toast.success("Alt email saved");
                                 } catch (err: any) {
-                                  (await import("sonner")).toast.error(err?.message || "Failed to save alt email");
+                                  toast.error(err?.message || "Failed to save alt email");
                                 }
                               }}
                             >
