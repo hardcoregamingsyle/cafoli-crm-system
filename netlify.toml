@@ -1,5 +1,5 @@
 [build]
-  command = "pnpm build"
+  command = "npx convex dev"
   publish = "dist"
 
 # SPA redirect: send all non-file routes to index.html
