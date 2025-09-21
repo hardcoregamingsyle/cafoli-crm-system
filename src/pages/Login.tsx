@@ -122,6 +122,7 @@ export default function Login() {
                     onChange={(e) => setUsername(e.target.value)}
                     className="pl-10"
                     disabled={isLoading}
+                    autoComplete="username"
                   />
                 </div>
               </div>
@@ -138,6 +139,7 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
                     disabled={isLoading}
+                    autoComplete="current-password"
                   />
                 </div>
               </div>

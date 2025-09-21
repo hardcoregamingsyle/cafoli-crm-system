@@ -122,7 +122,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   Enter your email to log in or sign up
                 </CardDescription>
               </CardHeader>
-              <form onSubmit={handleEmailSubmit}>
+              <form onSubmit={handleEmailSubmit} autoComplete="on">
                 <CardContent>
                   
                   <div className="relative flex items-center gap-2">
@@ -135,6 +135,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         className="pl-9"
                         disabled={isLoading}
                         required
+                        autoComplete="email"
                       />
                     </div>
                     <Button
@@ -188,7 +189,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   We've sent a code to {step.email}
                 </CardDescription>
               </CardHeader>
-              <form onSubmit={handleOtpSubmit}>
+              <form onSubmit={handleOtpSubmit} autoComplete="one-time-code">
                 <CardContent className="pb-4">
                   <input type="hidden" name="email" value={step.email} />
                   <input type="hidden" name="code" value={otp} />
