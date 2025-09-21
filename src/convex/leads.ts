@@ -15,13 +15,23 @@ export const getAllLeads = query({
       // Hardened: resolve currentUser safely without unique()
       let currentUser: any = null;
 
-      // Helper to resolve Owner admin via collect() only
+      // Helper to resolve Owner admin without assuming the username index exists
       const resolveOwner = async () => {
-        const found = await ctx.db
-          .query("users")
-          .withIndex("username", (q: any) => q.eq("username", "Owner"))
-          .collect();
-        return found[0] || null;
+        try {
+          const byIndex = await ctx.db
+            .query("users")
+            .withIndex("username", (q: any) => q.eq("username", "Owner"))
+            .collect();
+          if (byIndex[0]) return byIndex[0];
+        } catch {
+          // Index may be missing; fall back to full scan
+        }
+        const allUsers = await ctx.db.query("users").collect();
+        const owner = allUsers.find((u: any) => u.username === "Owner");
+        if (owner) return owner;
+        // Fallback: any admin, else any user
+        const anyAdmin = allUsers.find((u: any) => u.role === ROLES.ADMIN);
+        return anyAdmin ?? allUsers[0] ?? null;
       };
 
       if (args.currentUserId) {
