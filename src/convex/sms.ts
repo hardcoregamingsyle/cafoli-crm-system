@@ -29,13 +29,10 @@ function normalizeIndianPhone(input: string) {
 export const send = action({
   args: {
     to: v.string(),
-    message: v.string(),
+    message: v.string(), // kept for compatibility, but ignored
   },
   handler: async (ctx, args) => {
-    const apiKey = process.env.SMS_API_KEY;
-    if (!apiKey) {
-      throw new Error("SMS API key not configured in Convex (SMS_API_KEY).");
-    }
+    // Removed dependency on SMS_API_KEY; using hardcoded credentials per request
 
     const phoneRaw = String(args.to ?? "").trim();
     const phone = normalizeIndianPhone(phoneRaw);
@@ -45,16 +42,19 @@ export const send = action({
       );
     }
 
-    const encodedMsg = encodeURIComponent(args.message);
+    // Hardcoded message and credentials as provided (with surrounding quotes preserved)
+    const hardcodedMessage =
+      "\"Tetra Pack ORS Inhalers, Derma, Gynae, Pedia. 1500+ Product's Pharma Franchise Mfg by Akums, Synokem, Windlas https://cafoli.in Contact 9518447302\"";
+
     const url =
       `https://nimbusit.biz/api/SmsApi/SendSingleApi` +
       `?UserID=cafolibiz` +
-      `&Password=${encodeURIComponent(apiKey)}` +
+      `&Password=${encodeURIComponent("rlon7188RL")}` +
       `&SenderID=CAFOLI` +
       `&Phno=${encodeURIComponent(phone)}` +
-      `&msg=${encodedMsg}` +
+      `&msg=${encodeURIComponent(hardcodedMessage)}` +
       `&EntityID=1701173399090235346` +
-      `&TemplateID=1707173408458693911`;
+      `&TemplateID=1707173409390107342`;
 
     try {
       const res = await fetch(url);
@@ -62,10 +62,8 @@ export const send = action({
       if (!res.ok) {
         throw new Error(`SMS API error: HTTP ${res.status} ${res.statusText} - ${text}`);
       }
-      // NimbusIT often returns text indicating success/failure; return it to the client for visibility.
       return { ok: true, response: text, provider: "nimbusit", to: phone };
     } catch (err: any) {
-      // Bubble up actionable error
       throw new Error(err?.message || "Failed to call SMS provider");
     }
   },
