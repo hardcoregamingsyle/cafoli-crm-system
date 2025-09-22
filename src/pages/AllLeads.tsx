@@ -40,6 +40,7 @@ export default function AllLeadsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const leads = useQuery(
     api.leads.getAllLeads,
     currentUser && authReady
@@ -70,6 +71,7 @@ export default function AllLeadsPage() {
   const deleteLeadAdmin = useMutation(api.leads.deleteLeadAdmin);
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
+  const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -157,12 +159,53 @@ export default function AllLeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Compute filtered leads locally
+  const filteredLeads = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return leads ?? [];
+    const arr = leads ?? [];
+    return arr.filter((lead: any) => {
+      const fields = [
+        lead?.name,
+        lead?.subject,
+        lead?.message,
+        lead?.mobileNo,
+        lead?.altMobileNo,
+        lead?.email,
+        lead?.altEmail,
+        lead?.agencyName,
+        lead?.state,
+        lead?.district,
+        lead?.station,
+        lead?.source,
+        lead?.assignedUserName,
+      ];
+      return fields.some((f) => (String(f || "").toLowerCase().includes(q)));
+    });
+  }, [leads, search]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">All Leads</h1>
           <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <Input
+                placeholder="Search leads..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-60"
+              />
+            </div>
+            <div className="sm:hidden w-full">
+              <Input
+                placeholder="Search leads..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-40"
+              />
+            </div>
             <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
             <Button variant={filter === "assigned" ? "default" : "outline"} onClick={() => setFilter("assigned")}>Assigned</Button>
             <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
@@ -198,7 +241,7 @@ export default function AllLeadsPage() {
             <div>
               <span className="font-medium">Server leads:</span> {serverCount ?? "—"}{" "}
               <span className="mx-2">•</span>
-              <span className="font-medium">UI leads:</span> {(leads ?? []).length}
+              <span className="font-medium">UI leads:</span> {(filteredLeads ?? []).length}
               {serverLatest && (
                 <>
                   <span className="mx-2">•</span>
@@ -222,7 +265,7 @@ export default function AllLeadsPage() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {(leads ?? []).map((lead: any) => (
+              {(filteredLeads ?? []).map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col w-full gap-2">
@@ -574,6 +617,29 @@ export default function AllLeadsPage() {
                           </Select>
                         </div>
                       )}
+
+                      {/* Lead Type */}
+                      <div className="space-y-2">
+                        <div className="text-xs text-gray-500">Lead Type</div>
+                        <Select
+                          defaultValue={String(lead.heat || "")}
+                          onValueChange={async (val) => {
+                            try {
+                              await updateLeadHeat({ leadId: lead._id, heat: val as any, currentUserId: currentUser._id });
+                              toast.success("Lead type updated");
+                            } catch (e: any) {
+                              toast.error(e?.message || "Failed to update lead type");
+                            }
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select lead type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="hot">Hot Lead</SelectItem>
+                            <SelectItem value="cold">Cold Lead</SelectItem>
+                            <SelectItem value="matured">Matured Lead</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
                       {/* Next Followup */}
                       <div className="space-y-2">

@@ -34,6 +34,30 @@ export default function MyLeadsPage() {
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
   const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
+  const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
+
+  // Add search state
+  const [search, setSearch] = useState("");
+
+  // Compute filtered leads locally
+  const filteredLeads = (leads ?? []).filter((lead: any) => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return true;
+    const fields = [
+      lead?.name,
+      lead?.subject,
+      lead?.message,
+      lead?.mobileNo,
+      lead?.altMobileNo,
+      lead?.email,
+      lead?.altEmail,
+      lead?.agencyName,
+      lead?.state,
+      lead?.district,
+      lead?.station,
+    ];
+    return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
+  });
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
@@ -45,6 +69,13 @@ export default function MyLeadsPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">My Leads</h1>
+          <div className="w-56">
+            <Input
+              placeholder="Search leads..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
@@ -53,7 +84,7 @@ export default function MyLeadsPage() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {(leads ?? []).map((lead: any) => (
+              {(filteredLeads ?? []).map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
@@ -477,6 +508,28 @@ export default function MyLeadsPage() {
                             <SelectItem value={LEAD_STATUS.RELEVANT}>Relevant</SelectItem>
                             <SelectItem value={LEAD_STATUS.NOT_RELEVANT}>Not-Relevant</SelectItem>
                             <SelectItem value={LEAD_STATUS.YET_TO_DECIDE}>Yet-to-Decide</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs text-gray-500">Lead Type</div>
+                        <Select
+                          defaultValue={String(lead.heat || "")}
+                          onValueChange={async (val) => {
+                            try {
+                              await updateLeadHeat({ leadId: lead._id, heat: val as any, currentUserId: currentUser._id });
+                              toast.success("Lead type updated");
+                            } catch (e: any) {
+                              toast.error(e?.message || "Failed to update lead type");
+                            }
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select lead type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="hot">Hot Lead</SelectItem>
+                            <SelectItem value="cold">Cold Lead</SelectItem>
+                            <SelectItem value="matured">Matured Lead</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
