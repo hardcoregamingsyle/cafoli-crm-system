@@ -2,6 +2,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
+import { internal } from "./_generated/api";
 
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
@@ -356,6 +357,15 @@ export const updateLeadStatus = mutation({
       });
     } else {
       await ctx.db.patch(args.leadId, { status: args.status });
+
+      // Send email when marked as RELEVANT (fire-and-forget via scheduler)
+      if (args.status === LEAD_STATUS.RELEVANT && lead.email && lead.email !== "unknown@example.com") {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.emails.sendRelevant,
+          { to: lead.email }
+        );
+      }
       
       // Log the action
       await ctx.db.insert("auditLogs", {
