@@ -659,45 +659,47 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
   // Use Convex action to send SMS via backend with SMS_API_KEY
   const sendSms = useAction(api.sms.send);
+  const [sending, setSending] = useState(false);
 
   const buildMessage = () => {
     // Exact message as per provided link
     return "Tetra Pack ORS, Inhalers, Derma, Gynae, Pedia 1500+ Product's Pharma Franchise Mfg by Akums, Synokem, Windlas https://cafoli.in Contact 9518447302";
   };
 
-  const handleSend = async (phone: string) => {
+  const handleSend = async (phone: string, label: string) => {
     const msg = buildMessage();
-    await sendSms({ to: phone, message: msg });
+    try {
+      setSending(true);
+      const res: any = await sendSms({ to: phone, message: msg });
+      const snippet = String(res?.response ?? "").slice(0, 140);
+      toast.success(`SMS sent to ${label}. Provider response: ${snippet || "OK"}`);
+    } catch (e: any) {
+      toast.error(e?.message || `Failed to send SMS to ${label}`);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <div className="flex items-center gap-2">
       <Button
         variant="outline"
+        disabled={sending}
         onClick={async () => {
-          try {
-            await handleSend(primary);
-            toast.success("SMS sent to primary");
-          } catch (e: any) {
-            toast.error(e?.message || "Failed to send SMS to primary");
-          }
+          await handleSend(primary, "primary");
         }}
       >
-        Send SMS (Primary)
+        {sending ? "Sending..." : "Send SMS (Primary)"}
       </Button>
       {secondary && (
         <Button
           variant="outline"
+          disabled={sending}
           onClick={async () => {
-            try {
-              await handleSend(secondary);
-              toast.success("SMS sent to alternate");
-            } catch (e: any) {
-              toast.error(e?.message || "Failed to send SMS to alternate");
-            }
+            await handleSend(secondary, "alternate");
           }}
         >
-          Send SMS (Alt.)
+          {sending ? "Sending..." : "Send SMS (Alt.)"}
         </Button>
       )}
     </div>
