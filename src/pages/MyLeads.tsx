@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useEffect, useState } from "react";
@@ -601,24 +601,48 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 }
 
 function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
-  const buildUrl = (phone: string) => {
-    const encodedMsg = encodeURIComponent(
-      'Thank you for reaching out to Cafoli Lifecare. To give you a head start, you can explore our product Range on our Website: Website : https://cafoli.in Mail : info@cafoli.in Phone No : ' +
-        contactPhoneLabel +
-        ' Best regards, The Cafoli Lifecare Team'
-    );
-    return `http://nimbusit.biz/api/SmsApi/SendSingleApi?UserID=cafolibiz&Password=rlon7188RL&SenderID=CAFOLI&Phno=${encodeURIComponent(
-      phone)}&msg=${encodedMsg}&EntityID=1701173399090235346&TemplateID=1707173753089542085`;
+  // Use Convex action to send SMS via backend with SMS_API_KEY
+  const sendSms = useAction(api.sms.send);
+
+  const buildMessage = () => {
+    return 'Thank you for reaching out to Cafoli Lifecare. To give you a head start, you can explore our product Range on our Website: Website : https://cafoli.in Mail : info@cafoli.in Phone No : '
+      + contactPhoneLabel
+      + ' Best regards, The Cafoli Lifecare Team';
+  };
+
+  const handleSend = async (phone: string) => {
+    const msg = buildMessage();
+    await sendSms({ to: phone, message: msg });
   };
 
   return (
     <div className="flex items-center gap-2">
-      <Button asChild variant="outline">
-        <a href={buildUrl(primary)} target="_blank" rel="noreferrer">Send SMS (Primary)</a>
+      <Button
+        variant="outline"
+        onClick={async () => {
+          try {
+            await handleSend(primary);
+            toast.success("SMS sent to primary");
+          } catch (e: any) {
+            toast.error(e?.message || "Failed to send SMS to primary");
+          }
+        }}
+      >
+        Send SMS (Primary)
       </Button>
       {secondary && (
-        <Button asChild variant="outline">
-          <a href={buildUrl(secondary)} target="_blank" rel="noreferrer">Send SMS (Alt.)</a>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              await handleSend(secondary);
+              toast.success("SMS sent to alternate");
+            } catch (e: any) {
+              toast.error(e?.message || "Failed to send SMS to alternate");
+            }
+          }}
+        >
+          Send SMS (Alt.)
         </Button>
       )}
     </div>
