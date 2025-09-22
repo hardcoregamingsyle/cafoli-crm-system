@@ -19,7 +19,7 @@ export type Role = Infer<typeof roleValidator>;
 // Lead status options
 export const LEAD_STATUS = {
   RELEVANT: "relevant",
-  NOT_RELEVANT: "not_relevant", 
+  NOT_RELEVANT: "not_relevant",
   YET_TO_DECIDE: "yet_to_decide",
 } as const;
 
@@ -66,6 +66,7 @@ const schema = defineSchema(
       agencyName: v.optional(v.string()), // Column Q
       nextFollowup: v.optional(v.number()), // timestamp
       status: v.optional(leadStatusValidator),
+      heat: v.optional(v.union(v.literal("hot"), v.literal("cold"), v.literal("matured"))), // new field
     }).index("assignedTo", ["assignedTo"])
       .index("nextFollowup", ["nextFollowup"])
       .index("status", ["status"])

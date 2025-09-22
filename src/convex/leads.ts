@@ -955,3 +955,26 @@ export const bulkImportPincodeMappings = mutation({
     });
   },
 });
+
+// New mutation to update lead heat (Hot / Cold / Matured)
+export const updateLeadHeat = mutation({
+  args: {
+    leadId: v.id("leads"),
+    heat: v.union(v.literal("hot"), v.literal("cold"), v.literal("matured")),
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, { leadId, heat, currentUserId }) => {
+    // Basic authorization: ensure currentUser exists; specific role checks should mirror your existing policy.
+    const user = await ctx.db.get(currentUserId as any).catch(() => null);
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+    const lead = await ctx.db.get(leadId);
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+    // Patch heat
+    await ctx.db.patch(leadId, { heat });
+    return true;
+  },
+});
