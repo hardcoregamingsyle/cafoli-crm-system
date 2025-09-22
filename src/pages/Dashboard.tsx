@@ -18,7 +18,10 @@ export default function Dashboard() {
     if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
 
-  const myLeads = useQuery(api.leads.getMyLeads, { currentUserId: currentUser?._id });
+  const myLeads = useQuery(
+    api.leads.getMyLeads,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  );
 
   if (!currentUser) return null;
 
