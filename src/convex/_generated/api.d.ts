@@ -21,6 +21,7 @@ import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as leads from "../leads.js";
 import type * as notifications from "../notifications.js";
+import type * as sms from "../sms.js";
 import type * as users from "../users.js";
 import type * as webhook from "../webhook.js";
 
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   leads: typeof leads;
   notifications: typeof notifications;
+  sms: typeof sms;
   users: typeof users;
   webhook: typeof webhook;
 }>;
