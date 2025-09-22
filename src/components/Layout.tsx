@@ -22,14 +22,21 @@ export function Layout({ children }: LayoutProps) {
   const { currentUser, logout, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const unreadCount = useQuery(api.notifications.getUnreadCount, { currentUserId: currentUser?._id });
+  const unreadCount = useQuery(
+    api.notifications.getUnreadCount,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
     currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
   ) ?? []
-  const assignableUsers = useQuery(api.users.getAssignableUsers, { currentUserId: currentUser?._id }) ?? [];
+  const assignableUsers =
+    useQuery(
+      api.users.getAssignableUsers,
+      currentUser ? { currentUserId: currentUser._id } : "skip"
+    ) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
   const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);

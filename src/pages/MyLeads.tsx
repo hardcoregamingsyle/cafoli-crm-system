@@ -29,7 +29,10 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
-  const leads = useQuery(api.leads.getMyLeads, { currentUserId: currentUser?._id });
+  const leads = useQuery(
+    api.leads.getMyLeads,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  );
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
