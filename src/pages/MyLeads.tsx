@@ -661,9 +661,8 @@ function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: st
   const sendSms = useAction(api.sms.send);
 
   const buildMessage = () => {
-    return 'Thank you for reaching out to Cafoli Lifecare. To give you a head start, you can explore our product Range on our Website: Website : https://cafoli.in Mail : info@cafoli.in Phone No : '
-      + contactPhoneLabel
-      + ' Best regards, The Cafoli Lifecare Team';
+    // Exact message as per provided link
+    return "Tetra Pack ORS, Inhalers, Derma, Gynae, Pedia 1500+ Product's Pharma Franchise Mfg by Akums, Synokem, Windlas https://cafoli.in Contact 9518447302";
   };
 
   const handleSend = async (phone: string) => {
