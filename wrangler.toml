@@ -1,0 +1,5 @@
+name = "cafoli-crm-system"
+compatibility_date = "2025-01-01"
+
+# Helps wrangler/pages tooling know where your Vite build outputs
+pages_build_output_dir = "./dist"
