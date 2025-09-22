@@ -21,20 +21,17 @@ export const send = action({
       throw new Error("Invalid phone number.");
     }
 
-    // Match the provider URL while securely injecting the API key
-    // Also explicitly replace {to_be_provided} with the actual phone number
-    const phParam = "{to_be_provided}".replace("{to_be_provided}", phone);
-
+    // Build NimbusIT URL exactly as required (use https, inject phone, keep message from args)
     const encodedMsg = encodeURIComponent(args.message);
     const url =
-      `http://nimbusit.biz/api/SmsApi/SendSingleApi` +
+      `https://nimbusit.biz/api/SmsApi/SendSingleApi` +
       `?UserID=cafolibiz` +
       `&Password=${encodeURIComponent(apiKey)}` +
       `&SenderID=CAFOLI` +
-      `&Phno=${encodeURIComponent(phParam)}` +
+      `&Phno=${encodeURIComponent(phone)}` +
       `&msg=${encodedMsg}` +
       `&EntityID=1701173399090235346` +
-      `&TemplateID=1707173753089542085`;
+      `&TemplateID=1707173408458693911`;
 
     const res = await fetch(url);
     const text = await res.text().catch(() => "");
