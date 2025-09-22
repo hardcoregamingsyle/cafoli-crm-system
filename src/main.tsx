@@ -17,6 +17,7 @@ import AdminPage from "@/pages/Admin.tsx";
 import NotificationsPage from "@/pages/Notifications.tsx";
 import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -55,6 +56,7 @@ createRoot(document.getElementById("root")!).render(
         <RouteSyncer />
         <Routes>
           <Route path="/" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
+          <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
