@@ -305,6 +305,12 @@ export function Layout({ children }: LayoutProps) {
       icon: Settings,
       roles: [ROLES.ADMIN] 
     },
+    {
+      label: "Dashboard",
+      path: "/dashboard",
+      icon: FileText,
+      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
+    },
   ];
 
   const filteredNavItems = navigationItems.filter(item => 
