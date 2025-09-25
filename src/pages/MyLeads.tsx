@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -45,6 +46,10 @@ export default function MyLeadsPage() {
   // Add follow filter state (Follow or No Followup)
   const [followFilter, setFollowFilter] = useState<"follow" | "no_followup">("follow");
 
+  // Add popup state for 1-minute warning
+  const [showFollowupPopup, setShowFollowupPopup] = useState(false);
+  const [popupLeadName, setPopupLeadName] = useState("");
+
   // Add notifier for upcoming followups at 10, 5, 1 minutes
   const notifiedKeysRef = useRef<Set<string>>(new Set());
 
@@ -52,12 +57,23 @@ export default function MyLeadsPage() {
     const timer = setInterval(() => {
       try {
         const now = Date.now();
-        const targets = new Set([10, 5, 1]);
         for (const lead of (leads ?? []) as Array<any>) {
           const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
           if (!ts || ts <= now) continue;
           const minutesLeft = Math.round((ts - now) / 60000);
-          if (targets.has(minutesLeft)) {
+          
+          // Show popup for 1 minute warning
+          if (minutesLeft === 1) {
+            const key = `${String(lead._id)}:${minutesLeft}`;
+            if (!notifiedKeysRef.current.has(key)) {
+              notifiedKeysRef.current.add(key);
+              const name = String(lead?.name || "Lead");
+              setPopupLeadName(name);
+              setShowFollowupPopup(true);
+            }
+          }
+          // Show toast for 10 and 5 minute warnings
+          else if (minutesLeft === 10 || minutesLeft === 5) {
             const key = `${String(lead._id)}:${minutesLeft}`;
             if (!notifiedKeysRef.current.has(key)) {
               notifiedKeysRef.current.add(key);
@@ -121,6 +137,23 @@ export default function MyLeadsPage() {
 
   return (
     <Layout>
+      {/* Followup Popup Dialog */}
+      <Dialog open={showFollowupPopup} onOpenChange={setShowFollowupPopup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Follow-up Reminder</DialogTitle>
+            <DialogDescription>
+              Your Followup with {popupLeadName} is in 1 Minute. Remember to Followup.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowFollowupPopup(false)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">My Leads</h1>
