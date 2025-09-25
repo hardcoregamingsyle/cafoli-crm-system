@@ -18,8 +18,8 @@ export default function Landing() {
         {/* TODO: landing page goes here; replace with the landing page */}
         <div className="flex justify-center">
           <img
-            src="./logo.svg"
-            alt="Lock Icon"
+            src="https://harmless-tapir-303.convex.cloud/api/storage/d9f69ed8-5dd0-48ca-8428-7ba2233f37a8"
+            alt="Cafoli Lifecare Logo"
             width={64}
             height={64}
             className="rounded-lg mb-8 mt-24"

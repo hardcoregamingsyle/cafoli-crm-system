@@ -109,8 +109,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <CardHeader className="text-center">
               <div className="flex justify-center">
                     <img
-                      src="./logo.svg"
-                      alt="Lock Icon"
+                      src="https://harmless-tapir-303.convex.cloud/api/storage/d9f69ed8-5dd0-48ca-8428-7ba2233f37a8"
+                      alt="Cafoli Lifecare Logo"
                       width={64}
                       height={64}
                       className="rounded-lg mb-4 mt-4 cursor-pointer"
