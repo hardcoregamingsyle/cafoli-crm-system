@@ -9,7 +9,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -42,25 +42,77 @@ export default function MyLeadsPage() {
   // Add search state
   const [search, setSearch] = useState("");
 
-  // Compute filtered leads locally
-  const filteredLeads = (leads ?? []).filter((lead: any) => {
+  // Add follow filter state (Follow or No Followup)
+  const [followFilter, setFollowFilter] = useState<"follow" | "no_followup">("follow");
+
+  // Add notifier for upcoming followups at 10, 5, 1 minutes
+  const notifiedKeysRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        const now = Date.now();
+        const targets = new Set([10, 5, 1]);
+        for (const lead of (leads ?? []) as Array<any>) {
+          const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
+          if (!ts || ts <= now) continue;
+          const minutesLeft = Math.round((ts - now) / 60000);
+          if (targets.has(minutesLeft)) {
+            const key = `${String(lead._id)}:${minutesLeft}`;
+            if (!notifiedKeysRef.current.has(key)) {
+              notifiedKeysRef.current.add(key);
+              const name = String(lead?.name || "Lead");
+              const title = `Your Followup is in ${minutesLeft} Minutes`;
+              const content = `Your Followup with ${name} is in ${minutesLeft} Minutes. Remember to Followup.`;
+              toast(title, { description: content });
+            }
+          }
+        }
+      } catch {
+        // no-op
+      }
+    }, 30000); // check every 30s
+
+    return () => clearInterval(timer);
+  }, [leads]);
+
+  // Replace previous filteredLeads computation with search + follow filter + sorting
+  const filteredLeads = (() => {
+    const list: Array<any> = (leads ?? []);
     const q = (search || "").trim().toLowerCase();
-    if (!q) return true;
-    const fields = [
-      lead?.name,
-      lead?.subject,
-      lead?.message,
-      lead?.mobileNo,
-      lead?.altMobileNo,
-      lead?.email,
-      lead?.altEmail,
-      lead?.agencyName,
-      lead?.state,
-      lead?.district,
-      lead?.station,
-    ];
-    return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
-  });
+
+    // Base: search filter
+    const searched = list.filter((lead: any) => {
+      if (!q) return true;
+      const fields = [
+        lead?.name,
+        lead?.subject,
+        lead?.message,
+        lead?.mobileNo,
+        lead?.altMobileNo,
+        lead?.email,
+        lead?.altEmail,
+        lead?.agencyName,
+        lead?.state,
+        lead?.district,
+        lead?.station,
+      ];
+      return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
+    });
+
+    // Apply follow filter and sorting
+    if (followFilter === "no_followup") {
+      // Leads with no nextFollowup, sort oldest to newest by _creationTime
+      return searched
+        .filter((lead: any) => !(typeof lead?.nextFollowup === "number"))
+        .sort((a: any, b: any) => (a?._creationTime ?? 0) - (b?._creationTime ?? 0));
+    } else {
+      // "follow": leads with nextFollowup set, sort closest to latest
+      return searched
+        .filter((lead: any) => typeof lead?.nextFollowup === "number")
+        .sort((a: any, b: any) => (a.nextFollowup as number) - (b.nextFollowup as number));
+    }
+  })();
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
@@ -72,12 +124,26 @@ export default function MyLeadsPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">My Leads</h1>
-          <div className="w-56">
-            <Input
-              placeholder="Search leads..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex items-center gap-2">
+            <div className="w-56">
+              <Input
+                placeholder="Search leads..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="w-44">
+              <Select
+                value={followFilter}
+                onValueChange={(v) => setFollowFilter(v as "follow" | "no_followup")}
+              >
+                <SelectTrigger><SelectValue placeholder="Follow filter" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="follow">Follow</SelectItem>
+                  <SelectItem value="no_followup">No Followup</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
