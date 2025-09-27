@@ -63,9 +63,54 @@ export function Layout({ children }: LayoutProps) {
     agencyName: "",
   });
 
+  // Track previous total leads count to detect newly arrived leads
+  const [prevLeadsCount, setPrevLeadsCount] = useState<number | null>(null);
+
   useEffect(() => {
     initializeAuth();
   }, []); // run once to avoid re-run loops
+
+  // Play sound + toast when new leads arrive (single vs multiple)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const canReceive =
+      currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
+    if (!canReceive) return;
+
+    const count = (allLeadsForExport ?? []).length;
+
+    // Initialize baseline without notifying
+    if (prevLeadsCount === null) {
+      setPrevLeadsCount(count);
+      return;
+    }
+
+    // If count increased, notify with sound + toast
+    if (count > prevLeadsCount) {
+      const delta = count - prevLeadsCount;
+
+      // Use minecraft_bell for single, iphone for multiple
+      const soundSrc = delta > 1 ? "/assets/iphone.mp3" : "/assets/minecraft_bell.mp3";
+      try {
+        const audio = new Audio(soundSrc);
+        audio.play().catch(() => {
+          // Ignore autoplay errors silently
+        });
+      } catch {
+        // Ignore sound errors
+      }
+
+      toast.success(`${delta} new lead${delta > 1 ? "s" : ""} have arrived`);
+      setPrevLeadsCount(count);
+      return;
+    }
+
+    // Keep baseline in sync if decreased/changed
+    if (count !== prevLeadsCount) {
+      setPrevLeadsCount(count);
+    }
+  }, [currentUser, allLeadsForExport?.length, prevLeadsCount]);
 
   // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
