@@ -385,6 +385,12 @@ http.route({
       const cursorParam = url.searchParams.get("cursor");
       const limit = Math.max(1, Math.min(limitParam, 50));
 
+      // New: restrict scan window to recent timeframe to avoid heavy reads
+      const sinceDaysParam = Number(url.searchParams.get("sinceDays") ?? "30");
+      const days = Number.isFinite(sinceDaysParam) && sinceDaysParam > 0 ? sinceDaysParam : 30;
+      const now = Date.now();
+      const sinceTs = now - days * 24 * 60 * 60 * 1000;
+
       // Use an ensured admin/system user to access admin-only query
       let adminUserId: any = null;
       try {
@@ -404,7 +410,7 @@ http.route({
         );
       }
 
-      // Pull WEBHOOK_LOGs paginated, then filter to LOGIN_IP_LOG
+      // Pull WEBHOOK_LOGs paginated, time-bounded, then filter to LOGIN_IP_LOG
       let items: any[] = [];
       let isDone = true;
       let continueCursor: string | null = null;
@@ -415,6 +421,8 @@ http.route({
             numItems: limit,
             cursor: cursorParam ?? null,
           },
+          sinceTs, // apply time window to reduce scanned documents
+          // untilTs can be passed if needed; default is "up to now"
         });
         items = Array.isArray((page as any)?.items) ? (page as any).items : [];
         isDone = Boolean((page as any)?.isDone);
