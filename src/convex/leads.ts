@@ -255,6 +255,28 @@ export const createLead = mutation({
       status: LEAD_STATUS.YET_TO_DECIDE,
     });
 
+    // Notify Admins and Managers about the new lead
+    try {
+      const allUsers = await ctx.db.query("users").collect();
+      const targets = allUsers.filter(
+        (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER
+      );
+      await Promise.all(
+        targets.map((u: any) =>
+          ctx.db.insert("notifications", {
+            userId: u._id,
+            title: "New Lead Created",
+            message: "1 new lead has been created.",
+            read: false,
+            type: "lead_created",
+            relatedLeadId: leadId,
+          })
+        )
+      );
+    } catch {
+      // Swallow notification errors to avoid blocking lead creation
+    }
+
     return leadId;
   },
 });
@@ -608,6 +630,29 @@ export const bulkCreateLeads = mutation({
       details: `Imported ${importedCount} new lead(s)${args.assignedTo ? " and assigned" : ""}; duplicates were clubbed.`,
       timestamp: Date.now(),
     });
+
+    // Notify Admins and Managers if any new leads were created in this batch
+    if (importedCount > 0) {
+      try {
+        const allUsers = await ctx.db.query("users").collect();
+        const targets = allUsers.filter(
+          (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER
+        );
+        await Promise.all(
+          targets.map((u: any) =>
+            ctx.db.insert("notifications", {
+              userId: u._id,
+              title: "New Leads Created",
+              message: `${importedCount} new lead(s) have been created.`,
+              read: false,
+              type: "lead_created",
+            })
+          )
+        );
+      } catch {
+        // Do not block the mutation if notifications fail
+      }
+    }
   },
 });
 
