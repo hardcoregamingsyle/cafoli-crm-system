@@ -2,11 +2,12 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 import { ROLES } from "./schema";
+import { paginationOptsValidator } from "convex/server";
 
 // Returns latest webhook logs from auditLogs where action === "WEBHOOK_LOG"
 export const getWebhookLogs = query({
   args: {
-    limit: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator, // { numItems, cursor }
     currentUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
@@ -14,37 +15,59 @@ export const getWebhookLogs = query({
       ? await ctx.db.get(args.currentUserId)
       : await getCurrentUser(ctx);
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-      return [];
+      return { items: [], isDone: true, continueCursor: null as string | null };
     }
 
-    // Use indexed, descending pagination and stop early when we've collected enough
-    const desired = Math.max(1, Math.min(args.limit ?? 100, 500)); // clamp 1..500
-    const pageSize = 200; // small page to keep reads low
-    const maxPages = 100; // hard cap to stay below read limits
-    let pagesScanned = 0;
-    let cursor: string | null = null;
-    const results: Array<any> = [];
+    // We will accumulate exactly paginationOpts.numItems WEBHOOK_LOG entries by scanning
+    // auditLogs via timestamp index in descending order, stopping early once enough are collected.
+    const desired = Math.max(1, Math.min(args.paginationOpts.numItems, 50)); // hard cap per page
+    let items: Array<any> = [];
+    let cursor: string | null = args.paginationOpts.cursor ?? null;
+    let isDone = false;
 
-    while (pagesScanned < maxPages && results.length < desired) {
+    // Scan up to a bounded number of pages per call to avoid read explosions
+    const maxScannedPages = 20;
+    let scanned = 0;
+
+    while (items.length < desired && scanned < maxScannedPages) {
       const page = await ctx.db
         .query("auditLogs")
         .withIndex("timestamp", (q) => q.gt("timestamp", 0))
         .order("desc")
-        .paginate({ numItems: pageSize, cursor });
+        .paginate({ numItems: 200, cursor }); // small internal page to keep reads low
 
+      // Collect only WEBHOOK_LOG entries
       for (const doc of page.page) {
         if (doc.action === "WEBHOOK_LOG") {
-          results.push(doc);
-          if (results.length >= desired) break;
+          items.push(doc);
+          if (items.length >= desired) break;
         }
       }
 
-      if (results.length >= desired || page.isDone) break;
+      if (items.length >= desired) {
+        // We've gathered enough for this page; set next cursor to continue after this page
+        cursor = page.continueCursor;
+        isDone = page.isDone && items.length < desired;
+        break;
+      }
 
+      // If underlying scan is done, we're done
+      if (page.isDone) {
+        cursor = page.continueCursor;
+        isDone = true;
+        break;
+      }
+
+      // Continue scanning
       cursor = page.continueCursor;
-      pagesScanned += 1;
+      scanned += 1;
     }
 
-    return results.slice(0, desired);
+    // Return a simple, cursor-based pagination shape
+    return {
+      items,
+      isDone,
+      continueCursor: cursor,
+    };
   },
 });

@@ -23,7 +23,8 @@ export default function IpLogsPage() {
   const navigate = useNavigate();
   const [logs, setLogs] = useState<LoginLog[]>([]);
   const [loading, setLoading] = useState(false);
-  const [limit, setLimit] = useState(100);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [isDone, setIsDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const webhookBase = import.meta.env.VITE_WEBHOOK_URL as string | undefined;
@@ -36,6 +37,34 @@ export default function IpLogsPage() {
     initializeAuth();
   }, []);
 
+  const PAGE_SIZE = 10;
+
+  const fetchPage = async (reset = false) => {
+    if (!isWebhookConfigured) return;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      params.set("limit", String(PAGE_SIZE));
+      if (!reset && cursor) params.set("cursor", cursor);
+
+      const res = await fetch(`${webhookBase}/api/iplogging?${params.toString()}`);
+      const json = await res.json();
+
+      if (!json?.ok) throw new Error(json?.error || "Failed to fetch logs");
+
+      const nextLogs: LoginLog[] = json.logs ?? [];
+      setLogs((prev) => (reset ? nextLogs : [...prev, ...nextLogs]));
+      setCursor(json?.continueCursor ?? null);
+      setIsDone(Boolean(json?.isDone));
+    } catch (e: any) {
+      setError(e?.message || "Failed to fetch logs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!currentUser) return;
     if (currentUser.role !== "admin") {
@@ -45,27 +74,11 @@ export default function IpLogsPage() {
     }
     if (!isWebhookConfigured) return;
 
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch(
-          `${webhookBase}/api/iplogging?limit=${limit}`
-        );
-        const json = await res.json();
-        if (!json?.ok) {
-          throw new Error(json?.error || "Failed to fetch logs");
-        }
-        setLogs(json.logs ?? []);
-      } catch (e: any) {
-        setError(e?.message || "Failed to fetch logs");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLogs();
-  }, [currentUser, isWebhookConfigured, webhookBase, navigate, limit]);
+    setLogs([]);
+    setCursor(null);
+    setIsDone(false);
+    fetchPage(true);
+  }, [currentUser, isWebhookConfigured, webhookBase]);
 
   if (!currentUser) {
     return (
@@ -95,28 +108,37 @@ export default function IpLogsPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              disabled={!isWebhookConfigured || loading}
-              onClick={() => setLimit((prev) => Math.min(prev + 50, 500))}
+              disabled={!isWebhookConfigured || loading || isDone}
+              onClick={() => fetchPage(false)}
             >
               Show more
             </Button>
             <Button
               variant="outline"
               disabled={!isWebhookConfigured || loading}
-              onClick={() => setLimit(100)}
+              onClick={() => {
+                setLogs([]);
+                setCursor(null);
+                setIsDone(false);
+                fetchPage(true);
+              }}
             >
               Reset
             </Button>
             <Button
               disabled={!isWebhookConfigured || loading}
               onClick={() => {
-                // Trigger refetch by nudging limit
-                setLimit((prev) => prev);
+                setLogs([]);
+                setCursor(null);
+                setIsDone(false);
+                fetchPage(true);
               }}
             >
               Refresh
             </Button>
-            <span className="text-sm text-gray-500">Showing up to {limit} entries</span>
+            <span className="text-sm text-gray-500">
+              Loaded {logs.length} entr{logs.length === 1 ? "y" : "ies"} {isDone ? "• End of logs" : ""}
+            </span>
           </div>
 
           {loading && <div>Loading logs...</div>}
@@ -166,6 +188,18 @@ export default function IpLogsPage() {
               ))
             )}
           </div>
+
+          {!isDone && logs.length > 0 && (
+            <div className="flex">
+              <Button
+                className="ml-auto"
+                onClick={() => fetchPage(false)}
+                disabled={loading || !isWebhookConfigured}
+              >
+                Load more
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
