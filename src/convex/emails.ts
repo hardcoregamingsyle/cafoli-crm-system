@@ -46,7 +46,7 @@ export const sendRelevant: any = internalAction({
 
     // Brevo payload and request
     const payload = {
-      sender: { email: "intro@mail.skinticals.com", name: "Cafoli Lifecare" },
+      sender: { email: "welcome@mail.skinticals.com", name: "Cafoli Lifecare" },
       to: [{ email: args.to }],
       subject,
       textContent: text,
@@ -117,7 +117,7 @@ export const processQueue: any = internalAction({
       }
 
       const payload = {
-        sender: { email: "intro@mail.skinticals.com", name: "Cafoli Lifecare" },
+        sender: { email: "welcome@mail.skinticals.com", name: "Cafoli Lifecare" },
         to: [{ email: item.to }],
         subject: item.subject,
         textContent: item.text,
