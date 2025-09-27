@@ -90,8 +90,8 @@ export function Layout({ children }: LayoutProps) {
     if (count > prevLeadsCount) {
       const delta = count - prevLeadsCount;
 
-      // Use minecraft_bell for single, iphone for multiple
-      const soundSrc = delta > 1 ? "/assets/iphone.mp3" : "/assets/minecraft_bell.mp3";
+      // Change: Always play minecraft_bell for any number of new leads
+      const soundSrc = "/assets/minecraft_bell.mp3";
       try {
         const audio = new Audio(soundSrc);
         audio.play().catch(() => {
