@@ -14,6 +14,14 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+// Add a tiny helper to play sounds
+function playSound(src: string) {
+  try {
+    const audio = new Audio(src);
+    audio.play().catch(() => {});
+  } catch {}
+}
+
 export default function MyLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
@@ -60,27 +68,31 @@ export default function MyLeadsPage() {
         for (const lead of (leads ?? []) as Array<any>) {
           const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
           if (!ts || ts <= now) continue;
-          const minutesLeft = Math.round((ts - now) / 60000);
+          const minutesRemaining = Math.round((ts - now) / 60000);
           
           // Show popup for 1 minute warning
-          if (minutesLeft === 1) {
-            const key = `${String(lead._id)}:${minutesLeft}`;
+          if (minutesRemaining === 1) {
+            const key = `${String(lead._id)}:${minutesRemaining}`;
             if (!notifiedKeysRef.current.has(key)) {
               notifiedKeysRef.current.add(key);
-              const name = String(lead?.name || "Lead");
-              setPopupLeadName(name);
+              const leadName = String(lead?.name || "Lead");
+              setPopupLeadName(leadName);
               setShowFollowupPopup(true);
+              // New: play follow-up sound
+              playSound("/assets/iphone.mp3");
             }
           }
           // Show toast for 10 and 5 minute warnings
-          else if (minutesLeft === 10 || minutesLeft === 5) {
-            const key = `${String(lead._id)}:${minutesLeft}`;
+          else if (minutesRemaining === 10 || minutesRemaining === 5) {
+            const key = `${String(lead._id)}:${minutesRemaining}`;
             if (!notifiedKeysRef.current.has(key)) {
               notifiedKeysRef.current.add(key);
-              const name = String(lead?.name || "Lead");
-              const title = `Your Followup is in ${minutesLeft} Minutes`;
-              const content = `Your Followup with ${name} is in ${minutesLeft} Minutes. Remember to Followup.`;
-              toast(title, { description: content });
+              const leadName = String(lead?.name || "Lead");
+              const title = `Your Followup is in ${minutesRemaining} Minutes`;
+              const content = `Your Followup with ${leadName} is in ${minutesRemaining} Minutes. Remember to Followup.`;
+              toast.info(content);
+              // New: play follow-up sound
+              playSound("/assets/iphone.mp3");
             }
           }
         }
