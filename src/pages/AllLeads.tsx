@@ -204,7 +204,7 @@ export default function AllLeadsPage() {
         : (leads as Array<any>)) ?? [];
     if (!enforcedHeatRoute) return base;
 
-    // Normalize to handle values like "Cold Lead", "cold_lead", "MATURED", etc.
+    // Normalize to handle values like "Cold Lead", "cold_lead", "Matured", etc.
     const normalize = (s: any) =>
       String(s ?? "")
         .toLowerCase()
@@ -231,11 +231,38 @@ export default function AllLeadsPage() {
     });
   })();
 
+  // Sort by heat for consistent ordering (Hot -> Mature/Matured -> Cold -> Unset)
+  const normalizeHeat = (s: any) =>
+    String(s ?? "")
+      .toLowerCase()
+      .trim()
+      .replace(/[\s_-]+/g, "");
+
+  const heatOrder = (h: any) => {
+    const n = normalizeHeat(h);
+    if (n.includes("hot")) return 0;
+    if (n.includes("mature")) return 1; // matches "mature" and "matured"
+    if (n.includes("cold")) return 2;
+    return 3; // unset/others
+  };
+
+  const displayedLeadsSorted: Array<any> = [...((filteredLeadsByDashboardHeat ?? []) as Array<any>)].sort(
+    (a, b) => heatOrder(a?.heat) - heatOrder(b?.heat)
+  );
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">All Leads</h1>
+          <h1 className="text-2xl font-bold">
+            {enforcedHeatRoute === "cold"
+              ? "Cold Leads"
+              : enforcedHeatRoute === "hot"
+              ? "Hot Leads"
+              : enforcedHeatRoute === "mature"
+              ? "Mature Leads"
+              : "All Leads"}
+          </h1>
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">
               <Input
@@ -312,7 +339,7 @@ export default function AllLeadsPage() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {(filteredLeadsByDashboardHeat ?? []).map((lead: any) => (
+              {displayedLeadsSorted.map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col w-full gap-2">
