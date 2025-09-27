@@ -69,6 +69,7 @@ export default function Dashboard() {
       icon: FileText,
       color: "from-indigo-500 to-indigo-600",
       description: "Assigned to you",
+      route: "/dashboard/assigned",
     },
     {
       title: "Hot Leads",
@@ -76,6 +77,7 @@ export default function Dashboard() {
       icon: TrendingUp,
       color: "from-red-500 to-red-600",
       description: "High-priority",
+      route: "/dashboard/hot",
     },
     {
       title: "Cold Leads",
@@ -83,6 +85,7 @@ export default function Dashboard() {
       icon: Users,
       color: "from-blue-500 to-blue-600",
       description: "Low-priority",
+      route: "/dashboard/cold",
     },
     {
       title: "Mature Leads",
@@ -90,6 +93,7 @@ export default function Dashboard() {
       icon: Target,
       color: "from-green-500 to-green-600",
       description: "Ready to close",
+      route: "/dashboard/mature",
     },
     {
       title: "Closest Followup",
@@ -97,6 +101,7 @@ export default function Dashboard() {
       icon: Clock,
       color: "from-orange-500 to-orange-600",
       description: "Pending followup",
+      route: "/dashboard/followup",
     },
   ];
 
@@ -121,7 +126,15 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.07 }}
               >
-                <Card className="bg-white/80 backdrop-blur-sm border-blue-100 hover:shadow-lg transition-all duration-300">
+                <Card
+                  className="bg-white/80 backdrop-blur-sm border-blue-100 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                  onClick={() => navigate(stat.route)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") navigate(stat.route);
+                  }}
+                >
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
                     <div className={`p-2 rounded-lg bg-gradient-to-r ${stat.color}`}>
