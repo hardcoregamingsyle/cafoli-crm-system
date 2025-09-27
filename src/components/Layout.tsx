@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle } from "lucide-react";
+import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -54,6 +55,8 @@ export function Layout({ children }: LayoutProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  // Add: mobile nav open state
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({
     name: "",
     mobileNo: "",
@@ -429,35 +432,122 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <motion.div 
-              className="flex items-center space-x-3 cursor-pointer"
-              onClick={() => navigate("/all_leads")}
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">C</span>
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Cafoli CRM
-              </span>
-            </motion.div>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Left: Mobile Menu + Logo */}
+            <div className="flex items-center gap-2">
+              {/* Mobile menu trigger */}
+              <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden"
+                    aria-label="Open Menu"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 p-0">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-4">
+                    <SheetHeader>
+                      <SheetTitle className="text-white">Cafoli CRM</SheetTitle>
+                    </SheetHeader>
+                    {currentUser && (
+                      <div className="mt-2 text-sm opacity-90">
+                        <div className="font-medium">{currentUser.name}</div>
+                        <div className="capitalize">{currentUser.role}</div>
+                      </div>
+                    )}
+                  </div>
+                  <nav className="px-2 py-3 space-y-1">
+                    {filteredNavItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Button
+                          key={item.path}
+                          variant="ghost"
+                          className="w-full justify-start gap-2"
+                          onClick={() => {
+                            navigate(item.path);
+                            setMobileNavOpen(false);
+                          }}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {item.label}
+                        </Button>
+                      );
+                    })}
+                  </nav>
+                  <div className="px-2 pt-2 pb-4 border-t space-y-2">
+                    {(isAdmin || isManager) && (
+                      <Button
+                        className="w-full gap-2"
+                        onClick={() => {
+                          setAddDialogOpen(true);
+                          setMobileNavOpen(false);
+                        }}
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        Add Lead
+                      </Button>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        className="flex-1"
+                        onClick={() => {
+                          navigate("/notifications");
+                          setMobileNavOpen(false);
+                        }}
+                      >
+                        <Bell className="w-4 h-4 mr-2" />
+                        Notifications
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="flex-1 text-red-600"
+                        onClick={() => {
+                          setMobileNavOpen(false);
+                          logout();
+                        }}
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </Button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
 
-            {/* Navigation */}
+              {/* Logo */}
+              <motion.div
+                className="flex items-center space-x-2 cursor-pointer"
+                onClick={() => navigate("/all_leads")}
+                whileHover={{ scale: 1.05 }}
+              >
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">C</span>
+                </div>
+                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Cafoli CRM
+                </span>
+              </motion.div>
+            </div>
+
+            {/* Navigation (desktop) */}
             <nav className="hidden md:flex space-x-1">
               {filteredNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
-                
+
                 return (
                   <Button
                     key={item.path}
                     variant={isActive ? "default" : "ghost"}
                     className={`flex items-center space-x-2 ${
-                      isActive 
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white" 
+                      isActive
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
                     onClick={() => navigate(item.path)}
@@ -470,8 +560,40 @@ export function Layout({ children }: LayoutProps) {
             </nav>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              {/* Import/Export (Admin only) */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* Add Lead quick action on mobile */}
+              {(isAdmin || isManager) && (
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="sm:hidden"
+                  onClick={() => setAddDialogOpen(true)}
+                  aria-label="Add Lead"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Notifications */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={() => navigate("/notifications")}
+                aria-label="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount && unreadCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {/* Import/Export (Admin only, desktop already) */}
               {isAdmin && (
                 <div className="hidden sm:flex items-center space-x-2">
                   <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
@@ -587,40 +709,9 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               )}
 
-              {/* Add Lead (Admin + Manager) */}
-              {(isAdmin || isManager) && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-2 hidden sm:inline-flex"
-                  onClick={() => setAddDialogOpen(true)}
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Add Lead
-                </Button>
-              )}
-
-              {/* Notifications */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={() => navigate("/notifications")}
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount && unreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs"
-                  >
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {/* User Info */}
-              <div className="flex items-center space-x-3">
-                <div className="text-right hidden sm:block">
+              {/* User Info + Logout */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
                   <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
                 </div>
@@ -629,17 +720,28 @@ export function Layout({ children }: LayoutProps) {
                   size="icon"
                   onClick={logout}
                   className="text-gray-500 hover:text-red-600"
+                  aria-label="Logout"
                 >
                   <LogOut className="w-5 h-5" />
                 </Button>
               </div>
+              {/* Compact logout for mobile */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                className="sm:hidden text-gray-500 hover:text-red-600"
+                aria-label="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
 
