@@ -259,7 +259,7 @@ export const createLead = mutation({
     try {
       const email = (args.email || "").trim().toLowerCase();
       if (email && email !== "unknown@example.com") {
-        await ctx.scheduler.runAfter(0, internal.emails.sendRelevant, { to: email });
+        await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: email });
       }
     } catch {
       // Do not block creation on email errors
@@ -611,7 +611,7 @@ export const bulkCreateLeads = mutation({
         try {
           const email = (incoming.email || "").trim().toLowerCase();
           if (email && email !== "unknown@example.com") {
-            await ctx.scheduler.runAfter(0, internal.emails.sendRelevant, { to: email });
+            await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: email });
           }
         } catch {
           // Do not block import on email errors

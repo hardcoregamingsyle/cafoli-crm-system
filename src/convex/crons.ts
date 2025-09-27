@@ -140,6 +140,30 @@ export const fetchGoogleScriptLeads = internalAction({
 
 const crons = cronJobs();
 
+// Replace schedule object with cron expression string (midnight UTC)
+crons.cron(
+  "reset email daily counts",
+  "0 0 * * *",
+  internal.emailKeys.resetDailyCounts,
+  {}
+);
+
+// Shortly after midnight: process queued emails using fresh limits
+crons.cron(
+  "process email queue after reset",
+  "5 0 * * *",
+  (internal as any).emails.processQueue,
+  { maxToSend: 500 }
+);
+
+// Optionally, process queue every hour to drain with available quotas
+crons.cron(
+  "process email queue hourly",
+  "0 * * * *",
+  (internal as any).emails.processQueue,
+  { maxToSend: 200 }
+);
+
 // Update: Run every 2 minutes to fetch leads from Google Script (Convex doesn't support seconds granularity)
 crons.interval(
   "Fetch Google Script leads every 5 minutes",

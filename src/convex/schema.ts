@@ -1,6 +1,7 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
-import { Infer, v } from "convex/values";
+import { v } from "convex/values";
+import type { Infer } from "convex/values";
 
 // User roles for the CRM system
 export const ROLES = {
@@ -109,6 +110,27 @@ const schema = defineSchema(
       district: v.string(),
       state: v.string(),
     }).index("pincode", ["pincode"]),
+
+    emailApiKeys: defineTable({
+      name: v.string(),       // unique name to identify key
+      apiKey: v.string(),     // secret key
+      dailyLimit: v.number(), // typically 295
+      sentToday: v.number(),  // counter since last reset
+      lastResetAt: v.number(),// ms timestamp of last reset to start-of-day
+      active: v.boolean(),    // enable/disable this key
+    })
+      .index("by_name", ["name"])
+      .index("by_active", ["active"]),
+
+    emailQueue: defineTable({
+      to: v.string(),
+      subject: v.string(),
+      text: v.string(),
+      status: v.union(v.literal("queued"), v.literal("sent")), // re-queue on failure by keeping 'queued'
+      attempts: v.number(),
+      lastError: v.optional(v.string()),
+    })
+      .index("by_status", ["status"]),
   },
   {
     schemaValidation: false,

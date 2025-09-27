@@ -2,20 +2,14 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
-export const sendRelevant = internalAction({
+export const sendRelevant: any = internalAction({
   args: {
     to: v.string(),
   },
-  handler: async (ctx, args) => {
-    const apiKey =
-      process.env.RESEND_API_KEY ||
-      process.env.RESEND_API_TOKEN ||
-      process.env.RESEND_KEY;
-    if (!apiKey) {
-      throw new Error("Resend API key not configured in Convex (RESEND_API_KEY).");
-    }
-
+  handler: async (ctx, args): Promise<any> => {
+    // Build message
     const subject = "Welcome to Cafoli Lifecare. Your Success Journey Begins Now.";
     const text =
       "Thank you for Joining with Cafoli Lifecare Pvt. Ltd. We hope that we Achive Great Success Together. Please Check out our Social Media and Website to Know more.\n" +
@@ -28,6 +22,30 @@ export const sendRelevant = internalAction({
       "Email: info@cafoli.in\n" +
       "Phone No: +91 9518447302";
 
+    // 1) Try to pick an available key from DB
+    const availableKey: any = await ctx.runQuery(internal.emailKeys.getAvailableKey, {});
+    let apiKey: string | null = availableKey?.apiKey ?? null;
+
+    // 2) Fallback to single RESEND_API_KEY from env if no DB key available and not over any known limit
+    if (!apiKey) {
+      const envKey =
+        process.env.RESEND_API_KEY ||
+        process.env.RESEND_API_TOKEN ||
+        process.env.RESEND_KEY ||
+        null;
+      if (!envKey) {
+        // No keys available: enqueue
+        await ctx.runMutation(internal.emailKeys.enqueueEmail, {
+          to: args.to,
+          subject,
+          text,
+        });
+        return { queued: true, reason: "No available API key" };
+      }
+      apiKey = envKey;
+    }
+
+    // Attempt to send
     const payload = {
       from: "intro@mail.skinticals.com",
       to: [args.to],
@@ -35,7 +53,7 @@ export const sendRelevant = internalAction({
       text,
     };
 
-    const res = await fetch("https://api.resend.com/emails", {
+    const res: any = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,14 +64,102 @@ export const sendRelevant = internalAction({
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Resend API error: HTTP ${res.status} ${res.statusText} - ${errText}`);
+      // If sending failed (e.g., quota), enqueue and return
+      await ctx.runMutation(internal.emailKeys.enqueueEmail, {
+        to: args.to,
+        subject,
+        text,
+      });
+      return { queued: true, reason: `Resend error: ${res.status} ${res.statusText} - ${errText}` };
     }
 
-    // Best-effort parse
+    // Success: increment key usage if we used a DB-managed key
+    if (availableKey?._id) {
+      await ctx.runMutation(internal.emailKeys.incrementKeySent, {
+        keyId: availableKey._id as any,
+        by: 1,
+      });
+    }
+
     try {
       return await res.json();
     } catch {
       return { ok: true };
     }
+  },
+});
+
+export const processQueue: any = internalAction({
+  args: { maxToSend: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<any> => {
+    const batch: any[] = await ctx.runQuery(internal.emailKeys.getQueuedBatch, {
+      limit: args.maxToSend ?? 100,
+    });
+    if (batch.length === 0) return { processed: 0 };
+
+    let processed = 0;
+
+    for (const item of batch) {
+      // Select a key for each send; if none available, stop early
+      const key: any = await ctx.runQuery(internal.emailKeys.getAvailableKey, {});
+      let apiKey: string | null = key?.apiKey ?? null;
+
+      if (!apiKey) {
+        const envKey =
+          process.env.RESEND_API_KEY ||
+          process.env.RESEND_API_TOKEN ||
+          process.env.RESEND_KEY ||
+          null;
+        if (!envKey) {
+          // No keys at all; skip processing further
+          break;
+        }
+        apiKey = envKey;
+      }
+
+      const payload = {
+        from: "intro@mail.skinticals.com",
+        to: [item.to],
+        subject: item.subject,
+        text: item.text,
+      };
+
+      try {
+        const res: any = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          await ctx.runMutation(internal.emailKeys.markFailed, {
+            id: item._id as any,
+            error: `HTTP ${res.status} ${res.statusText} ${errText}`,
+          });
+          continue;
+        }
+
+        // Mark sent + increment key usage if DB key
+        await ctx.runMutation(internal.emailKeys.markSent, { id: item._id as any });
+        if (key?._id) {
+          await ctx.runMutation(internal.emailKeys.incrementKeySent, {
+            keyId: key._id as any,
+            by: 1,
+          });
+        }
+        processed++;
+      } catch (e: any) {
+        await ctx.runMutation(internal.emailKeys.markFailed, {
+          id: item._id as any,
+          error: String(e?.message || e || "unknown error"),
+        });
+      }
+    }
+
+    return { processed };
   },
 });
