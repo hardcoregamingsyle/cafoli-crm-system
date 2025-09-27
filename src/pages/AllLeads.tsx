@@ -75,6 +75,19 @@ export default function AllLeadsPage() {
   const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
   const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
 
+  // New: also subscribe to my leads (used for dashboard heat routes for Manager/Staff)
+  const myLeads = useQuery(
+    api.leads.getMyLeads,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  );
+
+  // Decide data source: Admin -> all leads; Manager/Staff -> my leads (for dashboard heat routes)
+  const sourceLeads = useMemo(() => {
+    if (!currentUser) return leads;
+    // Use myLeads for non-admins so dashboard subpages reflect per-user metrics correctly
+    return currentUser.role === ROLES.ADMIN ? leads : myLeads;
+  }, [currentUser?.role, leads, myLeads]);
+
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === ROLES.ADMIN) {
@@ -174,8 +187,8 @@ export default function AllLeadsPage() {
   // Compute filtered leads locally
   const filteredLeads = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
-    if (!q) return leads ?? [];
-    const arr = leads ?? [];
+    if (!q) return sourceLeads ?? [];
+    const arr = sourceLeads ?? [];
     return arr.filter((lead: any) => {
       const fields = [
         lead?.name,
@@ -194,14 +207,14 @@ export default function AllLeadsPage() {
       ];
       return fields.some((f) => String(f || "").toLowerCase().includes(q));
     });
-  }, [leads, search]);
+  }, [sourceLeads, search]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
     const base: Array<any> =
       (typeof filteredLeads !== "undefined"
         ? (filteredLeads as Array<any>)
-        : (leads as Array<any>)) ?? [];
+        : (sourceLeads as Array<any>)) ?? [];
     if (!enforcedHeatRoute) return base;
 
     const norm = (s: any) =>
@@ -210,21 +223,17 @@ export default function AllLeadsPage() {
         .trim();
 
     return base.filter((l) => {
-      // Read from multiple possible keys just in case historical data used different field names
       const raw = l?.heat ?? l?.Heat ?? l?.leadType;
       const n = norm(raw);
-      if (!n) return false; // exclude unset
+      if (!n) return false;
 
       if (enforcedHeatRoute === "hot") {
-        // Accept any variant containing "hot"
-        return n.includes("hot");
+        return n === "hot" || n.includes("hot");
       }
       if (enforcedHeatRoute === "cold") {
-        // Accept any variant containing "cold"
-        return n.includes("cold");
+        return n === "cold" || n.includes("cold");
       }
       if (enforcedHeatRoute === "mature") {
-        // DB stores "matured" but also accept "mature"
         return n === "matured" || n.startsWith("mature");
       }
       return false;
