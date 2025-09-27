@@ -10,6 +10,27 @@ import { useNavigate } from "react-router";
 import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
 import { ROLES } from "@/convex/schema";
 
+// ADD: helpers to categorize sources and count breakdowns
+function normalizeSource(raw: any): string {
+  const s = String(raw ?? "").toLowerCase();
+  return s;
+}
+function isIndiamart(lead: any): boolean {
+  const s = normalizeSource(lead?.source);
+  return s.includes("indiamart");
+}
+function isPharmavends(lead: any): boolean {
+  const s = normalizeSource(lead?.source);
+  return s.includes("pharmavend");
+}
+function splitCounts(list: Array<any>) {
+  const total = list.length;
+  const indiamart = list.filter(isIndiamart).length;
+  const pharmavends = list.filter(isPharmavends).length;
+  const oldData = total - indiamart - pharmavends;
+  return { total, indiamart, pharmavends, oldData };
+}
+
 export default function Dashboard() {
   const { currentUser } = useCrmAuth();
   const navigate = useNavigate();
@@ -33,9 +54,18 @@ export default function Dashboard() {
 
   // Compute requested metrics from my leads
   const myLeadsCount = myLeads?.length || 0;
-  const hotLeads = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "hot").length;
-  const coldLeads = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "cold").length;
-  const maturedLeads = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "matured").length;
+  const hotList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "hot");
+  const coldList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "cold");
+  const maturedList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "matured");
+  const hotLeads = hotList.length;
+  const coldLeads = coldList.length;
+  const maturedLeads = maturedList.length;
+
+  // ADD: compute breakdowns for each card scope
+  const allBreak = splitCounts(myLeads ?? []);
+  const hotBreak = splitCounts(hotList);
+  const coldBreak = splitCounts(coldList);
+  const maturedBreak = splitCounts(maturedList);
 
   let closestFollowupText = "None";
   const now = Date.now();
@@ -62,6 +92,8 @@ export default function Dashboard() {
     closestFollowupText = `${next.name || "Lead"} • ${followupDate.toLocaleString()}${isOverdue ? " (Overdue)" : ""}`;
   }
 
+  const pendingBreak = splitCounts(pendingFollowups);
+
   const stats = [
     {
       title: "Leads Assigned",
@@ -70,6 +102,7 @@ export default function Dashboard() {
       color: "from-indigo-500 to-indigo-600",
       description: "Assigned to you",
       route: "/dashboard/assigned",
+      breakdown: allBreak,
     },
     {
       title: "Hot Leads",
@@ -78,6 +111,7 @@ export default function Dashboard() {
       color: "from-red-500 to-red-600",
       description: "High-priority",
       route: "/dashboard/hot",
+      breakdown: hotBreak,
     },
     {
       title: "Cold Leads",
@@ -86,6 +120,7 @@ export default function Dashboard() {
       color: "from-blue-500 to-blue-600",
       description: "Low-priority",
       route: "/dashboard/cold",
+      breakdown: coldBreak,
     },
     {
       title: "Mature Leads",
@@ -94,6 +129,7 @@ export default function Dashboard() {
       color: "from-green-500 to-green-600",
       description: "Ready to close",
       route: "/dashboard/mature",
+      breakdown: maturedBreak,
     },
     {
       title: "Closest Followup",
@@ -102,6 +138,7 @@ export default function Dashboard() {
       color: "from-orange-500 to-orange-600",
       description: "Pending followup",
       route: "/dashboard/followup",
+      breakdown: pendingBreak,
     },
   ];
 
@@ -146,6 +183,12 @@ export default function Dashboard() {
                       {stat.value}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+                    <div className="mt-2 text-xs text-gray-600">
+                      Total: <span className="font-semibold">{stat.breakdown.total}</span>,{" "}
+                      Indiamart: <span className="font-semibold">{stat.breakdown.indiamart}</span>,{" "}
+                      Pharmavends: <span className="font-semibold">{stat.breakdown.pharmavends}</span>,{" "}
+                      Old Data: <span className="font-semibold">{stat.breakdown.oldData}</span>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>

@@ -52,7 +52,7 @@ export default function MyLeadsPage() {
   const [search, setSearch] = useState("");
 
   // Add follow filter state (Follow or No Followup)
-  const [followFilter, setFollowFilter] = useState<"follow" | "no_followup">("follow");
+  const [followFilter, setFollowFilter] = useState<"all" | "follow" | "no_followup">("follow");
 
   // Add popup state for 1-minute warning
   const [showFollowupPopup, setShowFollowupPopup] = useState(false);
@@ -128,7 +128,19 @@ export default function MyLeadsPage() {
       return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
     });
 
-    // Apply follow filter and sorting
+    // Add "all" behavior
+    if (followFilter === "all") {
+      // Sort: leads with nextFollowup first (ascending), then those without by oldest creation
+      return searched.sort((a: any, b: any) => {
+        const aHas = typeof a?.nextFollowup === "number";
+        const bHas = typeof b?.nextFollowup === "number";
+        if (aHas && bHas) return (a.nextFollowup as number) - (b.nextFollowup as number);
+        if (aHas && !bHas) return -1;
+        if (!aHas && bHas) return 1;
+        return (a?._creationTime ?? 0) - (b?._creationTime ?? 0);
+      });
+    }
+
     if (followFilter === "no_followup") {
       // Leads with no nextFollowup, sort oldest to newest by _creationTime
       return searched
@@ -180,10 +192,11 @@ export default function MyLeadsPage() {
             <div className="w-44">
               <Select
                 value={followFilter}
-                onValueChange={(v) => setFollowFilter(v as "follow" | "no_followup")}
+                onValueChange={(v) => setFollowFilter(v as "all" | "follow" | "no_followup")}
               >
                 <SelectTrigger><SelectValue placeholder="Follow filter" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="follow">Follow</SelectItem>
                   <SelectItem value="no_followup">No Followup</SelectItem>
                 </SelectContent>
