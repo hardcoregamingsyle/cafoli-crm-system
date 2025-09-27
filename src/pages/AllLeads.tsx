@@ -204,28 +204,24 @@ export default function AllLeadsPage() {
         : (leads as Array<any>)) ?? [];
     if (!enforcedHeatRoute) return base;
 
-    // Normalize to handle values like "Cold Lead", "cold_lead", "Matured", etc.
-    const normalize = (s: any) =>
+    const norm = (s: any) =>
       String(s ?? "")
         .toLowerCase()
-        .trim()
-        .replace(/[\s_-]+/g, "");
+        .trim();
 
     return base.filter((l) => {
-      const n = normalize(l?.heat);
-      if (!n) return false; // exclude items without a heat
+      const n = norm(l?.heat);
+      if (!n) return false; // exclude unset
 
-      if (enforcedHeatRoute === "mature") {
-        // accept anything that contains "mature" ("mature", "matured", etc.)
-        return n.includes("mature");
+      if (enforcedHeatRoute === "hot") {
+        return n === "hot";
       }
       if (enforcedHeatRoute === "cold") {
-        // accept any variant containing "cold"
-        return n.includes("cold");
+        return n === "cold";
       }
-      if (enforcedHeatRoute === "hot") {
-        // accept any variant containing "hot"
-        return n.includes("hot");
+      if (enforcedHeatRoute === "mature") {
+        // DB stores "matured", also accept "mature" if it ever appears
+        return n === "matured" || n === "mature";
       }
       return false;
     });
@@ -239,10 +235,10 @@ export default function AllLeadsPage() {
       .replace(/[\s_-]+/g, "");
 
   const heatOrder = (h: any) => {
-    const n = normalizeHeat(h);
-    if (n.includes("hot")) return 0;
-    if (n.includes("mature")) return 1; // matches "mature" and "matured"
-    if (n.includes("cold")) return 2;
+    const n = String(h ?? "").toLowerCase().trim();
+    if (n === "hot") return 0;
+    if (n === "matured" || n === "mature") return 1;
+    if (n === "cold") return 2;
     return 3; // unset/others
   };
 
