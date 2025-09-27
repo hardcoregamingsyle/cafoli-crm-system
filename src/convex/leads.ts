@@ -255,6 +255,16 @@ export const createLead = mutation({
       status: LEAD_STATUS.YET_TO_DECIDE,
     });
 
+    // NEW: Send welcome email immediately on creation if email is valid
+    try {
+      const email = (args.email || "").trim().toLowerCase();
+      if (email && email !== "unknown@example.com") {
+        await ctx.scheduler.runAfter(0, internal.emails.sendRelevant, { to: email });
+      }
+    } catch {
+      // Do not block creation on email errors
+    }
+
     // Notify Admins and Managers about the new lead
     try {
       const allUsers = await ctx.db.query("users").collect();
@@ -367,10 +377,7 @@ export const updateLeadStatus = mutation({
     }
     
     if (args.status === LEAD_STATUS.NOT_RELEVANT) {
-      // Delete the lead
       await ctx.db.delete(args.leadId);
-      
-      // Log the action
       await ctx.db.insert("auditLogs", {
         userId: currentUser._id,
         action: "DELETE_LEAD",
@@ -380,16 +387,6 @@ export const updateLeadStatus = mutation({
     } else {
       await ctx.db.patch(args.leadId, { status: args.status });
 
-      // Send email when marked as RELEVANT (fire-and-forget via scheduler)
-      if (args.status === LEAD_STATUS.RELEVANT && lead.email && lead.email !== "unknown@example.com") {
-        await ctx.scheduler.runAfter(
-          0,
-          internal.emails.sendRelevant,
-          { to: lead.email }
-        );
-      }
-      
-      // Log the action
       await ctx.db.insert("auditLogs", {
         userId: currentUser._id,
         action: "UPDATE_LEAD_STATUS",
@@ -609,6 +606,16 @@ export const bulkCreateLeads = mutation({
           status: LEAD_STATUS.YET_TO_DECIDE,
           assignedTo: args.assignedTo,
         });
+
+        // NEW: Send welcome email immediately on creation if email is valid
+        try {
+          const email = (incoming.email || "").trim().toLowerCase();
+          if (email && email !== "unknown@example.com") {
+            await ctx.scheduler.runAfter(0, internal.emails.sendRelevant, { to: email });
+          }
+        } catch {
+          // Do not block import on email errors
+        }
 
         if (args.assignedTo) {
           await ctx.db.insert("notifications", {
