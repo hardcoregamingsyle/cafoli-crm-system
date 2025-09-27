@@ -38,9 +38,11 @@ export default function AdminPage() {
 
   // Email key manager hooks
   const emailKeys = useQuery(
-  api.emailKeys.listEmailApiKeys,
-  currentUser?._id ? { currentUserId: currentUser._id } : "skip"
-) ?? [];
+    api.emailKeys.listEmailApiKeys,
+    currentUser?._id && currentUser.role === ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
+      : "skip"
+  ) ?? [];
   const saveEmailKey = useMutation(api.emailKeys.saveEmailApiKey);
   const toggleEmailKey = useMutation(api.emailKeys.setEmailKeyActive);
   const resetEmailKey = useMutation(api.emailKeys.resetEmailKeyCount);
