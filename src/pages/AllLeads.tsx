@@ -204,14 +204,30 @@ export default function AllLeadsPage() {
         : (leads as Array<any>)) ?? [];
     if (!enforcedHeatRoute) return base;
 
+    // Normalize to handle values like "Cold Lead", "cold_lead", "MATURED", etc.
+    const normalize = (s: any) =>
+      String(s ?? "")
+        .toLowerCase()
+        .trim()
+        .replace(/[\s_-]+/g, "");
+
     return base.filter((l) => {
-      const h = String(l?.heat ?? "").toLowerCase().trim();
-      if (!h) return false; // exclude items without a heat
+      const n = normalize(l?.heat);
+      if (!n) return false; // exclude items without a heat
+
       if (enforcedHeatRoute === "mature") {
-        // accept both "mature" and "matured"
-        return h === "mature" || h === "matured";
+        // accept "mature", "matured", and any variant starting with mature
+        return n === "mature" || n === "matured" || n.startsWith("mature");
       }
-      return h === enforcedHeatRoute;
+      if (enforcedHeatRoute === "cold") {
+        // accept "cold" and any variant starting with cold
+        return n === "cold" || n.startsWith("cold");
+      }
+      if (enforcedHeatRoute === "hot") {
+        // accept "hot" and any variant starting with hot
+        return n === "hot" || n.startsWith("hot");
+      }
+      return false;
     });
   })();
 
