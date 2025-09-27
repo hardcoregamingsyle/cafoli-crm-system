@@ -374,6 +374,7 @@ http.route({
 });
 
 // New: GET /api/iplogging — Admin-only view of latest login IP logs (formatted)
+// Make this endpoint resilient: never 500; return empty logs on internal errors.
 http.route({
   path: "/api/iplogging",
   method: "GET",
@@ -385,19 +386,53 @@ http.route({
       const limit = Math.max(1, Math.min(limitParam, 50));
 
       // Use an ensured admin/system user to access admin-only query
-      const adminUserId = await ensureAdminUserId(ctx);
+      let adminUserId: any = null;
+      try {
+        adminUserId = await ensureAdminUserId(ctx);
+      } catch {
+        // If we cannot ensure an admin, return safely with empty logs
+        return corsJson(
+          {
+            ok: true,
+            count: 0,
+            logs: [],
+            isDone: true,
+            continueCursor: null,
+            warning: "Could not ensure admin user; returning empty logs.",
+          },
+          200
+        );
+      }
 
       // Pull WEBHOOK_LOGs paginated, then filter to LOGIN_IP_LOG
-      const { items, isDone, continueCursor } = await ctx.runQuery(
-        api.audit.getWebhookLogs,
-        {
+      let items: any[] = [];
+      let isDone = true;
+      let continueCursor: string | null = null;
+      try {
+        const page = await ctx.runQuery(api.audit.getWebhookLogs, {
           currentUserId: adminUserId,
           paginationOpts: {
             numItems: limit,
             cursor: cursorParam ?? null,
           },
-        }
-      );
+        });
+        items = Array.isArray((page as any)?.items) ? (page as any).items : [];
+        isDone = Boolean((page as any)?.isDone);
+        continueCursor = (page as any)?.continueCursor ?? null;
+      } catch (e: any) {
+        // Gracefully degrade on query failure
+        return corsJson(
+          {
+            ok: true,
+            count: 0,
+            logs: [],
+            isDone: true,
+            continueCursor: null,
+            warning: `Failed to load logs: ${e?.message || "unknown error"}`,
+          },
+          200
+        );
+      }
 
       const loginLogs = items
         .filter((l) => {
@@ -436,7 +471,18 @@ http.route({
         200
       );
     } catch (e: any) {
-      return corsJson({ ok: false, error: e?.message || "error" }, 500);
+      // Never return 500 for this endpoint; keep UI stable
+      return corsJson(
+        {
+          ok: true,
+          count: 0,
+          logs: [],
+          isDone: true,
+          continueCursor: null,
+          warning: e?.message || "Unhandled error",
+        },
+        200
+      );
     }
   }),
 });
