@@ -179,17 +179,18 @@ export default function MyLeadsPage() {
       </Dialog>
 
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Responsive header: stack on mobile, row on larger screens */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold">My Leads</h1>
-          <div className="flex items-center gap-2">
-            <div className="w-56">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div className="w-full sm:w-56">
               <Input
                 placeholder="Search leads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <Select
                 value={followFilter}
                 onValueChange={(v) => setFollowFilter(v as "all" | "follow" | "no_followup")}
