@@ -23,6 +23,12 @@ export default function Dashboard() {
     currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
+  // Get comments for all my leads to check followup completion
+  const allComments = useQuery(
+    api.comments.getAllCommentsForUser,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  );
+
   if (!currentUser) return null;
 
   // Compute requested metrics from my leads
@@ -33,13 +39,27 @@ export default function Dashboard() {
 
   let closestFollowupText = "None";
   const now = Date.now();
-  const futureFollowups = (myLeads ?? [])
-    .filter((l: any) => typeof l.nextFollowup === "number" && l.nextFollowup > now)
+  
+  // Filter leads that have followups (past or future) that haven't been completed
+  const pendingFollowups = (myLeads ?? [])
+    .filter((lead: any) => {
+      if (!lead.nextFollowup) return false;
+      
+      // Check if there are any comments after the followup time
+      const leadComments = (allComments ?? []).filter((comment: any) => 
+        comment.leadId === lead._id && comment.timestamp > lead.nextFollowup
+      );
+      
+      // If there are comments after followup time, it's considered completed
+      return leadComments.length === 0;
+    })
     .sort((a: any, b: any) => a.nextFollowup - b.nextFollowup);
 
-  if (futureFollowups.length > 0) {
-    const next = futureFollowups[0];
-    closestFollowupText = `${next.name || "Lead"} • ${new Date(next.nextFollowup).toLocaleString()}`;
+  if (pendingFollowups.length > 0) {
+    const next = pendingFollowups[0];
+    const followupDate = new Date(next.nextFollowup);
+    const isOverdue = next.nextFollowup < now;
+    closestFollowupText = `${next.name || "Lead"} • ${followupDate.toLocaleString()}${isOverdue ? " (Overdue)" : ""}`;
   }
 
   const stats = [
@@ -76,7 +96,7 @@ export default function Dashboard() {
       value: closestFollowupText,
       icon: Clock,
       color: "from-orange-500 to-orange-600",
-      description: "Soonest upcoming",
+      description: "Pending followup",
     },
   ];
 
