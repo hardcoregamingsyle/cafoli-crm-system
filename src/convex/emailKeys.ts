@@ -1,5 +1,8 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
+import { ROLES } from "./schema";
+import { internal } from "./_generated/api";
 
 // Upsert or create an email API key record
 export const upsertEmailApiKey = internalMutation({
@@ -130,5 +133,83 @@ export const markFailed = internalMutation({
     const doc = await ctx.db.get(id);
     if (!doc) return;
     await ctx.db.patch(id, { status: "queued", attempts: (doc.attempts ?? 0) + 1, lastError: error });
+  },
+});
+
+// Public: List keys (Admin only)
+export const listEmailApiKeys = query({
+  args: { currentUserId: v.id("users") },
+  handler: async (ctx, { currentUserId }) => {
+    const user = await ctx.db.get(currentUserId);
+    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+
+    const all = await ctx.db.query("emailApiKeys").collect();
+    // Sort by name for stable UI
+    return all.sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)));
+  },
+});
+
+// Public: Upsert key (Admin only) -> wraps internal upsert
+export const saveEmailApiKey = mutation({
+  args: {
+    currentUserId: v.id("users"),
+    name: v.string(),
+    apiKey: v.string(),
+    dailyLimit: v.optional(v.number()),
+    active: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { currentUserId, name, apiKey, dailyLimit, active }) => {
+    const user = await ctx.db.get(currentUserId);
+    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+
+    await ctx.runMutation(internal.emailKeys.upsertEmailApiKey, {
+      name,
+      apiKey,
+      dailyLimit,
+      active,
+    });
+    return true;
+  },
+});
+
+// Public: Toggle active (Admin only)
+export const setEmailKeyActive = mutation({
+  args: { currentUserId: v.id("users"), id: v.id("emailApiKeys"), active: v.boolean() },
+  handler: async (ctx, { currentUserId, id, active }) => {
+    const user = await ctx.db.get(currentUserId);
+    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+    const key = await ctx.db.get(id);
+    if (!key) throw new Error("Key not found");
+    await ctx.db.patch(id, { active });
+    return true;
+  },
+});
+
+// Public: Reset sentToday (single key) (Admin only)
+export const resetEmailKeyCount = mutation({
+  args: { currentUserId: v.id("users"), id: v.id("emailApiKeys") },
+  handler: async (ctx, { currentUserId, id }) => {
+    const user = await ctx.db.get(currentUserId);
+    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+    const key = await ctx.db.get(id);
+    if (!key) throw new Error("Key not found");
+    // Set sentToday=0 and lastResetAt to start of today
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    await ctx.db.patch(id, { sentToday: 0, lastResetAt: d.getTime() });
+    return true;
+  },
+});
+
+// Public: Delete key (Admin only)
+export const deleteEmailKey = mutation({
+  args: { currentUserId: v.id("users"), id: v.id("emailApiKeys") },
+  handler: async (ctx, { currentUserId, id }) => {
+    const user = await ctx.db.get(currentUserId);
+    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+    const key = await ctx.db.get(id);
+    if (!key) throw new Error("Key not found");
+    await ctx.db.delete(id);
+    return true;
   },
 });

@@ -36,6 +36,16 @@ export default function AdminPage() {
   const deleteAllUsersMutation = useMutation(api.users.deleteAllUsers);
   const deleteAllLeadsMutation = useMutation(api.leads.deleteAllLeads);
 
+  // Email key manager hooks
+  const emailKeys = useQuery(
+  api.emailKeys.listEmailApiKeys,
+  currentUser?._id ? { currentUserId: currentUser._id } : "skip"
+) ?? [];
+  const saveEmailKey = useMutation(api.emailKeys.saveEmailApiKey);
+  const toggleEmailKey = useMutation(api.emailKeys.setEmailKeyActive);
+  const resetEmailKey = useMutation(api.emailKeys.resetEmailKeyCount);
+  const deleteEmailKey = useMutation(api.emailKeys.deleteEmailKey);
+
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role !== ROLES.ADMIN) {
     return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Only admins can access this page.</CardContent></Card></div></Layout>;
@@ -98,6 +108,88 @@ export default function AdminPage() {
                 toast.error(e.message || "Failed to create");
               }
             }} />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+          <CardHeader><CardTitle>Email API Keys (Brevo)</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <EmailKeyForm
+              onSave={async (data) => {
+                try {
+                  await saveEmailKey({
+                    currentUserId: currentUser._id,
+                    name: data.name.trim(),
+                    apiKey: data.apiKey.trim(),
+                    dailyLimit: data.dailyLimit || 295,
+                    active: data.active,
+                  });
+                  toast.success("Key saved");
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to save key");
+                }
+              }}
+            />
+
+            <div className="space-y-2">
+              {(emailKeys ?? []).length === 0 ? (
+                <div className="text-sm text-gray-600">No keys yet. Add one above.</div>
+              ) : (
+                (emailKeys ?? []).map((k: any) => (
+                  <div key={String(k._id)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border p-3 rounded-md">
+                    <div className="text-sm">
+                      <div className="font-medium">{k.name}</div>
+                      <div className="text-xs text-gray-500">
+                        Daily: {k.dailyLimit ?? 295} • Sent today: {k.sentToday ?? 0} • Active: {k.active ? "Yes" : "No"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await toggleEmailKey({ currentUserId: currentUser._id, id: k._id, active: !k.active });
+                            toast.success(k.active ? "Deactivated" : "Activated");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to toggle");
+                          }
+                        }}
+                      >
+                        {k.active ? "Deactivate" : "Activate"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await resetEmailKey({ currentUserId: currentUser._id, id: k._id });
+                            toast.success("Count reset");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to reset");
+                          }
+                        }}
+                      >
+                        Reset Count
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={async () => {
+                          const ok = window.confirm(`Delete key "${k.name}"?`);
+                          if (!ok) return;
+                          try {
+                            await deleteEmailKey({ currentUserId: currentUser._id, id: k._id });
+                            toast.success("Key deleted");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to delete");
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -252,6 +344,59 @@ function SendNotification({ userId, onSend }: { userId: string; onSend: (message
         }}
       >
         Send
+      </Button>
+    </div>
+  );
+}
+
+function EmailKeyForm({
+  onSave,
+}: {
+  onSave: (data: { name: string; apiKey: string; dailyLimit?: number; active: boolean }) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [dailyLimit, setDailyLimit] = useState<string>("295");
+  const [active, setActive] = useState(true);
+
+  return (
+    <div className="grid md:grid-cols-5 gap-2">
+      <Input placeholder="Name (e.g., brevo_1)" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input placeholder="API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+      <Input
+        placeholder="Daily Limit"
+        value={dailyLimit}
+        onChange={(e) => setDailyLimit(e.target.value)}
+        type="number"
+        min={1}
+      />
+      <Select value={active ? "true" : "false"} onValueChange={(v) => setActive(v === "true")}>
+        <SelectTrigger><SelectValue placeholder="Active?" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="true">Active</SelectItem>
+          <SelectItem value="false">Inactive</SelectItem>
+        </SelectContent>
+      </Select>
+      <Button
+        onClick={async () => {
+          if (!name.trim() || !apiKey.trim()) {
+            toast.error("Name and API key are required");
+            return;
+          }
+          const limitNum = Number(dailyLimit);
+          const parsedLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.floor(limitNum) : 295;
+          try {
+            await onSave({ name, apiKey, dailyLimit: parsedLimit, active });
+            setName("");
+            setApiKey("");
+            setDailyLimit("295");
+            setActive(true);
+          } catch (e: any) {
+            toast.error(e?.message || "Failed to save");
+          }
+        }}
+      >
+        Save Key
       </Button>
     </div>
   );
