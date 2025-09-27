@@ -18,52 +18,18 @@ export const getWebhookLogs = query({
       return { items: [], isDone: true, continueCursor: null as string | null };
     }
 
-    // We will accumulate exactly paginationOpts.numItems WEBHOOK_LOG entries by scanning
-    // auditLogs via timestamp index in descending order, stopping early once enough are collected.
-    const desired = Math.max(1, Math.min(args.paginationOpts.numItems, 50)); // hard cap per page
-    let items: Array<any> = [];
-    let cursor: string | null = args.paginationOpts.cursor ?? null;
-    let isDone = false;
-
-    // Scan up to a bounded number of pages per call to avoid read explosions
-    const maxScannedPages = 8; // reduced from 20
-    let scanned = 0;
-
-    while (items.length < desired && scanned < maxScannedPages) {
-      const page = await ctx.db
-        .query("auditLogs")
-        .withIndex("timestamp", (q) => q.gt("timestamp", 0))
-        .order("desc")
-        .paginate({ numItems: 50, cursor }); // reduced from 200
-
-      // Collect only WEBHOOK_LOG entries
-      for (const doc of page.page) {
-        if (doc.action === "WEBHOOK_LOG") {
-          items.push(doc);
-          if (items.length >= desired) break;
-        }
-      }
-
-      if (items.length >= desired) {
-        cursor = page.continueCursor;
-        isDone = page.isDone && items.length < desired;
-        break;
-      }
-
-      if (page.isDone) {
-        cursor = page.continueCursor;
-        isDone = true;
-        break;
-      }
-
-      cursor = page.continueCursor;
-      scanned += 1;
-    }
+    // Use a selective index to fetch only WEBHOOK_LOG entries, ordered by newest first.
+    const desired = Math.max(1, Math.min(args.paginationOpts.numItems, 50));
+    const page = await ctx.db
+      .query("auditLogs")
+      .withIndex("by_action_and_timestamp", (q) => q.eq("action", "WEBHOOK_LOG"))
+      .order("desc")
+      .paginate({ numItems: desired, cursor: args.paginationOpts.cursor ?? null });
 
     return {
-      items,
-      isDone,
-      continueCursor: cursor,
+      items: page.page,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
     };
   },
 });

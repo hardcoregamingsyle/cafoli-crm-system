@@ -98,7 +98,9 @@ const schema = defineSchema(
       details: v.string(),
       timestamp: v.number(),
       relatedLeadId: v.optional(v.id("leads")),
-    }).index("userId", ["userId"])
+    })
+      .index("by_action_and_timestamp", ["action", "timestamp"])
+      .index("userId", ["userId"])
       .index("timestamp", ["timestamp"]),
 
     // Add: Pincode mappings table
