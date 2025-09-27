@@ -26,7 +26,7 @@ export const getWebhookLogs = query({
     let isDone = false;
 
     // Scan up to a bounded number of pages per call to avoid read explosions
-    const maxScannedPages = 20;
+    const maxScannedPages = 8; // reduced from 20
     let scanned = 0;
 
     while (items.length < desired && scanned < maxScannedPages) {
@@ -34,7 +34,7 @@ export const getWebhookLogs = query({
         .query("auditLogs")
         .withIndex("timestamp", (q) => q.gt("timestamp", 0))
         .order("desc")
-        .paginate({ numItems: 200, cursor }); // small internal page to keep reads low
+        .paginate({ numItems: 50, cursor }); // reduced from 200
 
       // Collect only WEBHOOK_LOG entries
       for (const doc of page.page) {
@@ -45,25 +45,21 @@ export const getWebhookLogs = query({
       }
 
       if (items.length >= desired) {
-        // We've gathered enough for this page; set next cursor to continue after this page
         cursor = page.continueCursor;
         isDone = page.isDone && items.length < desired;
         break;
       }
 
-      // If underlying scan is done, we're done
       if (page.isDone) {
         cursor = page.continueCursor;
         isDone = true;
         break;
       }
 
-      // Continue scanning
       cursor = page.continueCursor;
       scanned += 1;
     }
 
-    // Return a simple, cursor-based pagination shape
     return {
       items,
       isDone,
