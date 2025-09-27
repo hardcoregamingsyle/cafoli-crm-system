@@ -52,7 +52,7 @@ export default function MyLeadsPage() {
   const [search, setSearch] = useState("");
 
   // Add follow filter state (Follow or No Followup)
-  const [followFilter, setFollowFilter] = useState<"all" | "follow" | "no_followup">("follow");
+  const [followFilter, setFollowFilter] = useState<"all" | "follow" | "no_followup">("all");
 
   // Add popup state for 1-minute warning
   const [showFollowupPopup, setShowFollowupPopup] = useState(false);
