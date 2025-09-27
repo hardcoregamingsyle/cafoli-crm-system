@@ -11,6 +11,7 @@ import { api } from "@/convex/_generated/api";
 import { ROLES } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { toast } from "sonner";
 
 type Filter = "all" | "assigned" | "unassigned";
@@ -18,6 +19,7 @@ type Filter = "all" | "assigned" | "unassigned";
 export default function AllLeadsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Add: wait for auth to settle before running queries (prevents early invalid args in deploy)
   const [authReady, setAuthReady] = useState(false);
@@ -159,6 +161,16 @@ export default function AllLeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Enforce heat filter based on the dashboard route
+  const enforcedHeat: "hot" | "cold" | "matured" | "" =
+    location.pathname.includes("/dashboard/hot")
+      ? "hot"
+      : location.pathname.includes("/dashboard/cold")
+      ? "cold"
+      : location.pathname.includes("/dashboard/mature")
+      ? "matured"
+      : "";
+
   // Compute filtered leads locally
   const filteredLeads = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
@@ -183,6 +195,16 @@ export default function AllLeadsPage() {
       return fields.some((f) => (String(f || "").toLowerCase().includes(q)));
     });
   }, [leads, search]);
+
+  // If you already compute `filteredLeads`, we further restrict it here when coming from dashboard.
+  // This ensures leads without a heat set are excluded for these dashboard routes.
+  const filteredLeadsByDashboardHeat = (() => {
+    // Use whichever list you render in the UI; if your code uses a different name than `filteredLeads`,
+    // replace it below accordingly.
+    const base: Array<any> = (typeof filteredLeads !== "undefined" ? (filteredLeads as Array<any>) : (leads as Array<any>)) ?? [];
+    if (!enforcedHeat) return base;
+    return base.filter((l) => String(l?.heat || "") === enforcedHeat);
+  })();
 
   return (
     <Layout>
@@ -265,7 +287,7 @@ export default function AllLeadsPage() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {(filteredLeads ?? []).map((lead: any) => (
+              {(filteredLeadsByDashboardHeat ?? []).map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col w-full gap-2">
