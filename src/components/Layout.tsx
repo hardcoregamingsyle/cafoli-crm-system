@@ -41,6 +41,13 @@ export function Layout({ children }: LayoutProps) {
   const runDeduplication = useMutation(api.leads.runDeduplication);
   const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
 
+  // Add: subscribe to my leads to detect assignment increases (for sound)
+  const myLeadsForAssignSound =
+    useQuery(
+      api.leads.getMyLeads,
+      currentUser ? { currentUserId: currentUser._id } : "skip"
+    ) ?? [];
+
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
   const pincodeCsvInputRef = useRef<HTMLInputElement | null>(null);
@@ -65,6 +72,9 @@ export function Layout({ children }: LayoutProps) {
 
   // Track previous total leads count to detect newly arrived leads
   const [prevLeadsCount, setPrevLeadsCount] = useState<number | null>(null);
+
+  // Add: Track previous assigned-to-me leads count to detect new assignments
+  const [prevAssignedCount, setPrevAssignedCount] = useState<number | null>(null);
 
   useEffect(() => {
     initializeAuth();
@@ -111,6 +121,52 @@ export function Layout({ children }: LayoutProps) {
       setPrevLeadsCount(count);
     }
   }, [currentUser, allLeadsForExport?.length, prevLeadsCount]);
+
+  // New: Play bike sound + toast when a lead is assigned to the current user
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Only Managers and Staff receive personal assignment sounds
+    const canReceiveAssignment =
+      currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.STAFF;
+    if (!canReceiveAssignment) return;
+
+    const count = (myLeadsForAssignSound ?? []).length;
+
+    // Initialize baseline without notifying
+    if (prevAssignedCount === null) {
+      setPrevAssignedCount(count);
+      return;
+    }
+
+    // If my assigned leads count increased, play assignment sound
+    if (count > prevAssignedCount) {
+      const delta = count - prevAssignedCount;
+
+      try {
+        const audio = new Audio("/assets/bike.mp3");
+        audio.play().catch(() => {
+          // ignore autoplay errors
+        });
+      } catch {
+        // ignore
+      }
+
+      toast.success(
+        delta === 1
+          ? "A lead has been assigned to you"
+          : `${delta} leads have been assigned to you`
+      );
+
+      setPrevAssignedCount(count);
+      return;
+    }
+
+    // Keep baseline in sync if decreased/changed
+    if (count !== prevAssignedCount) {
+      setPrevAssignedCount(count);
+    }
+  }, [currentUser, myLeadsForAssignSound?.length, prevAssignedCount]);
 
   // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
