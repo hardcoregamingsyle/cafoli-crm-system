@@ -136,16 +136,24 @@ export const markFailed = internalMutation({
   },
 });
 
-// Public: List keys (Admin only)
+// Public: List keys (Admin only) - hardened to never throw, just return []
 export const listEmailApiKeys = query({
-  args: { currentUserId: v.id("users") },
+  // Accept either a proper Id("users") or a string (stale/invalid); handle safely
+  args: { currentUserId: v.union(v.id("users"), v.string()) },
   handler: async (ctx, { currentUserId }) => {
-    const user = await ctx.db.get(currentUserId);
-    if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
+    try {
+      // Attempt to load the user; guard invalid formats
+      const user = await ctx.db.get(currentUserId as any);
+      const role = (user as any)?.role; // Cast to any to avoid TS union type issues
+      if (!user || role !== ROLES.ADMIN) return [];
 
-    const all = await ctx.db.query("emailApiKeys").collect();
-    // Sort by name for stable UI
-    return all.sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)));
+      const all = await ctx.db.query("emailApiKeys").collect();
+      // Sort by name for stable UI
+      return all.sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)));
+    } catch {
+      // On any error, return empty for stability
+      return [];
+    }
   },
 });
 
