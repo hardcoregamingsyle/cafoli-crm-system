@@ -161,14 +161,14 @@ export default function AllLeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Enforce heat filter based on the dashboard route
-  const enforcedHeat: "hot" | "cold" | "matured" | "" =
+  // Enforce heat filter based on the dashboard route (normalize route target)
+  const enforcedHeatRoute: "hot" | "cold" | "mature" | "" =
     location.pathname.includes("/dashboard/hot")
       ? "hot"
       : location.pathname.includes("/dashboard/cold")
       ? "cold"
       : location.pathname.includes("/dashboard/mature")
-      ? "matured"
+      ? "mature"
       : "";
 
   // Compute filtered leads locally
@@ -192,18 +192,27 @@ export default function AllLeadsPage() {
         lead?.source,
         lead?.assignedUserName,
       ];
-      return fields.some((f) => (String(f || "").toLowerCase().includes(q)));
+      return fields.some((f) => String(f || "").toLowerCase().includes(q));
     });
   }, [leads, search]);
 
-  // If you already compute `filteredLeads`, we further restrict it here when coming from dashboard.
-  // This ensures leads without a heat set are excluded for these dashboard routes.
+  // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
-    // Use whichever list you render in the UI; if your code uses a different name than `filteredLeads`,
-    // replace it below accordingly.
-    const base: Array<any> = (typeof filteredLeads !== "undefined" ? (filteredLeads as Array<any>) : (leads as Array<any>)) ?? [];
-    if (!enforcedHeat) return base;
-    return base.filter((l) => String(l?.heat || "") === enforcedHeat);
+    const base: Array<any> =
+      (typeof filteredLeads !== "undefined"
+        ? (filteredLeads as Array<any>)
+        : (leads as Array<any>)) ?? [];
+    if (!enforcedHeatRoute) return base;
+
+    return base.filter((l) => {
+      const h = String(l?.heat ?? "").toLowerCase().trim();
+      if (!h) return false; // exclude items without a heat
+      if (enforcedHeatRoute === "mature") {
+        // accept both "mature" and "matured"
+        return h === "mature" || h === "matured";
+      }
+      return h === enforcedHeatRoute;
+    });
   })();
 
   return (
