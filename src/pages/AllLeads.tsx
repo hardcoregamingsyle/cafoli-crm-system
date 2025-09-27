@@ -262,7 +262,7 @@ export default function AllLeadsPage() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">
             {enforcedHeatRoute === "cold"
               ? "Cold Leads"
@@ -272,41 +272,54 @@ export default function AllLeadsPage() {
               ? "Mature Leads"
               : "All Leads"}
           </h1>
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:block">
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex-1 min-w-[180px] sm:min-w-[240px] sm:max-w-[260px]">
               <Input
                 placeholder="Search leads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-60"
+                className="w-full"
               />
             </div>
-            <div className="sm:hidden w-full">
-              <Input
-                placeholder="Search leads..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-40"
-              />
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={filter === "all" ? "default" : "outline"}
+                onClick={() => setFilter("all")}
+                className="shrink-0"
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === "assigned" ? "default" : "outline"}
+                onClick={() => setFilter("assigned")}
+                className="shrink-0"
+              >
+                Assigned
+              </Button>
+              <Button
+                variant={filter === "unassigned" ? "default" : "outline"}
+                onClick={() => setFilter("unassigned")}
+                className="shrink-0"
+              >
+                Unassigned
+              </Button>
             </div>
-            <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
-            <Button variant={filter === "assigned" ? "default" : "outline"} onClick={() => setFilter("assigned")}>Assigned</Button>
-            <Button variant={filter === "unassigned" ? "default" : "outline"} onClick={() => setFilter("unassigned")}>Unassigned</Button>
-            <div className="w-56">
+
+            <div className="w-full sm:w-56">
               <Select
                 value={assigneeFilter}
                 onValueChange={(val) => {
-                  // Keep state as string only to prevent unstable object identity loops
                   setAssigneeFilter(val);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Filter by Account" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Accounts</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {/* Dynamically list all users as options */}
                   {(users ?? []).map((u: any) => (
                     <SelectItem key={String(u._id)} value={String(u._id)}>
                       {u.name || u.username || "Unknown"}
