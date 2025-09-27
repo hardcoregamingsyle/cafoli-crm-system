@@ -42,39 +42,56 @@ export const getLeadComments = query({
 
 // Get all comments for leads assigned to a user (for dashboard followup completion checking)
 export const getAllCommentsForUser = query({
+  // Allow both Convex Id and string for currentUserId to avoid validator errors from local auth
   args: {
-    currentUserId: v.optional(v.id("users")),
+    currentUserId: v.optional(v.union(v.id("users"), v.string())),
   },
   handler: async (ctx, args) => {
-    const currentUser = args.currentUserId
-      ? await ctx.db.get(args.currentUserId)
-      : await getCurrentUser(ctx);
-    if (!currentUser) {
+    try {
+      // Resolve current user robustly
+      let currentUser: any = null;
+      if (args.currentUserId) {
+        try {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        } catch {
+          currentUser = await getCurrentUser(ctx);
+        }
+      } else {
+        currentUser = await getCurrentUser(ctx);
+      }
+
+      if (!currentUser) {
+        return [];
+      }
+      
+      // Get all leads assigned to this user
+      let userLeads: any[] = [];
+      try {
+        userLeads = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
+          .collect();
+      } catch {
+        // Fallback to full table scan if index fails
+        const all = await ctx.db.query("leads").collect();
+        userLeads = all.filter(
+          (l) => String(l.assignedTo ?? "") === String(currentUser._id)
+        );
+      }
+
+      const leadIds = userLeads.map((lead) => lead._id);
+
+      // Get all comments for these leads
+      const allComments = await ctx.db.query("comments").collect();
+      const userLeadComments = allComments.filter((comment) =>
+        leadIds.includes(comment.leadId)
+      );
+
+      return userLeadComments;
+    } catch {
+      // Never throw; keep dashboard stable
       return [];
     }
-    
-    // Get all leads assigned to this user
-    let userLeads: any[] = [];
-    try {
-      userLeads = await ctx.db
-        .query("leads")
-        .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
-        .collect();
-    } catch {
-      // Fallback to full table scan if index fails
-      const all = await ctx.db.query("leads").collect();
-      userLeads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
-    }
-    
-    const leadIds = userLeads.map(lead => lead._id);
-    
-    // Get all comments for these leads
-    const allComments = await ctx.db.query("comments").collect();
-    const userLeadComments = allComments.filter(comment => 
-      leadIds.includes(comment.leadId)
-    );
-    
-    return userLeadComments;
   },
 });
 
