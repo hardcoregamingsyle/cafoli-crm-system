@@ -18,6 +18,7 @@ import type * as auth_emailOtp from "../auth/emailOtp.js";
 import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
+import type * as emailKeys from "../emailKeys.js";
 import type * as emails from "../emails.js";
 import type * as http from "../http.js";
 import type * as leads from "../leads.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   comments: typeof comments;
   crons: typeof crons;
+  emailKeys: typeof emailKeys;
   emails: typeof emails;
   http: typeof http;
   leads: typeof leads;
