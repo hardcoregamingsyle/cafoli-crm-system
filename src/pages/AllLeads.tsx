@@ -216,16 +216,16 @@ export default function AllLeadsPage() {
       if (!n) return false; // exclude items without a heat
 
       if (enforcedHeatRoute === "mature") {
-        // accept "mature", "matured", and any variant starting with mature
-        return n === "mature" || n === "matured" || n.startsWith("mature");
+        // accept anything that contains "mature" ("mature", "matured", etc.)
+        return n.includes("mature");
       }
       if (enforcedHeatRoute === "cold") {
-        // accept "cold" and any variant starting with cold
-        return n === "cold" || n.startsWith("cold");
+        // accept any variant containing "cold"
+        return n.includes("cold");
       }
       if (enforcedHeatRoute === "hot") {
-        // accept "hot" and any variant starting with hot
-        return n === "hot" || n.startsWith("hot");
+        // accept any variant containing "hot"
+        return n.includes("hot");
       }
       return false;
     });
