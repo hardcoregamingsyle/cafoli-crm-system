@@ -434,19 +434,13 @@ http.route({
         );
       }
 
-      const loginLogs = items
-        .filter((l) => {
-          try {
-            const d = JSON.parse(l.details || "{}");
-            return d?.type === "LOGIN_IP_LOG";
-          } catch {
-            return false;
-          }
-        })
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .map((l) => {
+      // Build the result safely: parse once per item and skip invalid JSON entries
+      const loginLogs: any[] = [];
+      for (const l of items) {
+        try {
           const d = JSON.parse(l.details || "{}");
-          return {
+          if (d?.type !== "LOGIN_IP_LOG") continue;
+          loginLogs.push({
             _id: l._id,
             timestamp: l.timestamp,
             username: d.username ?? null,
@@ -457,8 +451,14 @@ http.route({
             isp: d.ipstack?.connection?.isp ?? null,
             userAgent: d.userAgent ?? null,
             formatted: d.formatted ?? null,
-          };
-        });
+          });
+        } catch {
+          // Skip malformed entries rather than failing the whole response
+          continue;
+        }
+      }
+
+      loginLogs.sort((a, b) => b.timestamp - a.timestamp);
 
       return corsJson(
         {
