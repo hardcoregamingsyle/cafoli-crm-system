@@ -26,12 +26,11 @@ export const sendRelevant: any = internalAction({
     const availableKey: any = await ctx.runQuery(internal.emailKeys.getAvailableKey, {});
     let apiKey: string | null = availableKey?.apiKey ?? null;
 
-    // 2) Fallback to single RESEND_API_KEY from env if no DB key available and not over any known limit
+    // 2) Fallback to single BREVO_API_KEY from env if no DB key available
     if (!apiKey) {
       const envKey =
-        process.env.RESEND_API_KEY ||
-        process.env.RESEND_API_TOKEN ||
-        process.env.RESEND_KEY ||
+        process.env.BREVO_API_KEY ||
+        process.env.BREVO_API_TOKEN ||
         null;
       if (!envKey) {
         // No keys available: enqueue
@@ -45,19 +44,20 @@ export const sendRelevant: any = internalAction({
       apiKey = envKey;
     }
 
-    // Attempt to send
+    // Brevo payload and request
     const payload = {
-      from: "intro@mail.skinticals.com",
-      to: [args.to],
+      sender: { email: "intro@mail.skinticals.com", name: "Cafoli Lifecare" },
+      to: [{ email: args.to }],
       subject,
-      text,
+      textContent: text,
     };
 
-    const res: any = await fetch("https://api.resend.com/emails", {
+    const res: any = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        accept: "application/json",
+        "api-key": apiKey,
       },
       body: JSON.stringify(payload),
     });
@@ -70,7 +70,7 @@ export const sendRelevant: any = internalAction({
         subject,
         text,
       });
-      return { queued: true, reason: `Resend error: ${res.status} ${res.statusText} - ${errText}` };
+      return { queued: true, reason: `Brevo error: ${res.status} ${res.statusText} - ${errText}` };
     }
 
     // Success: increment key usage if we used a DB-managed key
@@ -106,9 +106,8 @@ export const processQueue: any = internalAction({
 
       if (!apiKey) {
         const envKey =
-          process.env.RESEND_API_KEY ||
-          process.env.RESEND_API_TOKEN ||
-          process.env.RESEND_KEY ||
+          process.env.BREVO_API_KEY ||
+          process.env.BREVO_API_TOKEN ||
           null;
         if (!envKey) {
           // No keys at all; skip processing further
@@ -118,18 +117,19 @@ export const processQueue: any = internalAction({
       }
 
       const payload = {
-        from: "intro@mail.skinticals.com",
-        to: [item.to],
+        sender: { email: "intro@mail.skinticals.com", name: "Cafoli Lifecare" },
+        to: [{ email: item.to }],
         subject: item.subject,
-        text: item.text,
+        textContent: item.text,
       };
 
       try {
-        const res: any = await fetch("https://api.resend.com/emails", {
+        const res: any = await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
+            accept: "application/json",
+            "api-key": apiKey,
           },
           body: JSON.stringify(payload),
         });
