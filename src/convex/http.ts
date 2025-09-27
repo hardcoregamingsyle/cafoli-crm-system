@@ -157,20 +157,29 @@ http.route({
     try {
       const url = new URL(req.url);
       const limit = Number(url.searchParams.get("limit") ?? "200");
-      const max = Math.max(1, Math.min(limit, 1000));
+      const cursorParam = url.searchParams.get("cursor");
+      const max = Math.max(1, Math.min(limit, 50));
 
       // Ensure we act as an admin to fetch logs (admin-restricted query)
       const currentUserId = await ensureAdminUserId(ctx);
-      const result: any[] =
-        (await ctx.runQuery(api.audit.getWebhookLogs, { currentUserId, limit: max })) ?? [];
+      const { items, isDone, continueCursor } = await ctx.runQuery(
+        api.audit.getWebhookLogs,
+        {
+          currentUserId,
+          paginationOpts: {
+            numItems: max,
+            cursor: cursorParam ?? null,
+          },
+        }
+      );
 
-      const logs = result.map((l: any) => ({
+      const logs = items.map((l: any) => ({
         _id: l._id,
         timestamp: l.timestamp,
         details: l.details,
       }));
 
-      return corsJson({ ok: true, logs }, 200);
+      return corsJson({ ok: true, logs, isDone, continueCursor }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
     }
@@ -372,18 +381,25 @@ http.route({
     try {
       const url = new URL(req.url);
       const limitParam = Number(url.searchParams.get("limit") ?? "100");
-      const limit = Math.max(1, Math.min(limitParam, 500));
+      const cursorParam = url.searchParams.get("cursor");
+      const limit = Math.max(1, Math.min(limitParam, 50));
 
       // Use an ensured admin/system user to access admin-only query
       const adminUserId = await ensureAdminUserId(ctx);
 
-      // Pull from auditLogs (action === "WEBHOOK_LOG" entries with type: "LOGIN_IP_LOG" in payload)
-      const raw = (await ctx.runQuery(api.audit.getWebhookLogs, {
-        currentUserId: adminUserId,
-        limit: 1000,
-      })) as any[];
+      // Pull WEBHOOK_LOGs paginated, then filter to LOGIN_IP_LOG
+      const { items, isDone, continueCursor } = await ctx.runQuery(
+        api.audit.getWebhookLogs,
+        {
+          currentUserId: adminUserId,
+          paginationOpts: {
+            numItems: limit,
+            cursor: cursorParam ?? null,
+          },
+        }
+      );
 
-      const loginLogs = raw
+      const loginLogs = items
         .filter((l) => {
           try {
             const d = JSON.parse(l.details || "{}");
@@ -393,7 +409,6 @@ http.route({
           }
         })
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, limit)
         .map((l) => {
           const d = JSON.parse(l.details || "{}");
           return {
@@ -410,7 +425,16 @@ http.route({
           };
         });
 
-      return corsJson({ ok: true, count: loginLogs.length, logs: loginLogs }, 200);
+      return corsJson(
+        {
+          ok: true,
+          count: loginLogs.length,
+          logs: loginLogs,
+          isDone,
+          continueCursor,
+        },
+        200
+      );
     } catch (e: any) {
       return corsJson({ ok: false, error: e?.message || "error" }, 500);
     }
