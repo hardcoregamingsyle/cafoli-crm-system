@@ -210,18 +210,22 @@ export default function AllLeadsPage() {
         .trim();
 
     return base.filter((l) => {
-      const n = norm(l?.heat);
+      // Read from multiple possible keys just in case historical data used different field names
+      const raw = l?.heat ?? l?.Heat ?? l?.leadType;
+      const n = norm(raw);
       if (!n) return false; // exclude unset
 
       if (enforcedHeatRoute === "hot") {
-        return n === "hot";
+        // Accept any variant containing "hot"
+        return n.includes("hot");
       }
       if (enforcedHeatRoute === "cold") {
-        return n === "cold";
+        // Accept any variant containing "cold"
+        return n.includes("cold");
       }
       if (enforcedHeatRoute === "mature") {
-        // DB stores "matured", also accept "mature" if it ever appears
-        return n === "matured" || n === "mature";
+        // DB stores "matured" but also accept "mature"
+        return n === "matured" || n.startsWith("mature");
       }
       return false;
     });
