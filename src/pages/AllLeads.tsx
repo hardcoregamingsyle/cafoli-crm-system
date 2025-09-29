@@ -47,8 +47,8 @@ export default function AllLeadsPage() {
     api.leads.getAllLeads,
     currentUser && authReady
       ? {
-          // keep your existing filter if present
-          // filter,
+          // Pass the selected filter to the backend so results match the UI buttons
+          filter,
           currentUserId: currentUser._id as any,
           assigneeId:
             assigneeFilter === "all"
