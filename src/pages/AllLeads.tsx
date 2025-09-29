@@ -21,6 +21,16 @@ export default function AllLeadsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Define dashboard-enforced heat route to avoid use-before-declaration issues
+  const enforcedHeatRoute: "hot" | "cold" | "mature" | "" =
+    location.pathname.includes("/dashboard/hot")
+      ? "hot"
+      : location.pathname.includes("/dashboard/cold")
+      ? "cold"
+      : location.pathname.includes("/dashboard/mature")
+      ? "mature"
+      : "";
+
   // Add: wait for auth to settle before running queries (prevents early invalid args in deploy)
   const [authReady, setAuthReady] = useState(false);
 
@@ -40,6 +50,13 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
+  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
+    if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
+      setFilter("unassigned");
+    }
+  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -81,12 +98,18 @@ export default function AllLeadsPage() {
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
-  // Decide data source: Admin -> all leads; Manager/Staff -> my leads (for dashboard heat routes)
+  // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
     if (!currentUser) return leads;
-    // Use myLeads for non-admins so dashboard subpages reflect per-user metrics correctly
-    return currentUser.role === ROLES.ADMIN ? leads : myLeads;
-  }, [currentUser?.role, leads, myLeads]);
+    
+    // For dashboard heat routes, non-admins should see their assigned leads
+    if (enforcedHeatRoute && currentUser.role !== ROLES.ADMIN) {
+      return myLeads;
+    }
+    
+    // For regular All Leads page, everyone sees the filtered results from getAllLeads
+    return leads;
+  }, [currentUser?.role, leads, myLeads, enforcedHeatRoute]);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -174,22 +197,36 @@ export default function AllLeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Enforce heat filter based on the dashboard route (normalize route target)
-  const enforcedHeatRoute: "hot" | "cold" | "mature" | "" =
-    location.pathname.includes("/dashboard/hot")
-      ? "hot"
-      : location.pathname.includes("/dashboard/cold")
-      ? "cold"
-      : location.pathname.includes("/dashboard/mature")
-      ? "mature"
-      : "";
-
   // Compute filtered leads locally
   const filteredLeads = useMemo(() => {
+    const arr: Array<any> = ((sourceLeads ?? []) as Array<any>);
+
+    // Apply UI-level assignment filters so assigned leads disappear immediately on /all_leads
+    const withAssignFilters = arr.filter((lead: any) => {
+      const assignedId = String(
+        lead?.assignedTo ||
+          lead?.assignedUserId ||
+          lead?.assignedUser?._id ||
+          ""
+      );
+      const hasAssignee = !!assignedId || !!lead?.assignedUserName;
+
+      // Top buttons: All / Assigned / Unassigned
+      if (filter === "unassigned" && hasAssignee) return false;
+      if (filter === "assigned" && !hasAssignee) return false;
+
+      // Account dropdown: All / Unassigned / Specific user
+      if (assigneeFilter === "unassigned") return !hasAssignee;
+      if (assigneeFilter !== "all") {
+        return assignedId && assignedId === assigneeFilter;
+      }
+      return true;
+    });
+
     const q = (search || "").trim().toLowerCase();
-    if (!q) return sourceLeads ?? [];
-    const arr = sourceLeads ?? [];
-    return arr.filter((lead: any) => {
+    if (!q) return withAssignFilters;
+
+    return withAssignFilters.filter((lead: any) => {
       const fields = [
         lead?.name,
         lead?.subject,
@@ -207,7 +244,7 @@ export default function AllLeadsPage() {
       ];
       return fields.some((f) => String(f || "").toLowerCase().includes(q));
     });
-  }, [sourceLeads, search]);
+  }, [sourceLeads, search, filter, assigneeFilter]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
