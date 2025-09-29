@@ -132,12 +132,10 @@ export const getMyLeads = query({
   handler: async (ctx, args) => {
     try {
       let currentUser: any = null;
+      // FIX: Robustly resolve currentUser for both Id and string formats
       if (args.currentUserId) {
         try {
-          // Handle both ID and string formats
-          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
-            currentUser = await ctx.db.get(args.currentUserId as any);
-          }
+          currentUser = await ctx.db.get(args.currentUserId as any);
         } catch (_) {
           currentUser = null;
         }
