@@ -530,6 +530,34 @@ export const bulkCreateLeads = mutation({
     let importedCount = 0;
 
     for (const incoming of args.leads) {
+      // NEW: Auto-apply pincode mapping if pincode is provided
+      let finalState = incoming.state;
+      let finalDistrict = incoming.district;
+      
+      if (incoming.pincode) {
+        const pin = incoming.pincode.toString().trim();
+        if (pin) {
+          let mapping: any = null;
+          try {
+            mapping = await ctx.db
+              .query("pincodeMappings")
+              .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+              .unique();
+          } catch {
+            const all = await ctx.db
+              .query("pincodeMappings")
+              .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+              .collect();
+            mapping = all[0] || null;
+          }
+          if (mapping) {
+            // Override CSV values with pincode mapping
+            finalState = mapping.state;
+            finalDistrict = mapping.district;
+          }
+        }
+      }
+
       const existing = await findDuplicateLead(ctx, incoming.mobileNo, incoming.email);
 
       if (existing) {
@@ -540,11 +568,11 @@ export const bulkCreateLeads = mutation({
         if (!existing.message && incoming.message) patch.message = incoming.message;
         if (!existing.altMobileNo && incoming.altMobileNo) patch.altMobileNo = incoming.altMobileNo;
         if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
-        if (!existing.state && incoming.state) patch.state = incoming.state;
+        if (!existing.state && finalState) patch.state = finalState;
         if (!existing.source && incoming.source) patch.source = incoming.source;
         // Add extended fields when missing
         if (!existing.station && incoming.station) patch.station = incoming.station;
-        if (!existing.district && incoming.district) patch.district = incoming.district;
+        if (!existing.district && finalDistrict) patch.district = finalDistrict;
         if (!existing.pincode && incoming.pincode) patch.pincode = incoming.pincode;
         if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
 
@@ -598,9 +626,11 @@ export const bulkCreateLeads = mutation({
           relatedLeadId: existing._id,
         });
       } else {
-        // Create fresh lead including extended fields
+        // Create fresh lead including extended fields with pincode-mapped state/district
         const leadId = await ctx.db.insert("leads", {
           ...incoming,
+          state: finalState,
+          district: finalDistrict,
           status: LEAD_STATUS.YET_TO_DECIDE,
           assignedTo: args.assignedTo,
         });
