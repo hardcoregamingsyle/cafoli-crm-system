@@ -650,6 +650,40 @@ export function Layout({ children }: LayoutProps) {
                   >
                     Run Deduplication
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      const headers = [
+                        "Name",
+                        "Source",
+                        "Email",
+                        "Phone No.",
+                        "Alt Email",
+                        "Alt Phone No",
+                        "Subject",
+                        "Message",
+                        "State",
+                        "Station",
+                        "District",
+                        "Pincode",
+                        "Agency Name"
+                      ];
+                      const csvContent = headers.join(",");
+                      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement("a");
+                      link.href = url;
+                      link.download = "import_template.csv";
+                      link.click();
+                      URL.revokeObjectURL(url);
+                      toast.success("Template downloaded");
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Import Template
+                  </Button>
                   <input
                     ref={importInputRef}
                     type="file"
