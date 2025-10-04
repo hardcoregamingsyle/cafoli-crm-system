@@ -245,18 +245,22 @@ export function Layout({ children }: LayoutProps) {
   };
 
   // Build lead objects from parsed CSV using fixed column order
-  // Order: [0] Name, [1] Mobile No, [2] Email, [3] Subject, [4] Message, [5] Alt Mobile, [6] Alt Email, [7] State
+  // Order: [0] Name, [1] Source, [2] Email, [3] Phone No., [4] Alt Email, [5] Alt Phone No, [6] Subject, [7] Message, [8] State, [9] Station, [10] District, [11] Pincode, [12] Agency Name
   const mapRowsToLeads = (rows: Array<string[]>) => {
     const mapped = rows.map((cols) => {
       const name = (cols[0] ?? "").trim();
-      const mobileNo = (cols[1] ?? "").toString().trim();
+      const source = (cols[1] ?? "").trim() || "manual";
       const email = (cols[2] ?? "").trim();
-      const subject = (cols[3] ?? "").trim();
-      const message = (cols[4] ?? "").trim();
+      const mobileNo = (cols[3] ?? "").toString().trim();
+      const altEmail = (cols[4] ?? "").trim();
       const altMobileNo = (cols[5] ?? "").toString().trim();
-      const altEmail = (cols[6] ?? "").trim();
-      const state = (cols[7] ?? "").trim();
-      const source = "manual";
+      const subject = (cols[6] ?? "").trim();
+      const message = (cols[7] ?? "").trim();
+      const state = (cols[8] ?? "").trim();
+      const station = (cols[9] ?? "").trim();
+      const district = (cols[10] ?? "").trim();
+      const pincode = (cols[11] ?? "").trim();
+      const agencyName = (cols[12] ?? "").trim();
 
       return {
         name,
@@ -268,6 +272,10 @@ export function Layout({ children }: LayoutProps) {
         altEmail: altEmail || undefined,
         state,
         source,
+        station: station || undefined,
+        district: district || undefined,
+        pincode: pincode || undefined,
+        agencyName: agencyName || undefined,
       };
     });
 
