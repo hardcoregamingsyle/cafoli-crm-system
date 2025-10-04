@@ -5,7 +5,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
 import { ROLES } from "@/convex/schema";
@@ -31,12 +31,21 @@ function splitCounts(list: Array<any>) {
   return { total, indiamart, pharmavends, oldData };
 }
 
-export default function Dashboard() {
-  const { currentUser } = useCrmAuth();
+export default function DashboardPage() {
+  const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) navigate("/");
+    initializeAuth();
+    const t = setTimeout(() => setAuthReady(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/");
+    }
   }, [currentUser, navigate]);
 
   const myLeads = useQuery(
@@ -50,7 +59,12 @@ export default function Dashboard() {
     currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
-  if (!currentUser) return null;
+  if (!currentUser) return <Layout><div /></Layout>;
+
+  // Admin Dashboard - Different view
+  if (currentUser.role === ROLES.ADMIN) {
+    return <AdminDashboard currentUser={currentUser} authReady={authReady} />;
+  }
 
   // Compute requested metrics from my leads
   const myLeadsCount = myLeads?.length || 0;
@@ -195,6 +209,103 @@ export default function Dashboard() {
             );
           })}
         </div>
+      </div>
+    </Layout>
+  );
+}
+
+// New Admin Dashboard Component
+function AdminDashboard({ currentUser, authReady }: { currentUser: any; authReady: boolean }) {
+  const navigate = useNavigate();
+  
+  const allLeads = useQuery(
+    api.leads.getAllLeads,
+    currentUser && authReady ? { currentUserId: currentUser._id, filter: "all" } : "skip"
+  );
+
+  const unattendedLeads = useQuery(
+    api.leads.getUnattendedLeads,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  );
+
+  const hotLeads = useQuery(
+    api.leads.getLeadsByHeat,
+    currentUser && authReady ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
+  );
+
+  const coldLeads = useQuery(
+    api.leads.getLeadsByHeat,
+    currentUser && authReady ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
+  );
+
+  const matureLeads = useQuery(
+    api.leads.getLeadsByHeat,
+    currentUser && authReady ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
+  );
+
+  const metrics = [
+    {
+      title: "Unattended Leads",
+      value: unattendedLeads?.length ?? 0,
+      description: "Leads older than 48h with no activity",
+      route: "/dashboard/unattended",
+      color: "text-red-600",
+    },
+    {
+      title: "Hot Leads",
+      value: hotLeads?.length ?? 0,
+      description: "High priority leads",
+      route: "/dashboard/hot",
+      color: "text-orange-600",
+    },
+    {
+      title: "Cold Leads",
+      value: coldLeads?.length ?? 0,
+      description: "Low priority leads",
+      route: "/dashboard/cold",
+      color: "text-blue-600",
+    },
+    {
+      title: "Mature Leads",
+      value: matureLeads?.length ?? 0,
+      description: "Matured leads",
+      route: "/dashboard/mature",
+      color: "text-green-600",
+    },
+  ];
+
+  return (
+    <Layout>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {metrics.map((metric) => (
+            <Card
+              key={metric.route}
+              className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-blue-100"
+              onClick={() => navigate(metric.route)}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${metric.color}`}>{metric.value}</div>
+                <p className="text-xs text-muted-foreground mt-1">{metric.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+          <CardHeader>
+            <CardTitle>Total Leads Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{allLeads?.length ?? 0}</div>
+            <p className="text-sm text-muted-foreground">Total leads in system</p>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

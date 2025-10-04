@@ -1058,3 +1058,130 @@ export const updateLeadHeat = mutation({
     return true;
   },
 });
+
+// New query: Get unattended leads (Admin only)
+export const getUnattendedLeads = query({
+  args: {
+    currentUserId: v.union(v.id("users"), v.string()),
+    assigneeId: v.optional(v.union(v.id("users"), v.string())),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await resolveCurrentUser(ctx, args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Admin access required");
+    }
+
+    // Get all leads older than 48 hours
+    const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
+    const allLeads = await ctx.db.query("leads").collect();
+    
+    // Get all comments to check which leads have comments
+    const allComments = await ctx.db.query("comments").collect();
+    const leadsWithComments = new Set(allComments.map(c => c.leadId));
+
+    // Filter unattended leads
+    const unattendedLeads = allLeads.filter(lead => {
+      // Must be older than 48 hours
+      if (lead._creationTime > fortyEightHoursAgo) return false;
+      
+      // Must NOT have any of these:
+      if (leadsWithComments.has(lead._id)) return false; // Has comments
+      if (lead.nextFollowup) return false; // Has followup date
+      if (lead.status && lead.status !== LEAD_STATUS.YET_TO_DECIDE) return false; // Has relevant marking
+      if (lead.heat) return false; // Has heat marking
+      
+      // Apply assignee filter if provided
+      if (args.assigneeId) {
+        if (args.assigneeId === "unassigned") {
+          return !lead.assignedTo;
+        }
+        return String(lead.assignedTo) === String(args.assigneeId);
+      }
+      
+      return true;
+    });
+
+    // Enrich with user names
+    const enriched = await Promise.all(
+      unattendedLeads.map(async (lead) => {
+        let assignedUserName = undefined;
+        if (lead.assignedTo) {
+          const user = await ctx.db.get(lead.assignedTo);
+          assignedUserName = user?.name || user?.username || "Unknown";
+        }
+        return { ...lead, assignedUserName };
+      })
+    );
+
+    return enriched;
+  },
+});
+
+// New query: Get leads by heat type (Admin only)
+export const getLeadsByHeat = query({
+  args: {
+    currentUserId: v.union(v.id("users"), v.string()),
+    heat: v.union(v.literal("hot"), v.literal("cold"), v.literal("matured")),
+    assigneeId: v.optional(v.union(v.id("users"), v.string())),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await resolveCurrentUser(ctx, args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Admin access required");
+    }
+
+    const allLeads = await ctx.db.query("leads").collect();
+    
+    // Filter by heat and optional assignee
+    const filteredLeads = allLeads.filter(lead => {
+      // Match heat type
+      const leadHeat = String(lead.heat || "").toLowerCase().trim();
+      const targetHeat = args.heat.toLowerCase();
+      
+      if (targetHeat === "matured") {
+        if (leadHeat !== "matured" && leadHeat !== "mature") return false;
+      } else {
+        if (leadHeat !== targetHeat) return false;
+      }
+      
+      // Apply assignee filter if provided
+      if (args.assigneeId) {
+        if (args.assigneeId === "unassigned") {
+          return !lead.assignedTo;
+        }
+        return String(lead.assignedTo) === String(args.assigneeId);
+      }
+      
+      return true;
+    });
+
+    // Enrich with user names
+    const enriched = await Promise.all(
+      filteredLeads.map(async (lead) => {
+        let assignedUserName = undefined;
+        if (lead.assignedTo) {
+          const user = await ctx.db.get(lead.assignedTo);
+          assignedUserName = user?.name || user?.username || "Unknown";
+        }
+        return { ...lead, assignedUserName };
+      })
+    );
+
+    return enriched;
+  },
+});
+
+async function resolveCurrentUser(ctx: any, currentUserId: any) {
+  try {
+    if (currentUserId) {
+      if (typeof currentUserId === "string" && currentUserId.length > 20) {
+        return await ctx.db.get(currentUserId as any);
+      } else {
+        return await ctx.db.get(currentUserId);
+      }
+    }
+    return await getCurrentUser(ctx);
+  } catch {
+    return null;
+  }
+}

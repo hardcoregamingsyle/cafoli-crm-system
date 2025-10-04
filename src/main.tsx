@@ -59,6 +59,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/dashboard/assigned" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/followup" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
+          <Route path="/dashboard/unattended" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/cold" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/hot" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/mature" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
