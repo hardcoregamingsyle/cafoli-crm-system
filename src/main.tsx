@@ -19,7 +19,7 @@ import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convex = new ConvexReactClient("https://precious-cricket-778.convex.cloud");
 
 function RouteSyncer() {
   const location = useLocation();
