@@ -1083,7 +1083,7 @@ export const getUnattendedLeads = query({
     }
 
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-      throw new Error("Admin access required");
+      return [];
     }
 
     // Get all leads older than 48 hours
@@ -1157,7 +1157,7 @@ export const getLeadsByHeat = query({
     }
 
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-      throw new Error("Admin access required");
+      return [];
     }
 
     const allLeads = await ctx.db.query("leads").collect();
