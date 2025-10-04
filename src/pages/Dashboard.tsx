@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   if (!currentUser) return <Layout><div /></Layout>;
 
-  // Wait for auth to be ready before rendering
+  // Wait for auth to be ready before rendering ANY dashboard content
   if (!authReady) return <Layout><div /></Layout>;
 
   // Admin Dashboard - Different view
