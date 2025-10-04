@@ -50,13 +50,13 @@ export default function DashboardPage() {
 
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
     api.comments.getAllCommentsForUser,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
   if (!currentUser) return <Layout><div /></Layout>;
@@ -218,29 +218,32 @@ export default function DashboardPage() {
 function AdminDashboard({ currentUser, authReady }: { currentUser: any; authReady: boolean }) {
   const navigate = useNavigate();
   
+  // Only fetch if user is confirmed admin and auth is ready
+  const isAdmin = currentUser?.role === ROLES.ADMIN;
+  
   const allLeads = useQuery(
     api.leads.getAllLeads,
-    currentUser && authReady ? { currentUserId: currentUser._id, filter: "all" } : "skip"
+    isAdmin && authReady ? { currentUserId: currentUser._id, filter: "all" } : "skip"
   );
 
   const unattendedLeads = useQuery(
     api.leads.getUnattendedLeads,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    isAdmin && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
   const hotLeads = useQuery(
     api.leads.getLeadsByHeat,
-    currentUser && authReady ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
+    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
   );
 
   const coldLeads = useQuery(
     api.leads.getLeadsByHeat,
-    currentUser && authReady ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
+    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
   );
 
   const matureLeads = useQuery(
     api.leads.getLeadsByHeat,
-    currentUser && authReady ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
+    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
   );
 
   const metrics = [
