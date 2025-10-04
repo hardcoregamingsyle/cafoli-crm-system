@@ -61,6 +61,9 @@ export default function DashboardPage() {
 
   if (!currentUser) return <Layout><div /></Layout>;
 
+  // Wait for auth to be ready before rendering
+  if (!authReady) return <Layout><div /></Layout>;
+
   // Admin Dashboard - Different view
   if (currentUser.role === ROLES.ADMIN) {
     return <AdminDashboard currentUser={currentUser} authReady={authReady} />;
