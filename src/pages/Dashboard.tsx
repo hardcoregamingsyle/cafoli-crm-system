@@ -220,30 +220,31 @@ function AdminDashboard({ currentUser, authReady }: { currentUser: any; authRead
   
   // Only fetch if user is confirmed admin and auth is ready
   const isAdmin = currentUser?.role === ROLES.ADMIN;
+  const shouldFetch = isAdmin && authReady && currentUser?._id;
   
   const allLeads = useQuery(
     api.leads.getAllLeads,
-    isAdmin && authReady ? { currentUserId: currentUser._id, filter: "all" } : "skip"
+    shouldFetch ? { currentUserId: currentUser._id, filter: "all" } : "skip"
   );
 
   const unattendedLeads = useQuery(
     api.leads.getUnattendedLeads,
-    isAdmin && authReady ? { currentUserId: currentUser._id } : "skip"
+    shouldFetch ? { currentUserId: currentUser._id } : "skip"
   );
 
   const hotLeads = useQuery(
     api.leads.getLeadsByHeat,
-    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
+    shouldFetch ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
   );
 
   const coldLeads = useQuery(
     api.leads.getLeadsByHeat,
-    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
+    shouldFetch ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
   );
 
   const matureLeads = useQuery(
     api.leads.getLeadsByHeat,
-    isAdmin && authReady ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
+    shouldFetch ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
   );
 
   const metrics = [
