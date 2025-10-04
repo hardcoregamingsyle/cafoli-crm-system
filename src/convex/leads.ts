@@ -1066,7 +1066,22 @@ export const getUnattendedLeads = query({
     assigneeId: v.optional(v.union(v.id("users"), v.string())),
   },
   handler: async (ctx, args) => {
-    const currentUser = await resolveCurrentUser(ctx, args.currentUserId);
+    // Resolve current user safely
+    let currentUser: any = null;
+    try {
+      if (args.currentUserId) {
+        if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        } else {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        }
+      } else {
+        currentUser = await getCurrentUser(ctx);
+      }
+    } catch {
+      currentUser = null;
+    }
+
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Admin access required");
     }
@@ -1125,7 +1140,22 @@ export const getLeadsByHeat = query({
     assigneeId: v.optional(v.union(v.id("users"), v.string())),
   },
   handler: async (ctx, args) => {
-    const currentUser = await resolveCurrentUser(ctx, args.currentUserId);
+    // Resolve current user safely
+    let currentUser: any = null;
+    try {
+      if (args.currentUserId) {
+        if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        } else {
+          currentUser = await ctx.db.get(args.currentUserId as any);
+        }
+      } else {
+        currentUser = await getCurrentUser(ctx);
+      }
+    } catch {
+      currentUser = null;
+    }
+
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Admin access required");
     }
@@ -1170,18 +1200,3 @@ export const getLeadsByHeat = query({
     return enriched;
   },
 });
-
-async function resolveCurrentUser(ctx: any, currentUserId: any) {
-  try {
-    if (currentUserId) {
-      if (typeof currentUserId === "string" && currentUserId.length > 20) {
-        return await ctx.db.get(currentUserId as any);
-      } else {
-        return await ctx.db.get(currentUserId);
-      }
-    }
-    return await getCurrentUser(ctx);
-  } catch {
-    return null;
-  }
-}
