@@ -63,7 +63,6 @@ export default function MyLeadsPage() {
     currentUser
       ? {
           currentUserId: currentUser._id,
-          // paginationOpts: { numItems: 50, cursor: paginationCursor },
         }
       : "skip",
   );
