@@ -7,13 +7,24 @@ import { internal } from "./_generated/api";
 // Get all leads (Admin and Manager only) - with pagination
 export const getAllLeads = query({
   args: {
-    filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
+    filter: v.optional(
+      v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned")),
+    ),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
-    assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
-    paginationOpts: v.optional(v.object({
-      numItems: v.number(),
-      cursor: v.union(v.string(), v.null()),
-    })),
+    assigneeId: v.optional(
+      v.union(
+        v.id("users"),
+        v.literal("all"),
+        v.literal("unassigned"),
+        v.string(),
+      ),
+    ),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.union(v.string(), v.null()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     try {
@@ -41,7 +52,10 @@ export const getAllLeads = query({
 
       if (args.currentUserId) {
         try {
-          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+          if (
+            typeof args.currentUserId === "string" &&
+            args.currentUserId.length > 20
+          ) {
             // Try direct get; catch any invalid id shape
             currentUser = await ctx.db.get(args.currentUserId as any);
           } else {
@@ -57,23 +71,26 @@ export const getAllLeads = query({
         currentUser = await resolveOwner();
       }
 
-      if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+      if (
+        !currentUser ||
+        (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)
+      ) {
         return [];
       }
 
       // Build leads list with pagination
       const numItems = args.paginationOpts?.numItems ?? 50;
       const cursor = args.paginationOpts?.cursor ?? null;
-      
+
       let leads: any[] = [];
       let isDone = false;
       let continueCursor: string | null = null;
-      
+
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads
         const all = await ctx.db.query("leads").collect();
         const filtered = all.filter((l) => l.assignedTo === undefined);
-        
+
         // Manual pagination for filtered results
         const startIdx = cursor ? parseInt(cursor) : 0;
         leads = filtered.slice(startIdx, startIdx + numItems);
@@ -101,7 +118,9 @@ export const getAllLeads = query({
         if (normalizedAssignee === "unassigned") {
           filtered = all.filter((l) => l.assignedTo === undefined);
         } else if (normalizedAssignee && normalizedAssignee !== "all") {
-          filtered = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
+          filtered = all.filter(
+            (l) => String(l.assignedTo ?? "") === String(normalizedAssignee),
+          );
         } else {
           // Apply general filter
           if (args.filter === "assigned") {
@@ -112,10 +131,10 @@ export const getAllLeads = query({
             filtered = all;
           }
         }
-        
+
         // Sort by creation time
         filtered.sort((a, b) => a._creationTime - b._creationTime);
-        
+
         // Manual pagination for filtered results
         const startIdx = cursor ? parseInt(cursor) : 0;
         leads = filtered.slice(startIdx, startIdx + numItems);
@@ -130,7 +149,8 @@ export const getAllLeads = query({
         if (lead.assignedTo) {
           try {
             const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-            assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+            assignedUserName =
+              assignedUser?.name || assignedUser?.username || "Unknown";
           } catch {
             assignedUserName = "Unknown";
           }
@@ -145,7 +165,11 @@ export const getAllLeads = query({
       };
     } catch (err) {
       console.error("getAllLeads error:", err);
-      return [];
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: null,
+      };
     }
   },
 });
@@ -154,10 +178,12 @@ export const getAllLeads = query({
 export const getMyLeads = query({
   args: {
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
-    paginationOpts: v.optional(v.object({
-      numItems: v.number(),
-      cursor: v.union(v.string(), v.null()),
-    })),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.union(v.string(), v.null()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     try {
@@ -170,14 +196,14 @@ export const getMyLeads = query({
           currentUser = null;
         }
       }
-      
+
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
         return [];
       }
 
       const numItems = args.paginationOpts?.numItems ?? 50;
       const cursor = args.paginationOpts?.cursor ?? null;
-      
+
       let allLeads: any[] = [];
       try {
         allLeads = await ctx.db
@@ -187,17 +213,19 @@ export const getMyLeads = query({
       } catch {
         // Fallback to full table scan if index fails
         const all = await ctx.db.query("leads").collect();
-        allLeads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+        allLeads = all.filter(
+          (l) => String(l.assignedTo ?? "") === String(currentUser._id),
+        );
       }
 
       allLeads.sort((a, b) => a._creationTime - b._creationTime);
-      
+
       // Manual pagination
       const startIdx = cursor ? parseInt(cursor) : 0;
       const leads = allLeads.slice(startIdx, startIdx + numItems);
       const isDone = startIdx + numItems >= allLeads.length;
       const continueCursor = isDone ? null : String(startIdx + numItems);
-      
+
       return {
         page: leads,
         isDone,
@@ -205,7 +233,11 @@ export const getMyLeads = query({
       };
     } catch (err) {
       console.error("getMyLeads error:", err);
-      return [];
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: null,
+      };
     }
   },
 });
@@ -253,7 +285,8 @@ export const createLead = mutation({
       if (!existing.name && args.name) patch.name = args.name;
       if (!existing.subject && args.subject) patch.subject = args.subject;
       if (!existing.message && args.message) patch.message = args.message;
-      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.altMobileNo && args.altMobileNo)
+        patch.altMobileNo = args.altMobileNo;
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.state && args.state) patch.state = args.state;
       if (!existing.source && args.source) patch.source = args.source;
@@ -301,7 +334,9 @@ export const createLead = mutation({
     try {
       const email = (args.email || "").trim().toLowerCase();
       if (email && email !== "unknown@example.com") {
-        await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: email });
+        await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, {
+          to: email,
+        });
       }
     } catch {
       // Do not block creation on email errors
@@ -311,7 +346,7 @@ export const createLead = mutation({
     try {
       const allUsers = await ctx.db.query("users").collect();
       const targets = allUsers.filter(
-        (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER
+        (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER,
       );
       await Promise.all(
         targets.map((u: any) =>
@@ -322,8 +357,8 @@ export const createLead = mutation({
             read: false,
             type: "lead_created",
             relatedLeadId: leadId,
-          })
-        )
+          }),
+        ),
       );
     } catch {
       // Swallow notification errors to avoid blocking lead creation
@@ -356,7 +391,8 @@ export const assignLead = mutation({
     // Authorization:
     // - Admin/Manager: can assign/unassign freely
     // - Staff: can only unassign themselves (assignedTo must be undefined and lead.assignedTo === currentUser._id)
-    const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
+    const isAdminOrManager =
+      currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
     const isStaffUnassigningSelf =
       currentUser.role !== ROLES.ADMIN &&
       currentUser.role !== ROLES.MANAGER &&
@@ -382,7 +418,9 @@ export const assignLead = mutation({
     }
 
     // Log the action (covers assign, reassign, or unassign)
-    const assignedUser = (args.assignedTo ? await ctx.db.get(args.assignedTo) : null) as any;
+    const assignedUser = (
+      args.assignedTo ? await ctx.db.get(args.assignedTo) : null
+    ) as any;
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
       action: "ASSIGN_LEAD",
@@ -407,17 +445,17 @@ export const updateLeadStatus = mutation({
     if (!currentUser || currentUser.role === ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
-    
+
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
     }
-    
+
     // Check if user is assigned to this lead
     if (lead.assignedTo !== currentUser._id) {
       throw new Error("You can only update leads assigned to you");
     }
-    
+
     if (args.status === LEAD_STATUS.NOT_RELEVANT) {
       await ctx.db.delete(args.leadId);
       await ctx.db.insert("auditLogs", {
@@ -454,19 +492,22 @@ export const setNextFollowup = mutation({
     if (!currentUser) {
       throw new Error("Not authenticated");
     }
-    
+
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
     }
-    
+
     // Check permissions
-    if (currentUser.role !== ROLES.ADMIN && lead.assignedTo !== currentUser._id) {
+    if (
+      currentUser.role !== ROLES.ADMIN &&
+      lead.assignedTo !== currentUser._id
+    ) {
       throw new Error("You can only set followup for leads assigned to you");
     }
-    
+
     await ctx.db.patch(args.leadId, { nextFollowup: args.followupTime });
-    
+
     // Log the action
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
@@ -491,14 +532,14 @@ export const cancelFollowup = mutation({
     if (!currentUser || currentUser.role !== ROLES.ADMIN) {
       throw new Error("Unauthorized");
     }
-    
+
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
     }
-    
+
     await ctx.db.patch(args.leadId, { nextFollowup: undefined });
-    
+
     // Log the action
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
@@ -522,14 +563,15 @@ export const getUpcomingFollowups = query({
     }
 
     const now = Date.now();
-    const fiveMinutesFromNow = now + (5 * 60 * 1000);
-    
+    const fiveMinutesFromNow = now + 5 * 60 * 1000;
+
     const leads = await ctx.db.query("leads").collect();
-    
-    return leads.filter(lead => 
-      lead.nextFollowup && 
-      lead.nextFollowup <= fiveMinutesFromNow && 
-      lead.nextFollowup > now
+
+    return leads.filter(
+      (lead) =>
+        lead.nextFollowup &&
+        lead.nextFollowup <= fiveMinutesFromNow &&
+        lead.nextFollowup > now,
     );
   },
 });
@@ -552,7 +594,7 @@ export const bulkCreateLeads = mutation({
         pincode: v.optional(v.string()),
         agencyName: v.optional(v.string()),
         country: v.optional(v.string()),
-      })
+      }),
     ),
     assignedTo: v.optional(v.id("users")),
     currentUserId: v.optional(v.id("users")),
@@ -561,7 +603,10 @@ export const bulkCreateLeads = mutation({
     const currentUser = args.currentUserId
       ? await ctx.db.get(args.currentUserId)
       : await getCurrentUser(ctx);
-    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+    if (
+      !currentUser ||
+      (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)
+    ) {
       throw new Error("Unauthorized");
     }
 
@@ -578,7 +623,7 @@ export const bulkCreateLeads = mutation({
       // NEW: Auto-apply pincode mapping if pincode is provided
       let finalState = incoming.state;
       let finalDistrict = incoming.district;
-      
+
       if (incoming.pincode) {
         const pin = incoming.pincode.toString().trim();
         if (pin) {
@@ -610,23 +655,34 @@ export const bulkCreateLeads = mutation({
         }
       }
 
-      const existing = await findDuplicateLead(ctx, incoming.mobileNo, incoming.email);
+      const existing = await findDuplicateLead(
+        ctx,
+        incoming.mobileNo,
+        incoming.email,
+      );
 
       if (existing) {
         // Club records: fill missing/empty fields from incoming
         const patch: Record<string, any> = {};
         if (!existing.name && incoming.name) patch.name = incoming.name;
-        if (!existing.subject && incoming.subject) patch.subject = incoming.subject;
-        if (!existing.message && incoming.message) patch.message = incoming.message;
-        if (!existing.altMobileNo && incoming.altMobileNo) patch.altMobileNo = incoming.altMobileNo;
-        if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
+        if (!existing.subject && incoming.subject)
+          patch.subject = incoming.subject;
+        if (!existing.message && incoming.message)
+          patch.message = incoming.message;
+        if (!existing.altMobileNo && incoming.altMobileNo)
+          patch.altMobileNo = incoming.altMobileNo;
+        if (!existing.altEmail && incoming.altEmail)
+          patch.altEmail = incoming.altEmail;
         if (!existing.state && finalState) patch.state = finalState;
         if (!existing.source && incoming.source) patch.source = incoming.source;
         // Add extended fields when missing
-        if (!existing.station && incoming.station) patch.station = incoming.station;
+        if (!existing.station && incoming.station)
+          patch.station = incoming.station;
         if (!existing.district && finalDistrict) patch.district = finalDistrict;
-        if (!existing.pincode && incoming.pincode) patch.pincode = incoming.pincode;
-        if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
+        if (!existing.pincode && incoming.pincode)
+          patch.pincode = incoming.pincode;
+        if (!existing.agencyName && incoming.agencyName)
+          patch.agencyName = incoming.agencyName;
 
         // Assignment logic (updated):
         // - If args.assignedTo provided:
@@ -692,7 +748,11 @@ export const bulkCreateLeads = mutation({
         try {
           const email = (incoming.email || "").trim().toLowerCase();
           if (email && email !== "unknown@example.com") {
-            await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: email });
+            await ctx.scheduler.runAfter(
+              0,
+              (internal as any).emails.sendRelevant,
+              { to: email },
+            );
           }
         } catch {
           // Do not block import on email errors
@@ -714,7 +774,9 @@ export const bulkCreateLeads = mutation({
 
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
-      action: args.assignedTo ? "BULK_IMPORT_AND_ASSIGN_LEADS" : "BULK_IMPORT_LEADS",
+      action: args.assignedTo
+        ? "BULK_IMPORT_AND_ASSIGN_LEADS"
+        : "BULK_IMPORT_LEADS",
       details: `Imported ${importedCount} new lead(s)${args.assignedTo ? " and assigned" : ""}; duplicates were clubbed.`,
       timestamp: Date.now(),
     });
@@ -724,7 +786,7 @@ export const bulkCreateLeads = mutation({
       try {
         const allUsers = await ctx.db.query("users").collect();
         const targets = allUsers.filter(
-          (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER
+          (u: any) => u.role === ROLES.ADMIN || u.role === ROLES.MANAGER,
         );
         await Promise.all(
           targets.map((u: any) =>
@@ -734,8 +796,8 @@ export const bulkCreateLeads = mutation({
               message: `${importedCount} new lead(s) have been created.`,
               read: false,
               type: "lead_created",
-            })
-          )
+            }),
+          ),
         );
       } catch {
         // Do not block the mutation if notifications fail
@@ -757,12 +819,17 @@ export const runDeduplication = mutation({
     // Load all leads
     const all = await ctx.db.query("leads").collect();
     if (all.length === 0) {
-      return { groupsProcessed: 0, mergedCount: 0, deletedCount: 0, notificationsSent: 0 };
+      return {
+        groupsProcessed: 0,
+        mergedCount: 0,
+        deletedCount: 0,
+        notificationsSent: 0,
+      };
     }
 
     // Build groups by mobileNo and email
     type Group = { key: string; members: typeof all };
-    const byKey: Record<string, Array<typeof all[number]>> = {};
+    const byKey: Record<string, Array<(typeof all)[number]>> = {};
 
     for (const l of all) {
       const keys: Array<string> = [];
@@ -783,11 +850,11 @@ export const runDeduplication = mutation({
     let notificationsSent = 0;
 
     // Helper to club members into a single canonical doc (oldest by _creationTime)
-    const clubGroup = async (members: Array<typeof all[number]>) => {
+    const clubGroup = async (members: Array<(typeof all)[number]>) => {
       // Filter out already processed docs
-      const fresh = members.filter(m => !visitedDocIds.has(String(m._id)));
+      const fresh = members.filter((m) => !visitedDocIds.has(String(m._id)));
       if (fresh.length <= 1) {
-        fresh.forEach(m => visitedDocIds.add(String(m._id)));
+        fresh.forEach((m) => visitedDocIds.add(String(m._id)));
         return;
       }
 
@@ -802,7 +869,8 @@ export const runDeduplication = mutation({
         if (!primary.name && r.name) patch.name = r.name;
         if (!primary.subject && r.subject) patch.subject = r.subject;
         if (!primary.message && r.message) patch.message = r.message;
-        if (!primary.altMobileNo && r.altMobileNo) patch.altMobileNo = r.altMobileNo;
+        if (!primary.altMobileNo && r.altMobileNo)
+          patch.altMobileNo = r.altMobileNo;
         if (!primary.altEmail && r.altEmail) patch.altEmail = r.altEmail;
         if (!primary.state && r.state) patch.state = r.state;
         if (!primary.source && r.source) patch.source = r.source;
@@ -812,7 +880,7 @@ export const runDeduplication = mutation({
       // - If primary has assignedTo, keep it
       // - Else, if any member has assignedTo, set that on primary (use the first one encountered)
       if (!primary.assignedTo) {
-        const assignedFromOthers = rest.find(r => !!r.assignedTo)?.assignedTo;
+        const assignedFromOthers = rest.find((r) => !!r.assignedTo)?.assignedTo;
         if (assignedFromOthers) {
           patch.assignedTo = assignedFromOthers;
         }
@@ -843,7 +911,8 @@ export const runDeduplication = mutation({
         await ctx.db.insert("notifications", {
           userId: assignee,
           title: "Duplicate Leads Clubbed",
-          message: "Some duplicate leads were clubbed into one of your assigned leads.",
+          message:
+            "Some duplicate leads were clubbed into one of your assigned leads.",
           read: false,
           type: "lead_assigned",
           relatedLeadId: primary._id,
@@ -868,7 +937,7 @@ export const runDeduplication = mutation({
 
       // Mark all as visited
       visitedDocIds.add(String(primary._id));
-      rest.forEach(m => visitedDocIds.add(String(m._id)));
+      rest.forEach((m) => visitedDocIds.add(String(m._id)));
       groupsProcessed++;
     };
 
@@ -960,7 +1029,10 @@ export const updateLeadDetails = mutation({
       ? await ctx.db.get(args.currentUserId)
       : await getCurrentUser(ctx);
 
-    if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
+    if (
+      !currentUser ||
+      (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)
+    ) {
       throw new Error("Unauthorized");
     }
 
@@ -975,14 +1047,20 @@ export const updateLeadDetails = mutation({
     if (typeof args.subject !== "undefined") patch.subject = args.subject;
     if (typeof args.message !== "undefined") patch.message = args.message;
     if (typeof args.mobileNo !== "undefined") patch.mobileNo = args.mobileNo;
-    if (typeof args.altMobileNo !== "undefined") patch.altMobileNo = args.altMobileNo;
-    if (typeof args.email !== "undefined") patch.email = (args.email || "").toLowerCase();
-    if (typeof args.altEmail !== "undefined") patch.altEmail = args.altEmail ? args.altEmail.toLowerCase() : args.altEmail;
+    if (typeof args.altMobileNo !== "undefined")
+      patch.altMobileNo = args.altMobileNo;
+    if (typeof args.email !== "undefined")
+      patch.email = (args.email || "").toLowerCase();
+    if (typeof args.altEmail !== "undefined")
+      patch.altEmail = args.altEmail
+        ? args.altEmail.toLowerCase()
+        : args.altEmail;
     if (typeof args.state !== "undefined") patch.state = args.state;
     if (typeof args.district !== "undefined") patch.district = args.district;
     if (typeof args.source !== "undefined") patch.source = args.source;
 
-    if (typeof args.agencyName !== "undefined") patch.agencyName = args.agencyName;
+    if (typeof args.agencyName !== "undefined")
+      patch.agencyName = args.agencyName;
 
     // Maintain auto-fill from pincode, but allow manual override for state/district
     if (typeof args.pincode !== "undefined") {
@@ -1041,7 +1119,7 @@ export const bulkImportPincodeMappings = mutation({
         pincode: v.string(),
         district: v.string(),
         state: v.string(),
-      })
+      }),
     ),
     currentUserId: v.id("users"),
   },
@@ -1075,7 +1153,11 @@ export const bulkImportPincodeMappings = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, { district, state });
       } else {
-        await ctx.db.insert("pincodeMappings", { pincode: pin, district, state });
+        await ctx.db.insert("pincodeMappings", {
+          pincode: pin,
+          district,
+          state,
+        });
       }
       upserts++;
     }
@@ -1123,7 +1205,10 @@ export const getUnattendedLeads = query({
     let currentUser: any = null;
     try {
       if (args.currentUserId) {
-        if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+        if (
+          typeof args.currentUserId === "string" &&
+          args.currentUserId.length > 20
+        ) {
           currentUser = await ctx.db.get(args.currentUserId as any);
         } else {
           currentUser = await ctx.db.get(args.currentUserId as any);
@@ -1140,24 +1225,25 @@ export const getUnattendedLeads = query({
     }
 
     // Get all leads older than 48 hours
-    const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
+    const fortyEightHoursAgo = Date.now() - 48 * 60 * 60 * 1000;
     const allLeads = await ctx.db.query("leads").collect();
-    
+
     // Get all comments to check which leads have comments
     const allComments = await ctx.db.query("comments").collect();
-    const leadsWithComments = new Set(allComments.map(c => c.leadId));
+    const leadsWithComments = new Set(allComments.map((c) => c.leadId));
 
     // Filter unattended leads
-    const unattendedLeads = allLeads.filter(lead => {
+    const unattendedLeads = allLeads.filter((lead) => {
       // Must be older than 48 hours
       if (lead._creationTime > fortyEightHoursAgo) return false;
-      
+
       // Must NOT have any of these:
       if (leadsWithComments.has(lead._id)) return false; // Has comments
       if (lead.nextFollowup) return false; // Has followup date
-      if (lead.status && lead.status !== LEAD_STATUS.YET_TO_DECIDE) return false; // Has relevant marking
+      if (lead.status && lead.status !== LEAD_STATUS.YET_TO_DECIDE)
+        return false; // Has relevant marking
       if (lead.heat) return false; // Has heat marking
-      
+
       // Apply assignee filter if provided
       if (args.assigneeId) {
         if (args.assigneeId === "unassigned") {
@@ -1165,7 +1251,7 @@ export const getUnattendedLeads = query({
         }
         return String(lead.assignedTo) === String(args.assigneeId);
       }
-      
+
       return true;
     });
 
@@ -1178,7 +1264,7 @@ export const getUnattendedLeads = query({
           assignedUserName = user?.name || user?.username || "Unknown";
         }
         return { ...lead, assignedUserName };
-      })
+      }),
     );
 
     return enriched;
@@ -1197,7 +1283,10 @@ export const getLeadsByHeat = query({
     let currentUser: any = null;
     try {
       if (args.currentUserId) {
-        if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
+        if (
+          typeof args.currentUserId === "string" &&
+          args.currentUserId.length > 20
+        ) {
           currentUser = await ctx.db.get(args.currentUserId as any);
         } else {
           currentUser = await ctx.db.get(args.currentUserId as any);
@@ -1214,19 +1303,21 @@ export const getLeadsByHeat = query({
     }
 
     const allLeads = await ctx.db.query("leads").collect();
-    
+
     // Filter by heat and optional assignee
-    const filteredLeads = allLeads.filter(lead => {
+    const filteredLeads = allLeads.filter((lead) => {
       // Match heat type
-      const leadHeat = String(lead.heat || "").toLowerCase().trim();
+      const leadHeat = String(lead.heat || "")
+        .toLowerCase()
+        .trim();
       const targetHeat = args.heat.toLowerCase();
-      
+
       if (targetHeat === "matured") {
         if (leadHeat !== "matured" && leadHeat !== "mature") return false;
       } else {
         if (leadHeat !== targetHeat) return false;
       }
-      
+
       // Apply assignee filter if provided
       if (args.assigneeId) {
         if (args.assigneeId === "unassigned") {
@@ -1234,7 +1325,7 @@ export const getLeadsByHeat = query({
         }
         return String(lead.assignedTo) === String(args.assigneeId);
       }
-      
+
       return true;
     });
 
@@ -1247,7 +1338,7 @@ export const getLeadsByHeat = query({
           assignedUserName = user?.name || user?.username || "Unknown";
         }
         return { ...lead, assignedUserName };
-      })
+      }),
     );
 
     return enriched;
