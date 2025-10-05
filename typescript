@@ -1,0 +1,4 @@
+const users = useQuery(
+  api.users.getAllUsers,
+  currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+) ?? [];
