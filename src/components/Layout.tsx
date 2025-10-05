@@ -80,14 +80,13 @@ export function Layout({ children }: LayoutProps) {
   // Add: subscribe to my leads to detect assignment increases (for sound)
   const myLeadsForAssignSound = useQuery(
     api.leads.getMyLeads,
-    currentUser && currentUser.role !== ROLES.ADMIN
+    currentUser
       ? {
           currentUserId: currentUser._id,
-          paginationOpts: { numItems: 1000, cursor: null },
+          // paginationOpts: { numItems: 50, cursor: null },
         }
       : "skip",
   );
-  console.log("myLeadsForAssignSound" + myLeadsForAssignSound);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
@@ -149,7 +148,7 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     // Skip if query is not available (e.g., for Admin users)
     if (!myLeadsForAssignSound) return;
-    
+
     const count = ((myLeadsForAssignSound as any)?.page ?? []).length;
     if (prevAssignedCount !== null && count > prevAssignedCount) {
       const diff = count - prevAssignedCount;
@@ -160,11 +159,7 @@ export function Layout({ children }: LayoutProps) {
       } catch {}
     }
     setPrevAssignedCount(count);
-  }, [
-    currentUser,
-    myLeadsForAssignSound,
-    prevAssignedCount,
-  ]);
+  }, [currentUser, myLeadsForAssignSound, prevAssignedCount]);
 
   // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
