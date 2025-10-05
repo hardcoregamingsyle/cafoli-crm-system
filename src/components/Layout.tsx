@@ -1,6 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu } from "lucide-react";
+import {
+  Bell,
+  LogOut,
+  FileText,
+  Settings,
+  Upload,
+  UserPlus,
+  Download,
+  PlusCircle,
+  Menu,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
@@ -9,11 +19,29 @@ import { useNavigate, useLocation } from "react-router";
 import { ROLES } from "@/convex/schema";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,29 +53,41 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id } : "skip",
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser && currentUser.role === ROLES.ADMIN ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
+    currentUser && currentUser.role === ROLES.ADMIN
+      ? {
+          filter: "all",
+          currentUserId: currentUser._id,
+          paginationOpts: { numItems: 1000, cursor: null },
+        }
+      : "skip",
   );
-    const assignableUsers =
-    useQuery(
-      api.users.getAssignableUsers,
-      currentUser ? { currentUserId: currentUser._id } : "skip"
-    );
+  const assignableUsers = useQuery(
+    api.users.getAssignableUsers,
+    currentUser ? { currentUserId: currentUser._id } : "skip",
+  );
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
-  const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
+  const importPincodeMappings = useMutation(
+    api.leads.bulkImportPincodeMappings,
+  );
 
   // Add: subscribe to my leads to detect assignment increases (for sound)
-  const myLeadsForAssignSound =
-    useQuery(
-      api.leads.getMyLeads,
-      currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
-    );
+  const myLeadsForAssignSound = useQuery(
+    api.leads.getMyLeads,
+    currentUser && currentUser.role !== ROLES.ADMIN
+      ? {
+          currentUserId: currentUser._id,
+          paginationOpts: { numItems: 1000, cursor: null },
+        }
+      : "skip",
+  );
+  console.log("myLeadsForAssignSound" + myLeadsForAssignSound);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
@@ -77,7 +117,9 @@ export function Layout({ children }: LayoutProps) {
   const [prevLeadsCount, setPrevLeadsCount] = useState<number | null>(null);
 
   // Add: Track previous assigned-to-me leads count to detect new assignments
-  const [prevAssignedCount, setPrevAssignedCount] = useState<number | null>(null);
+  const [prevAssignedCount, setPrevAssignedCount] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     initializeAuth();
@@ -87,10 +129,10 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     // Only run this effect if user is authenticated and is an admin
     if (!currentUser || currentUser.role !== ROLES.ADMIN) return;
-    
+
     // Don't access allLeadsForExport if it's not available
     if (!allLeadsForExport) return;
-    
+
     const count = ((allLeadsForExport as any)?.page ?? []).length;
     if (prevLeadsCount !== null && count > prevLeadsCount) {
       const diff = count - prevLeadsCount;
@@ -115,7 +157,11 @@ export function Layout({ children }: LayoutProps) {
       } catch {}
     }
     setPrevAssignedCount(count);
-  }, [currentUser, ((myLeadsForAssignSound as any)?.page ?? []).length, prevAssignedCount]);
+  }, [
+    currentUser,
+    ((myLeadsForAssignSound as any)?.page ?? []).length,
+    prevAssignedCount,
+  ]);
 
   // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
@@ -126,7 +172,7 @@ export function Layout({ children }: LayoutProps) {
     const dataLines = lines.slice(1);
     // Naive CSV split; assumes no quoted commas
     const rows: Array<string[]> = dataLines.map((line) =>
-      line.split(",").map((c) => c.trim())
+      line.split(",").map((c) => c.trim()),
     );
     return rows;
   };
@@ -184,7 +230,9 @@ export function Layout({ children }: LayoutProps) {
         });
       }
 
-      toast.success(`Imported/updated ${records.length} pincode mapping(s) in ${totalBatches} batch(es)`);
+      toast.success(
+        `Imported/updated ${records.length} pincode mapping(s) in ${totalBatches} batch(es)`,
+      );
     } catch (e: any) {
       toast.error(e?.message || "Failed to import pincode CSV");
     }
@@ -244,7 +292,9 @@ export function Layout({ children }: LayoutProps) {
       const leads = mapRowsToLeads(rows);
       const skipped = rows.length - leads.length;
       if (leads.length === 0) {
-        toast("No valid rows found. Ensure at least a mobile number is present.");
+        toast(
+          "No valid rows found. Ensure at least a mobile number is present.",
+        );
         return;
       }
       if (skipped > 0) {
@@ -276,7 +326,7 @@ export function Layout({ children }: LayoutProps) {
       }
 
       toast.success(
-        `Imported ${imported} lead(s)${assignedTo ? " and assigned" : ""} in ${totalBatches} batch(es)`
+        `Imported ${imported} lead(s)${assignedTo ? " and assigned" : ""} in ${totalBatches} batch(es)`,
       );
     } catch (e: any) {
       toast.error(e.message || "Failed to import");
@@ -289,9 +339,11 @@ export function Layout({ children }: LayoutProps) {
       const data = allLeadsForExport;
       const escapeCsv = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
       const rows: string[] = [];
-      rows.push("Name,Subject,Message,Mobile,Email,Alt Mobile,Alt Email,State,Status,Assigned To,Next Followup,Source");
+      rows.push(
+        "Name,Subject,Message,Mobile,Email,Alt Mobile,Alt Email,State,Status,Assigned To,Next Followup,Source",
+      );
       if (((data as any)?.page ?? []).length > 0) {
-        for (const l of ((data as any)?.page ?? [])) {
+        for (const l of (data as any)?.page ?? []) {
           const row = [
             escapeCsv(l.name ?? ""),
             escapeCsv(l.subject ?? ""),
@@ -303,7 +355,9 @@ export function Layout({ children }: LayoutProps) {
             escapeCsv(l.state ?? ""),
             escapeCsv(l.status ?? ""),
             escapeCsv(l.assignedTo ?? ""),
-            escapeCsv(l.nextFollowup ? new Date(l.nextFollowup).toISOString() : ""),
+            escapeCsv(
+              l.nextFollowup ? new Date(l.nextFollowup).toISOString() : "",
+            ),
             escapeCsv(l.source ?? ""),
           ];
           rows.push(row.join(","));
@@ -333,34 +387,34 @@ export function Layout({ children }: LayoutProps) {
   const isManager = currentUser.role === ROLES.MANAGER;
 
   const navigationItems = [
-    { 
-      label: "All Leads", 
-      path: "/all_leads", 
+    {
+      label: "All Leads",
+      path: "/all_leads",
       icon: FileText,
-      roles: [ROLES.ADMIN, ROLES.MANAGER] 
+      roles: [ROLES.ADMIN, ROLES.MANAGER],
     },
-    { 
-      label: "My Leads", 
-      path: "/leads", 
+    {
+      label: "My Leads",
+      path: "/leads",
       icon: FileText,
-      roles: [ROLES.MANAGER, ROLES.STAFF] 
+      roles: [ROLES.MANAGER, ROLES.STAFF],
     },
-    { 
-      label: "Admin Panel", 
-      path: "/admin", 
+    {
+      label: "Admin Panel",
+      path: "/admin",
       icon: Settings,
-      roles: [ROLES.ADMIN] 
+      roles: [ROLES.ADMIN],
     },
     {
       label: "Dashboard",
       path: "/dashboard",
       icon: FileText,
-      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
+      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF],
     },
   ];
 
-  const filteredNavItems = navigationItems.filter(item => 
-    item.roles.includes(currentUser.role)
+  const filteredNavItems = navigationItems.filter((item) =>
+    item.roles.includes(currentUser.role),
   );
 
   return (
@@ -531,7 +585,12 @@ export function Layout({ children }: LayoutProps) {
               {/* Import/Export (Admin only, desktop already) */}
               {isAdmin && (
                 <div className="hidden sm:flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCsv}
+                    className="gap-2"
+                  >
                     <Download className="w-4 h-4" />
                     Export All Leads
                   </Button>
@@ -564,14 +623,20 @@ export function Layout({ children }: LayoutProps) {
                           toast.error("Not authenticated");
                           return;
                         }
-                        const confirmRun = window.confirm("Run deduplication across all leads now?");
+                        const confirmRun = window.confirm(
+                          "Run deduplication across all leads now?",
+                        );
                         if (!confirmRun) return;
-                        const res = await runDeduplication({ currentUserId: currentUser._id });
+                        const res = await runDeduplication({
+                          currentUserId: currentUser._id,
+                        });
                         toast.success(
-                          `Dedup done: groups=${res?.groupsProcessed ?? 0}, merged=${res?.mergedCount ?? 0}, deleted=${res?.deletedCount ?? 0}`
+                          `Dedup done: groups=${res?.groupsProcessed ?? 0}, merged=${res?.mergedCount ?? 0}, deleted=${res?.deletedCount ?? 0}`,
                         );
                       } catch (e: any) {
-                        toast.error(e?.message || "Failed to run deduplication");
+                        toast.error(
+                          e?.message || "Failed to run deduplication",
+                        );
                       }
                     }}
                   >
@@ -596,10 +661,12 @@ export function Layout({ children }: LayoutProps) {
                         "District",
                         "Pincode",
                         "Agency Name",
-                        "Country"
+                        "Country",
                       ];
                       const csvContent = headers.join(",");
-                      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                      const blob = new Blob([csvContent], {
+                        type: "text/csv;charset=utf-8;",
+                      });
                       const url = URL.createObjectURL(blob);
                       const link = document.createElement("a");
                       link.href = url;
@@ -682,8 +749,12 @@ export function Layout({ children }: LayoutProps) {
               {/* User Info + Logout */}
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {currentUser.name}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">
+                    {currentUser.role}
+                  </p>
                 </div>
                 <Button
                   variant="ghost"
@@ -724,7 +795,8 @@ export function Layout({ children }: LayoutProps) {
             </DialogHeader>
             <div className="space-y-3">
               <p className="text-sm text-gray-600">
-                Select a user to assign all imported leads to, then choose a CSV file.
+                Select a user to assign all imported leads to, then choose a CSV
+                file.
               </p>
               <Select
                 value={selectedAssignee}
@@ -743,7 +815,10 @@ export function Layout({ children }: LayoutProps) {
               </Select>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setAssignDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -775,37 +850,51 @@ export function Layout({ children }: LayoutProps) {
                 <Input
                   placeholder="Name (required)"
                   value={leadForm.name}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, name: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Mobile No (required)"
                   value={leadForm.mobileNo}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, mobileNo: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, mobileNo: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Email (required)"
                   value={leadForm.email}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, email: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Alt Mobile"
                   value={leadForm.altMobileNo}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, altMobileNo: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, altMobileNo: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Alt Email"
                   value={leadForm.altEmail}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, altEmail: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, altEmail: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="State (required)"
                   value={leadForm.state}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, state: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, state: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Source"
                   value={leadForm.source}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, source: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, source: e.target.value }))
+                  }
                 />
               </div>
 
@@ -814,32 +903,44 @@ export function Layout({ children }: LayoutProps) {
                 <Input
                   placeholder="Subject (required)"
                   value={leadForm.subject}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, subject: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, subject: e.target.value }))
+                  }
                 />
                 <Textarea
                   placeholder="Message (required)"
                   value={leadForm.message}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, message: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, message: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Station"
                   value={leadForm.station}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, station: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, station: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="District"
                   value={leadForm.district}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, district: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, district: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Pincode"
                   value={leadForm.pincode}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, pincode: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, pincode: e.target.value }))
+                  }
                 />
                 <Input
                   placeholder="Agency Name"
                   value={leadForm.agencyName}
-                  onChange={(e: any) => setLeadForm((f) => ({ ...f, agencyName: e.target.value }))}
+                  onChange={(e: any) =>
+                    setLeadForm((f) => ({ ...f, agencyName: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -859,7 +960,14 @@ export function Layout({ children }: LayoutProps) {
                       toast.error("Not authenticated");
                       return;
                     }
-                    const req = ["name", "mobileNo", "email", "subject", "message", "state"] as const;
+                    const req = [
+                      "name",
+                      "mobileNo",
+                      "email",
+                      "subject",
+                      "message",
+                      "state",
+                    ] as const;
                     for (const k of req) {
                       if (!String(leadForm[k]).trim()) {
                         toast.error(`Missing required: ${k}`);
