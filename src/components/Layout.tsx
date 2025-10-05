@@ -85,6 +85,9 @@ export function Layout({ children }: LayoutProps) {
 
   // Play sound + toast when new leads arrive (single vs multiple)
   useEffect(() => {
+    // Only run this effect if user is authenticated and is an admin
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) return;
+    
     const count = ((allLeadsForExport as any)?.page ?? []).length;
     if (prevLeadsCount !== null && count > prevLeadsCount) {
       const diff = count - prevLeadsCount;
