@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
+    currentUser ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
   ) ?? []
   const assignableUsers =
     useQuery(
@@ -46,7 +46,7 @@ export function Layout({ children }: LayoutProps) {
   const myLeadsForAssignSound =
     useQuery(
       api.leads.getMyLeads,
-      currentUser ? { currentUserId: currentUser._id } : "skip"
+      currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
     ) ?? [];
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,91 +85,31 @@ export function Layout({ children }: LayoutProps) {
 
   // Play sound + toast when new leads arrive (single vs multiple)
   useEffect(() => {
-    if (!currentUser) return;
-
-    const canReceive =
-      currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
-    if (!canReceive) return;
-
-    const count = (allLeadsForExport ?? []).length;
-
-    // Initialize baseline without notifying
-    if (prevLeadsCount === null) {
-      setPrevLeadsCount(count);
-      return;
-    }
-
-    // If count increased, notify with sound + toast
-    if (count > prevLeadsCount) {
-      const delta = count - prevLeadsCount;
-
-      // Change: Always play minecraft_bell for any number of new leads
-      const soundSrc = "/assets/minecraft_bell.mp3";
+    const count = ((allLeadsForExport as any)?.page ?? []).length;
+    if (prevLeadsCount !== null && count > prevLeadsCount) {
+      const diff = count - prevLeadsCount;
+      toast.info(`${diff} new lead(s) have arrived`);
       try {
-        const audio = new Audio(soundSrc);
-        audio.play().catch(() => {
-          // Ignore autoplay errors silently
-        });
-      } catch {
-        // Ignore sound errors
-      }
-
-      toast.success(`${delta} new lead${delta > 1 ? "s" : ""} have arrived`);
-      setPrevLeadsCount(count);
-      return;
+        const audio = new Audio("/assets/minecraft_bell.mp3");
+        audio.play().catch(() => {});
+      } catch {}
     }
-
-    // Keep baseline in sync if decreased/changed
-    if (count !== prevLeadsCount) {
-      setPrevLeadsCount(count);
-    }
-  }, [currentUser, allLeadsForExport?.length, prevLeadsCount]);
+    setPrevLeadsCount(count);
+  }, [currentUser, ((allLeadsForExport as any)?.page ?? []).length, prevLeadsCount]);
 
   // New: Play bike sound + toast when a lead is assigned to the current user
   useEffect(() => {
-    if (!currentUser) return;
-
-    // Only Managers and Staff receive personal assignment sounds
-    const canReceiveAssignment =
-      currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.STAFF;
-    if (!canReceiveAssignment) return;
-
-    const count = (myLeadsForAssignSound ?? []).length;
-
-    // Initialize baseline without notifying
-    if (prevAssignedCount === null) {
-      setPrevAssignedCount(count);
-      return;
-    }
-
-    // If my assigned leads count increased, play assignment sound
-    if (count > prevAssignedCount) {
-      const delta = count - prevAssignedCount;
-
+    const count = ((myLeadsForAssignSound as any)?.page ?? []).length;
+    if (prevAssignedCount !== null && count > prevAssignedCount) {
+      const diff = count - prevAssignedCount;
+      toast.info(`${diff} lead(s) assigned to you`);
       try {
         const audio = new Audio("/assets/bike.mp3");
-        audio.play().catch(() => {
-          // ignore autoplay errors
-        });
-      } catch {
-        // ignore
-      }
-
-      toast.success(
-        delta === 1
-          ? "A lead has been assigned to you"
-          : `${delta} leads have been assigned to you`
-      );
-
-      setPrevAssignedCount(count);
-      return;
+        audio.play().catch(() => {});
+      } catch {}
     }
-
-    // Keep baseline in sync if decreased/changed
-    if (count !== prevAssignedCount) {
-      setPrevAssignedCount(count);
-    }
-  }, [currentUser, myLeadsForAssignSound?.length, prevAssignedCount]);
+    setPrevAssignedCount(count);
+  }, [currentUser, ((myLeadsForAssignSound as any)?.page ?? []).length, prevAssignedCount]);
 
   // CSV parser (simple): expects fixed column order and skips the first row (headers)
   const parseCsv = (text: string) => {
@@ -338,35 +278,14 @@ export function Layout({ children }: LayoutProps) {
   };
 
   // .xlsx export using dynamic import of xlsx (keeps bundle lean if unused)
-  const handleExport = async () => {
+  const handleExportCsv = async () => {
     try {
-      const headers = [
-        "name",
-        "subject",
-        "message",
-        "mobileNo",
-        "email",
-        "altMobileNo",
-        "altEmail",
-        "state",
-        "status",
-        "assignedTo",
-        "nextFollowup",
-        "source",
-      ];
-
-      const data = allLeadsForExport ?? [];
-
-      const escapeCsv = (val: any) => {
-        const str = String(val ?? "");
-        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-      };
-
+      const data = allLeadsForExport;
+      const escapeCsv = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
       const rows: string[] = [];
-      rows.push(headers.join(","));
-
-      if (data.length > 0) {
-        for (const l of data) {
+      rows.push("Name,Subject,Message,Mobile,Email,Alt Mobile,Alt Email,State,Status,Assigned To,Next Followup,Source");
+      if (((data as any)?.page ?? []).length > 0) {
+        for (const l of ((data as any)?.page ?? [])) {
           const row = [
             escapeCsv(l.name ?? ""),
             escapeCsv(l.subject ?? ""),
@@ -396,7 +315,7 @@ export function Layout({ children }: LayoutProps) {
 
       toast.success("Export complete");
     } catch (e: any) {
-      toast.error(e.message || "Failed to export");
+      toast.error(e?.message || "Failed to export");
     }
   };
 
@@ -606,7 +525,7 @@ export function Layout({ children }: LayoutProps) {
               {/* Import/Export (Admin only, desktop already) */}
               {isAdmin && (
                 <div className="hidden sm:flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+                  <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-2">
                     <Download className="w-4 h-4" />
                     Export All Leads
                   </Button>

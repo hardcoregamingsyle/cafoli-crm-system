@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
@@ -69,17 +69,17 @@ export default function DashboardPage() {
     return <AdminDashboard currentUser={currentUser} authReady={authReady} />;
   }
 
-  // Compute requested metrics from my leads
-  const myLeadsCount = myLeads?.length || 0;
-  const hotList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "hot");
-  const coldList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "cold");
-  const maturedList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "matured");
+  const myLeadsList = ((myLeads as any)?.page ?? []);
+  const myLeadsCount = myLeadsList.length || 0;
+  const hotList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "hot");
+  const coldList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "cold");
+  const maturedList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "matured");
   const hotLeads = hotList.length;
   const coldLeads = coldList.length;
   const maturedLeads = maturedList.length;
 
   // ADD: compute breakdowns for each card scope
-  const allBreak = splitCounts(myLeads ?? []);
+  const allBreak = splitCounts(myLeadsList);
   const hotBreak = splitCounts(hotList);
   const coldBreak = splitCounts(coldList);
   const maturedBreak = splitCounts(maturedList);
@@ -88,7 +88,7 @@ export default function DashboardPage() {
   const now = Date.now();
   
   // Filter leads that have followups (past or future) that haven't been completed
-  const pendingFollowups = (myLeads ?? [])
+  const pendingFollowups = (myLeadsList ?? [])
     .filter((lead: any) => {
       if (!lead.nextFollowup) return false;
       
@@ -227,7 +227,7 @@ function AdminDashboard({ currentUser, authReady }: { currentUser: any; authRead
   
   const allLeads = useQuery(
     api.leads.getAllLeads,
-    shouldFetch ? { currentUserId: currentUser._id, filter: "all" } : "skip"
+    shouldFetch ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
   );
 
   const unattendedLeads = useQuery(
@@ -309,7 +309,7 @@ function AdminDashboard({ currentUser, authReady }: { currentUser: any; authRead
             <CardTitle>Total Leads Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{allLeads?.length ?? 0}</div>
+            <div className="text-3xl font-bold">{((allLeads as any)?.page ?? []).length ?? 0}</div>
             <p className="text-sm text-muted-foreground">Total leads in system</p>
           </CardContent>
         </Card>
