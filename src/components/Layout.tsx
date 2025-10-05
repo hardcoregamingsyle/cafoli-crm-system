@@ -32,12 +32,12 @@ export function Layout({ children }: LayoutProps) {
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
     currentUser && currentUser.role === ROLES.ADMIN ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
-  ) ?? []
-  const assignableUsers =
+  );
+    const assignableUsers =
     useQuery(
       api.users.getAssignableUsers,
       currentUser ? { currentUserId: currentUser._id } : "skip"
-    ) ?? [];
+    );
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
   const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
@@ -47,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
     useQuery(
       api.leads.getMyLeads,
       currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
-    ) ?? [];
+    );
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
