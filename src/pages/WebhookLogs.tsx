@@ -183,6 +183,7 @@ export default function WebhookLogsPage() {
                         district: String(get("Column O") ?? "").trim() || undefined,
                         pincode: String(get("Column P") ?? "").trim() || undefined,
                         agencyName: String(get("Column Q") ?? "").trim() || undefined,
+                        country: String(get("Column R") ?? "").trim() || undefined,
                       };
 
                       return { lead, assigneeId };

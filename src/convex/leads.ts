@@ -507,6 +507,7 @@ export const bulkCreateLeads = mutation({
         district: v.optional(v.string()),
         pincode: v.optional(v.string()),
         agencyName: v.optional(v.string()),
+        country: v.optional(v.string()),
       })
     ),
     assignedTo: v.optional(v.id("users")),
