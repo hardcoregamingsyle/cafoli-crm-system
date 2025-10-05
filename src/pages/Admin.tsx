@@ -30,11 +30,6 @@ export default function AdminPage() {
     }
   }, [currentUser, navigate]);
 
-  // Early return before any queries if auth is not ready
-  if (!authReady) {
-    return <Layout><div /></Layout>;
-  }
-
   const users = useQuery(
     api.users.getAllUsers,
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
