@@ -192,7 +192,6 @@ export const getMyLeads = query({
   handler: async (ctx, args) => {
     try {
       let currentUser: any = null;
-      // FIX: Robustly resolve currentUser for both Id and string formats
       if (args.currentUserId) {
         try {
           currentUser = await ctx.db.get(args.currentUserId as any);
@@ -219,7 +218,6 @@ export const getMyLeads = query({
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
       } catch {
-        // Fallback to full table scan if index fails
         const all = await ctx.db.query("leads").collect();
         allLeads = all.filter(
           (l) => String(l.assignedTo ?? "") === String(currentUser._id),
@@ -228,12 +226,12 @@ export const getMyLeads = query({
 
       allLeads.sort((a, b) => a._creationTime - b._creationTime);
 
-      // Manual pagination
       const startIdx = cursor ? parseInt(cursor) : 0;
       const leads = allLeads.slice(startIdx, startIdx + numItems);
       const isDone = startIdx + numItems >= allLeads.length;
       const continueCursor = isDone ? null : String(startIdx + numItems);
 
+      // CRITICAL: Just return leads directly, no spreading
       return {
         page: leads,
         isDone,
