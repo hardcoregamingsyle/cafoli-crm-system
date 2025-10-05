@@ -245,7 +245,7 @@ export function Layout({ children }: LayoutProps) {
   };
 
   // Build lead objects from parsed CSV using fixed column order
-  // Order: [0] Name, [1] Source, [2] Email, [3] Phone No., [4] Alt Email, [5] Alt Phone No, [6] Subject, [7] Message, [8] State, [9] Station, [10] District, [11] Pincode, [12] Agency Name
+  // Order: [0] Name, [1] Source, [2] Email, [3] Phone No., [4] Alt Email, [5] Alt Phone No, [6] Subject, [7] Message, [8] State, [9] Station, [10] District, [11] Pincode, [12] Agency Name, [13] Country
   const mapRowsToLeads = (rows: Array<string[]>) => {
     const mapped = rows.map((cols) => {
       const name = (cols[0] ?? "").trim();
@@ -261,6 +261,7 @@ export function Layout({ children }: LayoutProps) {
       const district = (cols[10] ?? "").trim();
       const pincode = (cols[11] ?? "").trim();
       const agencyName = (cols[12] ?? "").trim();
+      const country = (cols[13] ?? "").trim();
 
       return {
         name,
@@ -276,6 +277,7 @@ export function Layout({ children }: LayoutProps) {
         district: district || undefined,
         pincode: pincode || undefined,
         agencyName: agencyName || undefined,
+        country: country || undefined,
       };
     });
 
@@ -668,7 +670,8 @@ export function Layout({ children }: LayoutProps) {
                         "Station",
                         "District",
                         "Pincode",
-                        "Agency Name"
+                        "Agency Name",
+                        "Country"
                       ];
                       const csvContent = headers.join(",");
                       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -954,6 +957,7 @@ export function Layout({ children }: LayoutProps) {
                           district: leadForm.district || undefined,
                           pincode: leadForm.pincode || undefined,
                           agencyName: leadForm.agencyName || undefined,
+                          country: undefined, // Country is not editable, set from GET requests only
                         },
                       ],
                       currentUserId: currentUser._id,
