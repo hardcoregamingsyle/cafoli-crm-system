@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
+    currentUser && currentUser.role === ROLES.ADMIN ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
   ) ?? []
   const assignableUsers =
     useQuery(
