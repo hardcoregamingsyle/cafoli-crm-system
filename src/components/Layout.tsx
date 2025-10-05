@@ -51,15 +51,17 @@ export function Layout({ children }: LayoutProps) {
   const { currentUser, logout, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [authReady, setAuthReady] = useState(false);
+
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    currentUser ? { currentUserId: currentUser._id } : "skip",
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip",
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser && currentUser.role === ROLES.ADMIN
+    currentUser && authReady && currentUser.role === ROLES.ADMIN
       ? {
           filter: "all",
           currentUserId: currentUser._id,
@@ -69,7 +71,7 @@ export function Layout({ children }: LayoutProps) {
   );
   const assignableUsers = useQuery(
     api.users.getAssignableUsers,
-    currentUser ? { currentUserId: currentUser._id } : "skip",
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip",
   );
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
@@ -122,6 +124,8 @@ export function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     initializeAuth();
+    const t = setTimeout(() => setAuthReady(true), 50);
+    return () => clearTimeout(t);
   }, []); // run once to avoid re-run loops
 
   // Play sound + toast when new leads arrive (single vs multiple)
