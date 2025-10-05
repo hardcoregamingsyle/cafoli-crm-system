@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
+    currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
@@ -227,7 +227,7 @@ function AdminDashboard({ currentUser, authReady }: { currentUser: any; authRead
   
   const allLeads = useQuery(
     api.leads.getAllLeads,
-    shouldFetch ? { filter: "all", currentUserId: currentUser._id, paginationOpts: { numItems: 1000, cursor: null } } : "skip"
+    shouldFetch ? { filter: "all", currentUserId: currentUser._id } : "skip"
   );
 
   const unattendedLeads = useQuery(
