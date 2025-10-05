@@ -545,17 +545,24 @@ export const bulkCreateLeads = mutation({
               .withIndex("pincode", (q: any) => q.eq("pincode", pin))
               .unique();
           } catch {
-            const all = await ctx.db
-              .query("pincodeMappings")
-              .withIndex("pincode", (q: any) => q.eq("pincode", pin))
-              .collect();
-            mapping = all[0] || null;
+            // Gracefully handle invalid pincode - try collect as fallback
+            try {
+              const all = await ctx.db
+                .query("pincodeMappings")
+                .withIndex("pincode", (q: any) => q.eq("pincode", pin))
+                .collect();
+              mapping = all[0] || null;
+            } catch {
+              // Invalid pincode - gracefully ignore and continue with provided state/district
+              mapping = null;
+            }
           }
           if (mapping) {
             // Override CSV values with pincode mapping
             finalState = mapping.state;
             finalDistrict = mapping.district;
           }
+          // If no mapping found, gracefully continue with incoming state/district values
         }
       }
 
@@ -627,13 +634,14 @@ export const bulkCreateLeads = mutation({
           relatedLeadId: existing._id,
         });
       } else {
-        // Create fresh lead including extended fields with pincode-mapped state/district
+        // Create fresh lead including extended fields with pincode-mapped state/district and country
         const leadId = await ctx.db.insert("leads", {
           ...incoming,
           state: finalState,
           district: finalDistrict,
           status: LEAD_STATUS.YET_TO_DECIDE,
           assignedTo: args.assignedTo,
+          country: incoming.country || undefined,
         });
 
         // NEW: Send welcome email immediately on creation if email is valid
