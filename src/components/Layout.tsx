@@ -88,6 +88,9 @@ export function Layout({ children }: LayoutProps) {
     // Only run this effect if user is authenticated and is an admin
     if (!currentUser || currentUser.role !== ROLES.ADMIN) return;
     
+    // Don't access allLeadsForExport if it's not available
+    if (!allLeadsForExport) return;
+    
     const count = ((allLeadsForExport as any)?.page ?? []).length;
     if (prevLeadsCount !== null && count > prevLeadsCount) {
       const diff = count - prevLeadsCount;
@@ -98,7 +101,7 @@ export function Layout({ children }: LayoutProps) {
       } catch {}
     }
     setPrevLeadsCount(count);
-  }, [currentUser, ((allLeadsForExport as any)?.page ?? []).length, prevLeadsCount]);
+  }, [currentUser, allLeadsForExport, prevLeadsCount]);
 
   // New: Play bike sound + toast when a lead is assigned to the current user
   useEffect(() => {
