@@ -75,7 +75,11 @@ export const getAllLeads = query({
         !currentUser ||
         (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)
       ) {
-        return [];
+        return {
+          page: [],
+          isDone: true,
+          continueCursor: null,
+        };
       }
 
       // Build leads list with pagination
@@ -198,7 +202,11 @@ export const getMyLeads = query({
       }
 
       if (!currentUser || currentUser.role === ROLES.ADMIN) {
-        return [];
+        return {
+          page: [],
+          isDone: true,
+          continueCursor: null,
+        };
       }
 
       const numItems = args.paginationOpts?.numItems ?? 50;
