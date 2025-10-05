@@ -147,6 +147,9 @@ export function Layout({ children }: LayoutProps) {
 
   // New: Play bike sound + toast when a lead is assigned to the current user
   useEffect(() => {
+    // Skip if query is not available (e.g., for Admin users)
+    if (!myLeadsForAssignSound) return;
+    
     const count = ((myLeadsForAssignSound as any)?.page ?? []).length;
     if (prevAssignedCount !== null && count > prevAssignedCount) {
       const diff = count - prevAssignedCount;
@@ -159,7 +162,7 @@ export function Layout({ children }: LayoutProps) {
     setPrevAssignedCount(count);
   }, [
     currentUser,
-    ((myLeadsForAssignSound as any)?.page ?? []).length,
+    myLeadsForAssignSound,
     prevAssignedCount,
   ]);
 
