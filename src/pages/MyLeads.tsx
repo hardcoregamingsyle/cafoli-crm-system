@@ -38,10 +38,32 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
-  const leads = useQuery(
+  const [paginationCursor, setPaginationCursor] = useState<string | null>(null);
+  const [allLoadedLeads, setAllLoadedLeads] = useState<any[]>([]);
+  
+  const leadsResult = useQuery(
     api.leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { 
+      currentUserId: currentUser._id,
+      paginationOpts: { numItems: 50, cursor: paginationCursor }
+    } : "skip"
   );
+  
+  // Accumulate leads as pages load
+  useEffect(() => {
+    if ((leadsResult as any)?.page) {
+      if (paginationCursor === null) {
+        // First page - replace all
+        setAllLoadedLeads((leadsResult as any).page);
+      } else {
+        // Subsequent pages - append
+        setAllLoadedLeads(prev => [...prev, ...(leadsResult as any).page]);
+      }
+    }
+  }, [leadsResult, paginationCursor]);
+  
+  const leads = allLoadedLeads;
+  const hasMore = (leadsResult as any)?.isDone === false;
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
@@ -732,6 +754,17 @@ export default function MyLeadsPage() {
                 </AccordionItem>
               ))}
             </Accordion>
+            
+            {hasMore && (
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setPaginationCursor((leadsResult as any)?.continueCursor ?? null)}
+                >
+                  Load More Leads
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -4,12 +4,16 @@ import { getCurrentUser } from "./users";
 import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 import { internal } from "./_generated/api";
 
-// Get all leads (Admin and Manager only)
+// Get all leads (Admin and Manager only) - with pagination
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    })),
   },
   handler: async (ctx, args) => {
     try {
@@ -57,13 +61,24 @@ export const getAllLeads = query({
         return [];
       }
 
-      // Build leads list
+      // Build leads list with pagination
+      const numItems = args.paginationOpts?.numItems ?? 50;
+      const cursor = args.paginationOpts?.cursor ?? null;
+      
       let leads: any[] = [];
+      let isDone = false;
+      let continueCursor: string | null = null;
       
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads
         const all = await ctx.db.query("leads").collect();
-        leads = all.filter((l) => l.assignedTo === undefined);
+        const filtered = all.filter((l) => l.assignedTo === undefined);
+        
+        // Manual pagination for filtered results
+        const startIdx = cursor ? parseInt(cursor) : 0;
+        leads = filtered.slice(startIdx, startIdx + numItems);
+        isDone = startIdx + numItems >= filtered.length;
+        continueCursor = isDone ? null : String(startIdx + numItems);
       } else {
         // Admin can see all leads with filtering
         const rawAssignee = args.assigneeId;
@@ -82,24 +97,31 @@ export const getAllLeads = query({
 
         const all = await ctx.db.query("leads").collect();
 
+        let filtered: any[] = [];
         if (normalizedAssignee === "unassigned") {
-          leads = all.filter((l) => l.assignedTo === undefined);
+          filtered = all.filter((l) => l.assignedTo === undefined);
         } else if (normalizedAssignee && normalizedAssignee !== "all") {
-          leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
+          filtered = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
         } else {
           // Apply general filter
           if (args.filter === "assigned") {
-            leads = all.filter((l) => l.assignedTo !== undefined);
+            filtered = all.filter((l) => l.assignedTo !== undefined);
           } else if (args.filter === "unassigned") {
-            leads = all.filter((l) => l.assignedTo === undefined);
+            filtered = all.filter((l) => l.assignedTo === undefined);
           } else {
-            leads = all;
+            filtered = all;
           }
         }
+        
+        // Sort by creation time
+        filtered.sort((a, b) => a._creationTime - b._creationTime);
+        
+        // Manual pagination for filtered results
+        const startIdx = cursor ? parseInt(cursor) : 0;
+        leads = filtered.slice(startIdx, startIdx + numItems);
+        isDone = startIdx + numItems >= filtered.length;
+        continueCursor = isDone ? null : String(startIdx + numItems);
       }
-
-      // Sort by creation time and add assignedUserName for display
-      leads.sort((a, b) => a._creationTime - b._creationTime);
 
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
@@ -116,7 +138,11 @@ export const getAllLeads = query({
         enrichedLeads.push({ ...lead, assignedUserName });
       }
 
-      return enrichedLeads;
+      return {
+        page: enrichedLeads,
+        isDone,
+        continueCursor,
+      };
     } catch (err) {
       console.error("getAllLeads error:", err);
       return [];
@@ -124,10 +150,14 @@ export const getAllLeads = query({
   },
 });
 
-// Get leads assigned to current user (Manager and Staff only)
+// Get leads assigned to current user (Manager and Staff only) - with pagination
 export const getMyLeads = query({
   args: {
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    })),
   },
   handler: async (ctx, args) => {
     try {
@@ -145,20 +175,34 @@ export const getMyLeads = query({
         return [];
       }
 
-      let leads: any[] = [];
+      const numItems = args.paginationOpts?.numItems ?? 50;
+      const cursor = args.paginationOpts?.cursor ?? null;
+      
+      let allLeads: any[] = [];
       try {
-        leads = await ctx.db
+        allLeads = await ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
       } catch {
         // Fallback to full table scan if index fails
         const all = await ctx.db.query("leads").collect();
-        leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+        allLeads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
       }
 
-      leads.sort((a, b) => a._creationTime - b._creationTime);
-      return leads;
+      allLeads.sort((a, b) => a._creationTime - b._creationTime);
+      
+      // Manual pagination
+      const startIdx = cursor ? parseInt(cursor) : 0;
+      const leads = allLeads.slice(startIdx, startIdx + numItems);
+      const isDone = startIdx + numItems >= allLeads.length;
+      const continueCursor = isDone ? null : String(startIdx + numItems);
+      
+      return {
+        page: leads,
+        isDone,
+        continueCursor,
+      };
     } catch (err) {
       console.error("getMyLeads error:", err);
       return [];
