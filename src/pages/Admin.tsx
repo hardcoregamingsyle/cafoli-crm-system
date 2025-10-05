@@ -14,9 +14,12 @@ import { toast } from "sonner";
 export default function AdminPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     initializeAuth();
+    const t = setTimeout(() => setAuthReady(true), 50);
+    return () => clearTimeout(t);
   }, []); // run once to avoid re-run loops
 
   // Redirect unauthenticated users to login
@@ -27,7 +30,10 @@ export default function AdminPage() {
     }
   }, [currentUser, navigate]);
 
-  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }) ?? [];
+  const users = useQuery(
+    api.users.getAllUsers,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
   const createUser = useMutation(api.users.createUser);
   const updateUserRole = useMutation(api.users.updateUserRole);
   const deleteUser = useMutation(api.users.deleteUser);
@@ -39,7 +45,7 @@ export default function AdminPage() {
   // Email key manager hooks
   const emailKeys = useQuery(
     api.emailKeys.listEmailApiKeys,
-    currentUser?._id && currentUser.role === ROLES.ADMIN
+    currentUser && authReady && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   ) ?? [];
