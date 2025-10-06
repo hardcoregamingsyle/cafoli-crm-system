@@ -1,28 +1,11 @@
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -55,33 +38,10 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
-  const [paginationCursor, setPaginationCursor] = useState<string | null>(null);
-  const [allLoadedLeads, setAllLoadedLeads] = useState<any[]>([]);
-
-  const leadsResult = useQuery(
+  const leads = useQuery(
     api.leads.getMyLeads,
-    currentUser
-      ? {
-          currentUserId: currentUser._id,
-        }
-      : "skip",
+    currentUser ? { currentUserId: currentUser._id } : "skip"
   );
-
-  // Accumulate leads as pages load
-  useEffect(() => {
-    if ((leadsResult as any)?.page) {
-      if (paginationCursor === null) {
-        // First page - replace all
-        setAllLoadedLeads((leadsResult as any).page);
-      } else {
-        // Subsequent pages - append
-        setAllLoadedLeads((prev) => [...prev, ...(leadsResult as any).page]);
-      }
-    }
-  }, [leadsResult, paginationCursor]);
-
-  const leads = allLoadedLeads;
-  const hasMore = (leadsResult as any)?.isDone === false;
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
@@ -92,9 +52,7 @@ export default function MyLeadsPage() {
   const [search, setSearch] = useState("");
 
   // Add follow filter state (Follow or No Followup)
-  const [followFilter, setFollowFilter] = useState<
-    "all" | "follow" | "no_followup"
-  >("all");
+  const [followFilter, setFollowFilter] = useState<"all" | "follow" | "no_followup">("all");
 
   // Add popup state for 1-minute warning
   const [showFollowupPopup, setShowFollowupPopup] = useState(false);
@@ -108,13 +66,10 @@ export default function MyLeadsPage() {
       try {
         const now = Date.now();
         for (const lead of (leads ?? []) as Array<any>) {
-          const ts =
-            typeof lead?.nextFollowup === "number"
-              ? (lead.nextFollowup as number)
-              : null;
+          const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
           if (!ts || ts <= now) continue;
           const minutesRemaining = Math.round((ts - now) / 60000);
-
+          
           // Show popup for 1 minute warning
           if (minutesRemaining === 1) {
             const key = `${String(lead._id)}:${minutesRemaining}`;
@@ -151,7 +106,7 @@ export default function MyLeadsPage() {
 
   // Replace previous filteredLeads computation with search + follow filter + sorting
   const filteredLeads = (() => {
-    const list: Array<any> = leads ?? [];
+    const list: Array<any> = (leads ?? []);
     const q = (search || "").trim().toLowerCase();
 
     // Base: search filter
@@ -170,11 +125,7 @@ export default function MyLeadsPage() {
         lead?.district,
         lead?.station,
       ];
-      return fields.some((f: any) =>
-        String(f || "")
-          .toLowerCase()
-          .includes(q),
-      );
+      return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
     });
 
     // Add "all" behavior
@@ -183,8 +134,7 @@ export default function MyLeadsPage() {
       return searched.sort((a: any, b: any) => {
         const aHas = typeof a?.nextFollowup === "number";
         const bHas = typeof b?.nextFollowup === "number";
-        if (aHas && bHas)
-          return (a.nextFollowup as number) - (b.nextFollowup as number);
+        if (aHas && bHas) return (a.nextFollowup as number) - (b.nextFollowup as number);
         if (aHas && !bHas) return -1;
         if (!aHas && bHas) return 1;
         return (a?._creationTime ?? 0) - (b?._creationTime ?? 0);
@@ -195,39 +145,18 @@ export default function MyLeadsPage() {
       // Leads with no nextFollowup, sort oldest to newest by _creationTime
       return searched
         .filter((lead: any) => !(typeof lead?.nextFollowup === "number"))
-        .sort(
-          (a: any, b: any) => (a?._creationTime ?? 0) - (b?._creationTime ?? 0),
-        );
+        .sort((a: any, b: any) => (a?._creationTime ?? 0) - (b?._creationTime ?? 0));
     } else {
       // "follow": leads with nextFollowup set, sort closest to latest
       return searched
         .filter((lead: any) => typeof lead?.nextFollowup === "number")
-        .sort(
-          (a: any, b: any) =>
-            (a.nextFollowup as number) - (b.nextFollowup as number),
-        );
+        .sort((a: any, b: any) => (a.nextFollowup as number) - (b.nextFollowup as number));
     }
   })();
 
-  if (!currentUser)
-    return (
-      <Layout>
-        <div />
-      </Layout>
-    );
+  if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role === ROLES.ADMIN) {
-    return (
-      <Layout>
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>Admins don't have access to My Leads.</CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
+    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Admins don't have access to My Leads.</CardContent></Card></div></Layout>;
   }
 
   return (
@@ -238,12 +167,13 @@ export default function MyLeadsPage() {
           <DialogHeader>
             <DialogTitle>Follow-up Reminder</DialogTitle>
             <DialogDescription>
-              Your Followup with {popupLeadName} is in 1 Minute. Remember to
-              Followup.
+              Your Followup with {popupLeadName} is in 1 Minute. Remember to Followup.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end">
-            <Button onClick={() => setShowFollowupPopup(false)}>Got it</Button>
+            <Button onClick={() => setShowFollowupPopup(false)}>
+              Got it
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -263,13 +193,9 @@ export default function MyLeadsPage() {
             <div className="w-full sm:w-44">
               <Select
                 value={followFilter}
-                onValueChange={(v) =>
-                  setFollowFilter(v as "all" | "follow" | "no_followup")
-                }
+                onValueChange={(v) => setFollowFilter(v as "all" | "follow" | "no_followup")}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Follow filter" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Follow filter" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="follow">Follow</SelectItem>
@@ -291,21 +217,12 @@ export default function MyLeadsPage() {
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
                       <div className="text-sm">
-                        <div className="font-medium">
-                          {lead.name}{" "}
-                          <span className="text-gray-500">
-                            • {lead.subject}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 line-clamp-1">
-                          {lead.message}
-                        </div>
+                        <div className="font-medium">{lead.name} <span className="text-gray-500">• {lead.subject}</span></div>
+                        <div className="text-xs text-gray-600 line-clamp-1">{lead.message}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">Assigned</Badge>
-                        <Badge className="capitalize">
-                          {lead.status || "yet_to_decide"}
-                        </Badge>
+                        <Badge className="capitalize">{lead.status || "yet_to_decide"}</Badge>
                       </div>
                     </div>
                   </AccordionTrigger>
@@ -329,38 +246,22 @@ export default function MyLeadsPage() {
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Alt. Email</div>
-                        <div className="text-sm break-all">
-                          {lead.altEmail || "-"}
-                        </div>
+                        <div className="text-sm break-all">{lead.altEmail || "-"}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">
-                          Next Followup
-                        </div>
-                        <div className="text-sm">
-                          {lead.nextFollowup
-                            ? new Date(lead.nextFollowup).toLocaleString()
-                            : "Not set"}
-                        </div>
+                        <div className="text-xs text-gray-500">Next Followup</div>
+                        <div className="text-sm">{lead.nextFollowup ? new Date(lead.nextFollowup).toLocaleString() : "Not set"}</div>
                       </div>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-4 py-2">
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Name{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Name {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.name || ""}
                             placeholder="Enter name"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -368,20 +269,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    name: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, name: val, currentUserId: currentUser._id });
                                   toast.success("Name saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save name",
-                                  );
+                                  toast.error(err?.message || "Failed to save name");
                                 }
                               }}
                             >
@@ -391,20 +285,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Subject{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Subject {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.subject || ""}
                             placeholder="Enter subject"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -412,20 +298,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    subject: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, subject: val, currentUserId: currentUser._id });
                                   toast.success("Subject saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save subject",
-                                  );
+                                  toast.error(err?.message || "Failed to save subject");
                                 }
                               }}
                             >
@@ -435,20 +314,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Message{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Message {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.message || ""}
                             placeholder="Enter message"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -456,20 +327,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    message: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, message: val, currentUserId: currentUser._id });
                                   toast.success("Message saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save message",
-                                  );
+                                  toast.error(err?.message || "Failed to save message");
                                 }
                               }}
                             >
@@ -482,20 +346,12 @@ export default function MyLeadsPage() {
 
                     <div className="grid md:grid-cols-5 gap-4 py-2">
                       <div className="md:col-span-2 space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Agency Name{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Agency Name {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.agencyName || ""}
                             placeholder="Enter agency name"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -503,21 +359,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    agencyName: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, agencyName: val, currentUserId: currentUser._id });
                                   toast.success("Agency name saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message ||
-                                      "Failed to save agency name",
-                                  );
+                                  toast.error(err?.message || "Failed to save agency name");
                                 }
                               }}
                             >
@@ -527,20 +375,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Pincode{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Pincode {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.pincode || ""}
                             placeholder="Enter pincode"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -548,20 +388,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    pincode: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, pincode: val, currentUserId: currentUser._id });
                                   toast.success("Pincode saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save pincode",
-                                  );
+                                  toast.error(err?.message || "Failed to save pincode");
                                 }
                               }}
                             >
@@ -571,20 +404,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          State{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">State {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.state || ""}
                             placeholder="Enter state"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -592,20 +417,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    state: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, state: val, currentUserId: currentUser._id });
                                   toast.success("State saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save state",
-                                  );
+                                  toast.error(err?.message || "Failed to save state");
                                 }
                               }}
                             >
@@ -615,20 +433,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          District{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">District {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.district || ""}
                             placeholder="Enter district"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -636,20 +446,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    district: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, district: val, currentUserId: currentUser._id });
                                   toast.success("District saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save district",
-                                  );
+                                  toast.error(err?.message || "Failed to save district");
                                 }
                               }}
                             >
@@ -659,20 +462,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Station{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Station {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.station || ""}
                             placeholder="Enter station"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -680,20 +475,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    station: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, station: val, currentUserId: currentUser._id });
                                   toast.success("Station saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save station",
-                                  );
+                                  toast.error(err?.message || "Failed to save station");
                                 }
                               }}
                             >
@@ -706,20 +494,12 @@ export default function MyLeadsPage() {
 
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Mobile No.{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Mobile No. {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.mobileNo || ""}
                             placeholder="Enter mobile"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -727,20 +507,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    mobileNo: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, mobileNo: val, currentUserId: currentUser._id });
                                   toast.success("Mobile saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save mobile",
-                                  );
+                                  toast.error(err?.message || "Failed to save mobile");
                                 }
                               }}
                             >
@@ -750,20 +523,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Alt Mobile No.{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Alt Mobile No. {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altMobileNo || ""}
                             placeholder="Enter alt mobile"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -771,20 +536,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    altMobileNo: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, altMobileNo: val, currentUserId: currentUser._id });
                                   toast.success("Alt mobile saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save alt mobile",
-                                  );
+                                  toast.error(err?.message || "Failed to save alt mobile");
                                 }
                               }}
                             >
@@ -794,20 +552,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Email{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Email {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.email || ""}
                             placeholder="Enter email"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -815,20 +565,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    email: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, email: val, currentUserId: currentUser._id });
                                   toast.success("Email saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save email",
-                                  );
+                                  toast.error(err?.message || "Failed to save email");
                                 }
                               }}
                             >
@@ -838,20 +581,12 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">
-                          Alt Email{" "}
-                          {currentUser.role === ROLES.MANAGER
-                            ? "(Manual Input)"
-                            : ""}
-                        </div>
+                        <div className="text-xs text-gray-500">Alt Email {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altEmail || ""}
                             placeholder="Enter alt email"
-                            onChange={(e) =>
-                              ((e.currentTarget as any)._val =
-                                e.currentTarget.value)
-                            }
+                            onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
                             disabled={currentUser.role !== ROLES.MANAGER}
                           />
                           {currentUser.role === ROLES.MANAGER && (
@@ -859,20 +594,13 @@ export default function MyLeadsPage() {
                               variant="outline"
                               size="sm"
                               onClick={async (e) => {
-                                const input = e.currentTarget
-                                  .previousElementSibling as any;
+                                const input = (e.currentTarget.previousElementSibling as any);
                                 const val = input?._val ?? input?.value ?? "";
                                 try {
-                                  await updateLeadDetails({
-                                    leadId: lead._id,
-                                    altEmail: val,
-                                    currentUserId: currentUser._id,
-                                  });
+                                  await updateLeadDetails({ leadId: lead._id, altEmail: val, currentUserId: currentUser._id });
                                   toast.success("Alt email saved");
                                 } catch (err: any) {
-                                  toast.error(
-                                    err?.message || "Failed to save alt email",
-                                  );
+                                  toast.error(err?.message || "Failed to save alt email");
                                 }
                               }}
                             >
@@ -887,45 +615,27 @@ export default function MyLeadsPage() {
                       <div className="space-y-2">
                         <div className="text-xs text-gray-500">Relevant</div>
                         <Select
-                          defaultValue={
-                            (lead.status || LEAD_STATUS.YET_TO_DECIDE) as string
-                          }
+                          defaultValue={(lead.status || LEAD_STATUS.YET_TO_DECIDE) as string}
                           onValueChange={async (val) => {
                             try {
-                              await updateLeadStatus({
-                                leadId: lead._id,
-                                status: val as any,
-                                currentUserId: currentUser._id,
-                              });
+                              await updateLeadStatus({ leadId: lead._id, status: val as any, currentUserId: currentUser._id });
                               if (val === LEAD_STATUS.NOT_RELEVANT) {
                                 toast.success("Lead deleted");
                               } else if (val === LEAD_STATUS.RELEVANT) {
-                                toast.success(
-                                  "Marked relevant (auto email to be added later)",
-                                );
+                                toast.success("Marked relevant (auto email to be added later)");
                               } else {
                                 toast.success("Marked yet-to-decide");
                               }
                             } catch (e: any) {
-                              toast.error(
-                                e.message || "Failed to update status",
-                              );
+                              toast.error(e.message || "Failed to update status");
                             }
                           }}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={LEAD_STATUS.RELEVANT}>
-                              Relevant
-                            </SelectItem>
-                            <SelectItem value={LEAD_STATUS.NOT_RELEVANT}>
-                              Not-Relevant
-                            </SelectItem>
-                            <SelectItem value={LEAD_STATUS.YET_TO_DECIDE}>
-                              Yet-to-Decide
-                            </SelectItem>
+                            <SelectItem value={LEAD_STATUS.RELEVANT}>Relevant</SelectItem>
+                            <SelectItem value={LEAD_STATUS.NOT_RELEVANT}>Not-Relevant</SelectItem>
+                            <SelectItem value={LEAD_STATUS.YET_TO_DECIDE}>Yet-to-Decide</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -936,68 +646,45 @@ export default function MyLeadsPage() {
                           defaultValue={String(lead.heat || "")}
                           onValueChange={async (val) => {
                             try {
-                              await updateLeadHeat({
-                                leadId: lead._id,
-                                heat: val as any,
-                                currentUserId: currentUser._id,
-                              });
+                              await updateLeadHeat({ leadId: lead._id, heat: val as any, currentUserId: currentUser._id });
                               toast.success("Lead type updated");
                             } catch (e: any) {
-                              toast.error(
-                                e?.message || "Failed to update lead type",
-                              );
+                              toast.error(e?.message || "Failed to update lead type");
                             }
                           }}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select lead type" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Select lead type" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="hot">Hot Lead</SelectItem>
                             <SelectItem value="cold">Cold Lead</SelectItem>
-                            <SelectItem value="matured">
-                              Matured Lead
-                            </SelectItem>
+                            <SelectItem value="matured">Matured Lead</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <div className="text-xs text-gray-500">
-                          Set Next Followup
-                        </div>
+                        <div className="text-xs text-gray-500">Set Next Followup</div>
                         <div className="flex items-center gap-2">
                           <Input
                             type="datetime-local"
                             onChange={(e) => {
-                              (e.currentTarget as any)._ts = new Date(
-                                e.target.value,
-                              ).getTime();
+                              (e.currentTarget as any)._ts = new Date(e.target.value).getTime();
                             }}
                           />
                           <Button
                             variant="outline"
                             onClick={async (e) => {
-                              const input =
-                                e.currentTarget.parentElement?.querySelector(
-                                  "input[type='datetime-local']",
-                                ) as any;
+                              const input = (e.currentTarget.parentElement?.querySelector("input[type='datetime-local']") as any);
                               const ts = input?._ts;
                               if (!ts || isNaN(ts)) {
                                 toast.error("Pick a valid date/time");
                                 return;
                               }
                               try {
-                                await setNextFollowup({
-                                  leadId: lead._id,
-                                  followupTime: ts,
-                                  currentUserId: currentUser._id,
-                                });
+                                await setNextFollowup({ leadId: lead._id, followupTime: ts, currentUserId: currentUser._id });
                                 toast.success("Followup set");
                               } catch (err: any) {
-                                toast.error(
-                                  err.message || "Failed to set followup",
-                                );
+                                toast.error(err.message || "Failed to set followup");
                               }
                             }}
                           >
@@ -1008,9 +695,7 @@ export default function MyLeadsPage() {
 
                       {currentUser.role !== ROLES.ADMIN && (
                         <div className="space-y-2">
-                          <div className="text-xs text-gray-500">
-                            Assignment
-                          </div>
+                          <div className="text-xs text-gray-500">Assignment</div>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
@@ -1023,9 +708,7 @@ export default function MyLeadsPage() {
                                   });
                                   toast.success("Lead unassigned");
                                 } catch (e: any) {
-                                  toast.error(
-                                    e?.message || "Failed to unassign",
-                                  );
+                                  toast.error(e?.message || "Failed to unassign");
                                 }
                               }}
                             >
@@ -1035,10 +718,7 @@ export default function MyLeadsPage() {
                         </div>
                       )}
 
-                      <CommentsBox
-                        leadId={lead._id}
-                        currentUserId={currentUser._id}
-                      />
+                      <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
 
                     <div className="mt-4">
@@ -1052,21 +732,6 @@ export default function MyLeadsPage() {
                 </AccordionItem>
               ))}
             </Accordion>
-
-            {hasMore && (
-              <div className="flex justify-center mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setPaginationCursor(
-                      (leadsResult as any)?.continueCursor ?? null,
-                    )
-                  }
-                >
-                  Load More Leads
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -1074,18 +739,8 @@ export default function MyLeadsPage() {
   );
 }
 
-function CommentsBox({
-  leadId,
-  currentUserId,
-}: {
-  leadId: string;
-  currentUserId: string;
-}) {
-  const comments =
-    useQuery(api.comments.getLeadComments, {
-      leadId: leadId as any,
-      currentUserId: currentUserId as any,
-    }) ?? [];
+function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
+  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
   const addComment = useMutation(api.comments.addComment);
   const [content, setContent] = useState("");
 
@@ -1093,16 +748,11 @@ function CommentsBox({
     <div className="space-y-2">
       <div className="text-xs text-gray-500">Comments</div>
       <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-        {comments.length === 0 && (
-          <div className="text-xs text-gray-400">No comments yet</div>
-        )}
+        {comments.length === 0 && <div className="text-xs text-gray-400">No comments yet</div>}
         {comments.map((c: any) => (
           <div key={c._id} className="text-xs">
             <span className="font-medium">{c.userName}</span>: {c.content}
-            <span className="text-gray-400">
-              {" "}
-              • {new Date(c.timestamp).toLocaleString()}
-            </span>
+            <span className="text-gray-400"> • {new Date(c.timestamp).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -1117,11 +767,7 @@ function CommentsBox({
           onClick={async () => {
             if (!content.trim()) return;
             try {
-              await addComment({
-                leadId: leadId as any,
-                content,
-                currentUserId: currentUserId as any,
-              });
+              await addComment({ leadId: leadId as any, content, currentUserId: currentUserId as any });
               setContent("");
             } catch (e: any) {
               toast.error(e.message || "Failed to add comment");
@@ -1135,15 +781,7 @@ function CommentsBox({
   );
 }
 
-function SendSmsButtons({
-  primary,
-  secondary,
-  contactPhoneLabel,
-}: {
-  primary: string;
-  secondary?: string | null;
-  contactPhoneLabel: string;
-}) {
+function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
   // Use Convex action to send SMS via backend with SMS_API_KEY
   const sendSms = useAction(api.sms.send);
   const [sending, setSending] = useState(false);
@@ -1159,9 +797,7 @@ function SendSmsButtons({
       setSending(true);
       const res: any = await sendSms({ to: phone, message: msg });
       const snippet = String(res?.response ?? "").slice(0, 140);
-      toast.success(
-        `SMS sent to ${label}. Provider response: ${snippet || "OK"}`,
-      );
+      toast.success(`SMS sent to ${label}. Provider response: ${snippet || "OK"}`);
     } catch (e: any) {
       toast.error(e?.message || `Failed to send SMS to ${label}`);
     } finally {

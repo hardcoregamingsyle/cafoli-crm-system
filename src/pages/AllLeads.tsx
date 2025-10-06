@@ -22,15 +22,13 @@ export default function AllLeadsPage() {
   const location = useLocation();
 
   // Define dashboard-enforced heat route to avoid use-before-declaration issues
-  const enforcedHeatRoute: "hot" | "cold" | "mature" | "unattended" | "" =
+  const enforcedHeatRoute: "hot" | "cold" | "mature" | "" =
     location.pathname.includes("/dashboard/hot")
       ? "hot"
       : location.pathname.includes("/dashboard/cold")
       ? "cold"
       : location.pathname.includes("/dashboard/mature")
       ? "mature"
-      : location.pathname.includes("/dashboard/unattended")
-      ? "unattended"
       : "";
 
   // Add: wait for auth to settle before running queries (prevents early invalid args in deploy)
@@ -62,50 +60,19 @@ export default function AllLeadsPage() {
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  // Fetch data based on route
   const leads = useQuery(
     api.leads.getAllLeads,
-    currentUser && authReady && !enforcedHeatRoute
+    currentUser && authReady
       ? {
-          filter: currentUser.role === ROLES.ADMIN ? filter : "unassigned",
+          // Pass the selected filter to the backend so results match the UI buttons
+          filter,
           currentUserId: currentUser._id as any,
           assigneeId:
-            currentUser.role === ROLES.ADMIN && assigneeFilter !== "all"
-              ? assigneeFilter === "unassigned"
-                ? ("unassigned" as any)
-                : (assigneeFilter as any)
-              : undefined,
-        }
-      : "skip"
-  );
-
-  const unattendedLeads = useQuery(
-    api.leads.getUnattendedLeads,
-    currentUser && authReady && enforcedHeatRoute === "unattended"
-      ? {
-          currentUserId: currentUser._id as any,
-          assigneeId:
-            assigneeFilter !== "all"
-              ? assigneeFilter === "unassigned"
-                ? ("unassigned" as any)
-                : (assigneeFilter as any)
-              : undefined,
-        }
-      : "skip"
-  );
-
-  const heatLeads = useQuery(
-    api.leads.getLeadsByHeat,
-    currentUser && authReady && (enforcedHeatRoute === "hot" || enforcedHeatRoute === "cold" || enforcedHeatRoute === "mature")
-      ? {
-          currentUserId: currentUser._id as any,
-          heat: enforcedHeatRoute as any,
-          assigneeId:
-            assigneeFilter !== "all"
-              ? assigneeFilter === "unassigned"
-                ? ("unassigned" as any)
-                : (assigneeFilter as any)
-              : undefined,
+            assigneeFilter === "all"
+              ? undefined
+              : assigneeFilter === "unassigned"
+              ? ("unassigned" as any)
+              : (assigneeFilter as any),
         }
       : "skip"
   );
@@ -131,21 +98,18 @@ export default function AllLeadsPage() {
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
-  // Decide data source based on route
+  // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
-    if (!currentUser) return [];
+    if (!currentUser) return leads;
     
-    if (enforcedHeatRoute === "unattended") {
-      return unattendedLeads ?? [];
+    // For dashboard heat routes, non-admins should see their assigned leads
+    if (enforcedHeatRoute && currentUser.role !== ROLES.ADMIN) {
+      return myLeads;
     }
     
-    if (enforcedHeatRoute === "hot" || enforcedHeatRoute === "cold" || enforcedHeatRoute === "mature") {
-      return heatLeads ?? [];
-    }
-    
-    // Regular all leads page
-    return leads ?? [];
-  }, [currentUser, enforcedHeatRoute, leads, unattendedLeads, heatLeads]);
+    // For regular All Leads page, everyone sees the filtered results from getAllLeads
+    return leads;
+  }, [currentUser?.role, leads, myLeads, enforcedHeatRoute]);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -343,8 +307,6 @@ export default function AllLeadsPage() {
               ? "Hot Leads"
               : enforcedHeatRoute === "mature"
               ? "Mature Leads"
-              : enforcedHeatRoute === "unattended"
-              ? "Unattended Leads"
               : "All Leads"}
           </h1>
 
@@ -358,57 +320,51 @@ export default function AllLeadsPage() {
               />
             </div>
 
-            {/* Only show filters for Admin */}
-            {currentUser.role === ROLES.ADMIN && !enforcedHeatRoute && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={filter === "all" ? "default" : "outline"}
-                  onClick={() => setFilter("all")}
-                  className="shrink-0"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={filter === "assigned" ? "default" : "outline"}
-                  onClick={() => setFilter("assigned")}
-                  className="shrink-0"
-                >
-                  Assigned
-                </Button>
-                <Button
-                  variant={filter === "unassigned" ? "default" : "outline"}
-                  onClick={() => setFilter("unassigned")}
-                  className="shrink-0"
-                >
-                  Unassigned
-                </Button>
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={filter === "all" ? "default" : "outline"}
+                onClick={() => setFilter("all")}
+                className="shrink-0"
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === "assigned" ? "default" : "outline"}
+                onClick={() => setFilter("assigned")}
+                className="shrink-0"
+              >
+                Assigned
+              </Button>
+              <Button
+                variant={filter === "unassigned" ? "default" : "outline"}
+                onClick={() => setFilter("unassigned")}
+                className="shrink-0"
+              >
+                Unassigned
+              </Button>
+            </div>
 
-            {/* Account filter - only for Admin */}
-            {currentUser.role === ROLES.ADMIN && (
-              <div className="w-full sm:w-56">
-                <Select
-                  value={assigneeFilter}
-                  onValueChange={(val) => {
-                    setAssigneeFilter(val);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Filter by Account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Accounts</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(users ?? []).map((u: any) => (
-                      <SelectItem key={String(u._id)} value={String(u._id)}>
-                        {u.name || u.username || "Unknown"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="w-full sm:w-56">
+              <Select
+                value={assigneeFilter}
+                onValueChange={(val) => {
+                  setAssigneeFilter(val);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {(users ?? []).map((u: any) => (
+                    <SelectItem key={String(u._id)} value={String(u._id)}>
+                      {u.name || u.username || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
