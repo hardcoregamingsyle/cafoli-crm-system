@@ -5,7 +5,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
 import { ROLES } from "@/convex/schema";
@@ -31,55 +31,38 @@ function splitCounts(list: Array<any>) {
   return { total, indiamart, pharmavends, oldData };
 }
 
-export default function DashboardPage() {
-  const { currentUser, initializeAuth } = useCrmAuth();
+export default function Dashboard() {
+  const { currentUser } = useCrmAuth();
   const navigate = useNavigate();
-  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    initializeAuth();
-    const t = setTimeout(() => setAuthReady(true), 50);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    if (!currentUser) {
-      navigate("/");
-    }
+    if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
 
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser && currentUser.role !== ROLES.ADMIN ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
     api.comments.getAllCommentsForUser,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
-  if (!currentUser) return <Layout><div /></Layout>;
+  if (!currentUser) return null;
 
-  // Wait for auth to be ready before rendering ANY dashboard content
-  if (!authReady) return <Layout><div /></Layout>;
-
-  // Admin Dashboard - Different view
-  if (currentUser.role === ROLES.ADMIN) {
-    return <AdminDashboard currentUser={currentUser} authReady={authReady} />;
-  }
-
-  const myLeadsList = ((myLeads as any)?.page ?? []);
-  const myLeadsCount = myLeadsList.length || 0;
-  const hotList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "hot");
-  const coldList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "cold");
-  const maturedList = myLeadsList.filter((l: any) => (l.heat || "").toLowerCase() === "matured");
+  // Compute requested metrics from my leads
+  const myLeadsCount = myLeads?.length || 0;
+  const hotList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "hot");
+  const coldList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "cold");
+  const maturedList = (myLeads ?? []).filter((l: any) => (l.heat || "").toLowerCase() === "matured");
   const hotLeads = hotList.length;
   const coldLeads = coldList.length;
   const maturedLeads = maturedList.length;
 
   // ADD: compute breakdowns for each card scope
-  const allBreak = splitCounts(myLeadsList);
+  const allBreak = splitCounts(myLeads ?? []);
   const hotBreak = splitCounts(hotList);
   const coldBreak = splitCounts(coldList);
   const maturedBreak = splitCounts(maturedList);
@@ -88,7 +71,7 @@ export default function DashboardPage() {
   const now = Date.now();
   
   // Filter leads that have followups (past or future) that haven't been completed
-  const pendingFollowups = (myLeadsList ?? [])
+  const pendingFollowups = (myLeads ?? [])
     .filter((lead: any) => {
       if (!lead.nextFollowup) return false;
       
@@ -212,107 +195,6 @@ export default function DashboardPage() {
             );
           })}
         </div>
-      </div>
-    </Layout>
-  );
-}
-
-// New Admin Dashboard Component
-function AdminDashboard({ currentUser, authReady }: { currentUser: any; authReady: boolean }) {
-  const navigate = useNavigate();
-  
-  // Only fetch if user is confirmed admin and auth is ready
-  const isAdmin = currentUser?.role === ROLES.ADMIN;
-  const shouldFetch = isAdmin && authReady && currentUser?._id;
-  
-  const allLeads = useQuery(
-    api.leads.getAllLeads,
-    shouldFetch ? { filter: "all", currentUserId: currentUser._id } : "skip"
-  );
-
-  const unattendedLeads = useQuery(
-    api.leads.getUnattendedLeads,
-    shouldFetch ? { currentUserId: currentUser._id } : "skip"
-  );
-
-  const hotLeads = useQuery(
-    api.leads.getLeadsByHeat,
-    shouldFetch ? { currentUserId: currentUser._id, heat: "hot" } : "skip"
-  );
-
-  const coldLeads = useQuery(
-    api.leads.getLeadsByHeat,
-    shouldFetch ? { currentUserId: currentUser._id, heat: "cold" } : "skip"
-  );
-
-  const matureLeads = useQuery(
-    api.leads.getLeadsByHeat,
-    shouldFetch ? { currentUserId: currentUser._id, heat: "matured" } : "skip"
-  );
-
-  const metrics = [
-    {
-      title: "Unattended Leads",
-      value: unattendedLeads?.length ?? 0,
-      description: "Leads older than 48h with no activity",
-      route: "/dashboard/unattended",
-      color: "text-red-600",
-    },
-    {
-      title: "Hot Leads",
-      value: hotLeads?.length ?? 0,
-      description: "High priority leads",
-      route: "/dashboard/hot",
-      color: "text-orange-600",
-    },
-    {
-      title: "Cold Leads",
-      value: coldLeads?.length ?? 0,
-      description: "Low priority leads",
-      route: "/dashboard/cold",
-      color: "text-blue-600",
-    },
-    {
-      title: "Mature Leads",
-      value: matureLeads?.length ?? 0,
-      description: "Matured leads",
-      route: "/dashboard/mature",
-      color: "text-green-600",
-    },
-  ];
-
-  return (
-    <Layout>
-      <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric) => (
-            <Card
-              key={metric.route}
-              className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-blue-100"
-              onClick={() => navigate(metric.route)}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${metric.color}`}>{metric.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">{metric.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
-          <CardHeader>
-            <CardTitle>Total Leads Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{((allLeads as any)?.page ?? []).length ?? 0}</div>
-            <p className="text-sm text-muted-foreground">Total leads in system</p>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   );

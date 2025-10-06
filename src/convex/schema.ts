@@ -65,7 +65,6 @@ const schema = defineSchema(
       district: v.optional(v.string()), // Column O
       pincode: v.optional(v.string()), // Column P
       agencyName: v.optional(v.string()), // Column Q
-      country: v.optional(v.string()), // Column R - not editable
       nextFollowup: v.optional(v.number()), // timestamp
       status: v.optional(leadStatusValidator),
       heat: v.optional(v.union(v.literal("hot"), v.literal("cold"), v.literal("matured"))), // new field

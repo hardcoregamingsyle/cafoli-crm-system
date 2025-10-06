@@ -19,7 +19,7 @@ import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 
-const convex = new ConvexReactClient("https://precious-cricket-778.convex.cloud");
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 function RouteSyncer() {
   const location = useLocation();
@@ -59,7 +59,6 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/dashboard/assigned" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/followup" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/unattended" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/cold" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/hot" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/mature" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
