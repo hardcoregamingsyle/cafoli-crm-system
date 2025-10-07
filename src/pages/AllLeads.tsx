@@ -320,51 +320,55 @@ export default function AllLeadsPage() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={filter === "all" ? "default" : "outline"}
-                onClick={() => setFilter("all")}
-                className="shrink-0"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === "assigned" ? "default" : "outline"}
-                onClick={() => setFilter("assigned")}
-                className="shrink-0"
-              >
-                Assigned
-              </Button>
-              <Button
-                variant={filter === "unassigned" ? "default" : "outline"}
-                onClick={() => setFilter("unassigned")}
-                className="shrink-0"
-              >
-                Unassigned
-              </Button>
-            </div>
+            {currentUser.role === ROLES.ADMIN && (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={filter === "all" ? "default" : "outline"}
+                    onClick={() => setFilter("all")}
+                    className="shrink-0"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={filter === "assigned" ? "default" : "outline"}
+                    onClick={() => setFilter("assigned")}
+                    className="shrink-0"
+                  >
+                    Assigned
+                  </Button>
+                  <Button
+                    variant={filter === "unassigned" ? "default" : "outline"}
+                    onClick={() => setFilter("unassigned")}
+                    className="shrink-0"
+                  >
+                    Unassigned
+                  </Button>
+                </div>
 
-            <div className="w-full sm:w-56">
-              <Select
-                value={assigneeFilter}
-                onValueChange={(val) => {
-                  setAssigneeFilter(val);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Filter by Account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {(users ?? []).map((u: any) => (
-                    <SelectItem key={String(u._id)} value={String(u._id)}>
-                      {u.name || u.username || "Unknown"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="w-full sm:w-56">
+                  <Select
+                    value={assigneeFilter}
+                    onValueChange={(val) => {
+                      setAssigneeFilter(val);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by Account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Accounts</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {(users ?? []).map((u: any) => (
+                        <SelectItem key={String(u._id)} value={String(u._id)}>
+                          {u.name || u.username || "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
