@@ -58,6 +58,7 @@ export default function MyLeadsPage() {
   // Filter states
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
 
   // Add popup state for 1-minute warning
@@ -160,6 +161,12 @@ export default function MyLeadsPage() {
         if (!selectedSources.includes(leadSource)) return false;
       }
 
+      // Heat filter
+      if (selectedHeats.length > 0) {
+        const leadHeat = lead?.heat || "";
+        if (!selectedHeats.includes(leadHeat)) return false;
+      }
+
       return true;
     });
 
@@ -172,7 +179,7 @@ export default function MyLeadsPage() {
       if (!aHas && bHas) return 1;
       return (a?._creationTime ?? 0) - (b?._creationTime ?? 0);
     });
-  }, [leads, search, selectedStatuses, selectedSources]);
+  }, [leads, search, selectedStatuses, selectedSources, selectedHeats]);
 
   // Toggle functions for filters
   const toggleStatus = (status: string) => {
@@ -187,9 +194,16 @@ export default function MyLeadsPage() {
     );
   };
 
+  const toggleHeat = (heat: string) => {
+    setSelectedHeats(prev => 
+      prev.includes(heat) ? prev.filter(h => h !== heat) : [...prev, heat]
+    );
+  };
+
   const clearFilters = () => {
     setSelectedStatuses([]);
     setSelectedSources([]);
+    setSelectedHeats([]);
   };
 
   if (!currentUser) return <Layout><div /></Layout>;
@@ -233,9 +247,9 @@ export default function MyLeadsPage() {
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
                     <Badge variant="secondary" className="ml-2">
-                      {selectedStatuses.length + selectedSources.length}
+                      {selectedStatuses.length + selectedSources.length + selectedHeats.length}
                     </Badge>
                   )}
                 </Button>
@@ -320,8 +334,56 @@ export default function MyLeadsPage() {
                     </div>
                   </div>
 
+                  {/* Heat Filters */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Lead Type</h3>
+                      {selectedHeats.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedHeats([])}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-hot"
+                          checked={selectedHeats.includes("hot")}
+                          onCheckedChange={() => toggleHeat("hot")}
+                        />
+                        <Label htmlFor="heat-hot" className="cursor-pointer">
+                          Hot
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-cold"
+                          checked={selectedHeats.includes("cold")}
+                          onCheckedChange={() => toggleHeat("cold")}
+                        />
+                        <Label htmlFor="heat-cold" className="cursor-pointer">
+                          Cold
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-matured"
+                          checked={selectedHeats.includes("matured")}
+                          onCheckedChange={() => toggleHeat("matured")}
+                        />
+                        <Label htmlFor="heat-matured" className="cursor-pointer">
+                          Mature
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Clear All Button */}
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
                     <Button 
                       variant="outline" 
                       className="w-full"
