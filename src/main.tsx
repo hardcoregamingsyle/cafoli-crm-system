@@ -55,8 +55,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <RouteSyncer />
         <Routes>
-          <Route path="/" element={<ConvexProviderWrapper><Landing /></ConvexProviderWrapper>} />
-          <Route path="/login" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
+          <Route path="/" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
           <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/dashboard/assigned" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/followup" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
