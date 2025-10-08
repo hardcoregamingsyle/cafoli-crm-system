@@ -72,12 +72,24 @@ function ErrorDialog({
         <DialogHeader>
           <DialogTitle>Runtime Error</DialogTitle>
         </DialogHeader>
-        A Runtime error has occurred, Please copy the full message and send it to the Developer with a Screenshot.
-        Thank you for you patience and Sorry for the inconvinience
-        <div className="mt-4">
-            <CollapsibleContent className="max-w-[460px]">
-              <div className="mt-2 p-3 bg-neutral-800 rounded text-white text-sm overflow-x-auto max-h-100 max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <pre className="whitespace-pre">{error.stack}</pre>
+        <div className="mt-2">
+          A Runtime Error Occurred. Please copy and paste the error message to the Developer with a full screen screenshot.
+        </div>
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm mt-4">
+            See error details <ChevronDown className="h-4 w-4" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="p-3 bg-neutral-800 rounded text-white text-sm overflow-x-auto max-h-96">
+              <pre className="whitespace-pre-wrap">{error.stack}</pre>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+        <DialogFooter className="mt-4">
+          <Button variant="secondary" onClick={() => setError(null)}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
