@@ -72,32 +72,12 @@ function ErrorDialog({
         <DialogHeader>
           <DialogTitle>Runtime Error</DialogTitle>
         </DialogHeader>
-        A runtime error occurred. Open the vly editor to automatically debug the
-        error.
+        A Runtime error has occurred, Please copy the full message and send it to the Developer with a Screenshot.
+        Thank you for you patience and Sorry for the inconvinience
         <div className="mt-4">
-          <Collapsible>
-            <CollapsibleTrigger>
-              <div className="flex items-center font-bold cursor-pointer">
-                See error details <ChevronDown />
-              </div>
-            </CollapsibleTrigger>
             <CollapsibleContent className="max-w-[460px]">
-              <div className="mt-2 p-3 bg-neutral-800 rounded text-white text-sm overflow-x-auto max-h-60 max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="mt-2 p-3 bg-neutral-800 rounded text-white text-sm overflow-x-auto max-h-100 max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <pre className="whitespace-pre">{error.stack}</pre>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-        <DialogFooter>
-          <a
-            href={`https://vly.ai/project/${import.meta.env.VITE_VLY_APP_ID}`}
-            target="_blank"
-          >
-            <Button>
-              <ExternalLink /> Open editor
-            </Button>
-          </a>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
