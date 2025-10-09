@@ -61,9 +61,9 @@ export const getAllLeads = query({
       let leads: any[] = [];
       
       if (currentUser.role === ROLES.MANAGER) {
-        // Managers only see unassigned leads
+        // Managers only see unassigned leads (excluding not relevant)
         const all = await ctx.db.query("leads").collect();
-        leads = all.filter((l) => l.assignedTo === undefined);
+        leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
       } else {
         // Admin can see all leads with filtering
         const rawAssignee = args.assigneeId;
@@ -83,17 +83,17 @@ export const getAllLeads = query({
         const all = await ctx.db.query("leads").collect();
 
         if (normalizedAssignee === "unassigned") {
-          leads = all.filter((l) => l.assignedTo === undefined);
+          leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
         } else if (normalizedAssignee && normalizedAssignee !== "all") {
-          leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee));
+          leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee) && l.status !== LEAD_STATUS.NOT_RELEVANT);
         } else {
           // Apply general filter
           if (args.filter === "assigned") {
-            leads = all.filter((l) => l.assignedTo !== undefined);
+            leads = all.filter((l) => l.assignedTo !== undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else if (args.filter === "unassigned") {
-            leads = all.filter((l) => l.assignedTo === undefined);
+            leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else {
-            leads = all;
+            leads = all.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
           }
         }
       }
@@ -157,6 +157,9 @@ export const getMyLeads = query({
         leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
       }
 
+      // Filter out not relevant leads
+      leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+
       leads.sort((a, b) => a._creationTime - b._creationTime);
       return leads;
     } catch (err) {
@@ -187,6 +190,12 @@ async function findDuplicateLead(ctx: any, mobileNo: string, email: string) {
   return byEmail;
 }
 
+// Check if a lead was previously marked as not relevant
+async function wasMarkedNotRelevant(ctx: any, mobileNo: string, email: string) {
+  const duplicate = await findDuplicateLead(ctx, mobileNo, email);
+  return duplicate && duplicate.status === LEAD_STATUS.NOT_RELEVANT;
+}
+
 // Create lead with deduplication
 export const createLead = mutation({
   args: {
@@ -201,6 +210,12 @@ export const createLead = mutation({
     source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Check if this lead was previously marked as not relevant
+    if (await wasMarkedNotRelevant(ctx, args.mobileNo, args.email)) {
+      // Silently skip creating this lead
+      return null;
+    }
+
     const existing = await findDuplicateLead(ctx, args.mobileNo, args.email);
 
     if (existing) {
@@ -374,25 +389,16 @@ export const updateLeadStatus = mutation({
       throw new Error("You can only update leads assigned to you");
     }
     
-    if (args.status === LEAD_STATUS.NOT_RELEVANT) {
-      await ctx.db.delete(args.leadId);
-      await ctx.db.insert("auditLogs", {
-        userId: currentUser._id,
-        action: "DELETE_LEAD",
-        details: `Marked lead "${lead.name}" as not relevant and deleted`,
-        timestamp: Date.now(),
-      });
-    } else {
-      await ctx.db.patch(args.leadId, { status: args.status });
+    // Instead of deleting, just mark as not relevant
+    await ctx.db.patch(args.leadId, { status: args.status });
 
-      await ctx.db.insert("auditLogs", {
-        userId: currentUser._id,
-        action: "UPDATE_LEAD_STATUS",
-        details: `Updated lead "${lead.name}" status to ${args.status}`,
-        timestamp: Date.now(),
-        relatedLeadId: args.leadId,
-      });
-    }
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: args.status === LEAD_STATUS.NOT_RELEVANT ? "MARK_NOT_RELEVANT" : "UPDATE_LEAD_STATUS",
+      details: `Updated lead "${lead.name}" status to ${args.status}`,
+      timestamp: Date.now(),
+      relatedLeadId: args.leadId,
+    });
   },
 });
 
@@ -530,6 +536,12 @@ export const bulkCreateLeads = mutation({
     let importedCount = 0;
 
     for (const incoming of args.leads) {
+      // Check if this lead was previously marked as not relevant
+      if (await wasMarkedNotRelevant(ctx, incoming.mobileNo, incoming.email)) {
+        // Skip this lead silently
+        continue;
+      }
+
       // NEW: Auto-apply pincode mapping if pincode is provided
       let finalState = incoming.state;
       let finalDistrict = incoming.district;
@@ -1033,6 +1045,52 @@ export const bulkImportPincodeMappings = mutation({
       details: `Imported/updated ${upserts} pincode mapping(s)`,
       timestamp: Date.now(),
     });
+  },
+});
+
+// Get all leads marked as not relevant (Admin only)
+export const getNotRelevantLeads = query({
+  args: {
+    currentUserId: v.union(v.id("users"), v.string()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      let currentUser: any = null;
+      try {
+        currentUser = await ctx.db.get(args.currentUserId as any);
+      } catch {
+        return [];
+      }
+
+      if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+        return [];
+      }
+
+      const allLeads = await ctx.db.query("leads").collect();
+      const notRelevantLeads = allLeads.filter((l) => l.status === LEAD_STATUS.NOT_RELEVANT);
+
+      // Sort by creation time and add assignedUserName
+      notRelevantLeads.sort((a, b) => a._creationTime - b._creationTime);
+
+      const enrichedLeads: any[] = [];
+      for (const lead of notRelevantLeads) {
+        let assignedUserName: string | null = null;
+        if (lead.assignedTo) {
+          try {
+            const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+            assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+          } catch {
+            assignedUserName = "Unknown";
+          }
+        }
+        enrichedLeads.push({ ...lead, assignedUserName });
+      }
+
+      return enrichedLeads;
+    } catch (err) {
+      console.error("getNotRelevantLeads error:", err);
+      return [];
+    }
   },
 });
 
