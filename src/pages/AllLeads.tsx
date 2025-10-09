@@ -50,6 +50,7 @@ export default function AllLeadsPage() {
   }, [currentUser, navigate]);
 
   const [filter, setFilter] = useState<Filter>("all");
+  const [showNotRelevant, setShowNotRelevant] = useState(false);
   // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
   useEffect(() => {
     if (!authReady || !currentUser) return;
@@ -98,9 +99,21 @@ export default function AllLeadsPage() {
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
+  const notRelevantLeads = useQuery(
+    api.leads.getNotRelevantLeads,
+    currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
+      : "skip"
+  );
+
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
     if (!currentUser) return leads;
+    
+    // If showing not relevant leads, use that data source
+    if (showNotRelevant && currentUser.role === ROLES.ADMIN) {
+      return notRelevantLeads;
+    }
     
     // For dashboard heat routes, non-admins should see their assigned leads
     if (enforcedHeatRoute && currentUser.role !== ROLES.ADMIN) {
@@ -109,7 +122,7 @@ export default function AllLeadsPage() {
     
     // For regular All Leads page, everyone sees the filtered results from getAllLeads
     return leads;
-  }, [currentUser?.role, leads, myLeads, enforcedHeatRoute]);
+  }, [currentUser?.role, leads, myLeads, enforcedHeatRoute, showNotRelevant, notRelevantLeads]);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -301,7 +314,9 @@ export default function AllLeadsPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">
-            {enforcedHeatRoute === "cold"
+            {showNotRelevant
+              ? "Not Relevant Leads"
+              : enforcedHeatRoute === "cold"
               ? "Cold Leads"
               : enforcedHeatRoute === "hot"
               ? "Hot Leads"
@@ -325,24 +340,40 @@ export default function AllLeadsPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={filter === "all" ? "default" : "outline"}
-                    onClick={() => setFilter("all")}
+                    onClick={() => {
+                      setFilter("all");
+                      setShowNotRelevant(false);
+                    }}
                     className="shrink-0"
                   >
                     All
                   </Button>
                   <Button
                     variant={filter === "assigned" ? "default" : "outline"}
-                    onClick={() => setFilter("assigned")}
+                    onClick={() => {
+                      setFilter("assigned");
+                      setShowNotRelevant(false);
+                    }}
                     className="shrink-0"
                   >
                     Assigned
                   </Button>
                   <Button
                     variant={filter === "unassigned" ? "default" : "outline"}
-                    onClick={() => setFilter("unassigned")}
+                    onClick={() => {
+                      setFilter("unassigned");
+                      setShowNotRelevant(false);
+                    }}
                     className="shrink-0"
                   >
                     Unassigned
+                  </Button>
+                  <Button
+                    variant={showNotRelevant ? "default" : "outline"}
+                    onClick={() => setShowNotRelevant(!showNotRelevant)}
+                    className="shrink-0"
+                  >
+                    Not Relevant
                   </Button>
                 </div>
 
