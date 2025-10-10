@@ -461,12 +461,13 @@ export function Layout({ children }: LayoutProps) {
       icon: FileText,
       roles: [ROLES.MANAGER, ROLES.STAFF] 
     },
-    { 
-      label: "Campaigns", 
-      path: "/campaigns", 
-      icon: Send,
-      roles: [ROLES.ADMIN, ROLES.MANAGER] 
-    },
+    // Temporarily disabled Campaigns
+    // { 
+    //   label: "Campaigns", 
+    //   path: "/campaigns", 
+    //   icon: Send,
+    //   roles: [ROLES.ADMIN, ROLES.MANAGER] 
+    // },
     { 
       label: "Admin Panel", 
       path: "/admin", 
