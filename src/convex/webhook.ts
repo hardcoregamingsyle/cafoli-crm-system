@@ -1,6 +1,7 @@
 import { internalMutation, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { ROLES } from "./schema";
+import { internal } from "./_generated/api";
 
 // Add: helper to ensure a valid userId always exists for logging
 async function ensureLoggingUserId(ctx: any) {
@@ -199,7 +200,7 @@ export const createLeadFromGoogleScript = internalMutation({
     }
 
     // Insert new lead with optional assignment
-    await ctx.db.insert("leads", {
+    const leadId = await ctx.db.insert("leads", {
       serialNo: args.serialNo,
       source: args.source || "google_script",
       name: args.name,
@@ -217,6 +218,17 @@ export const createLeadFromGoogleScript = internalMutation({
       assignedTo: incomingAssigneeId || undefined,
       status: "yet_to_decide",
     });
+
+    // NEW: Send welcome email immediately if email is valid
+    try {
+      const emailToSend = rawEmail.trim().toLowerCase();
+      if (emailToSend && emailToSend !== "unknown@example.com") {
+        await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: emailToSend });
+      }
+    } catch {
+      // Do not block lead creation on email errors
+    }
+
     // Return explicit creation result
     return true;
   },
@@ -297,7 +309,7 @@ export const createLeadFromSource = internalMutation({
     }
 
     // Insert new lead (store placeholder email as-is or leave empty if you prefer)
-    await ctx.db.insert("leads", {
+    const leadId = await ctx.db.insert("leads", {
       name: args.name,
       subject: args.subject,
       message: args.message,
@@ -309,6 +321,17 @@ export const createLeadFromSource = internalMutation({
       status: "yet_to_decide",
       source: args.source,
     });
+
+    // NEW: Send welcome email immediately if email is valid
+    try {
+      const emailToSend = rawEmail.trim().toLowerCase();
+      if (emailToSend && emailToSend !== "unknown@example.com") {
+        await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: emailToSend });
+      }
+    } catch {
+      // Do not block lead creation on email errors
+    }
+
     // Return explicit creation result
     return true;
   },
