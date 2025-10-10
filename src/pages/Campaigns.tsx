@@ -11,12 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { PlusCircle, Send, Trash2, Edit } from "lucide-react";
 import { ROLES } from "@/convex/schema";
 
 export default function CampaignsPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
+  const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
@@ -250,30 +252,19 @@ export default function CampaignsPage() {
               {formData.recipientType === "custom" && (
                 <div>
                   <Label>Select Leads</Label>
-                  <div className="border rounded p-2 max-h-40 overflow-y-auto space-y-1">
-                    {availableLeads?.map((lead: any) => (
-                      <label key={lead._id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedLeads.includes(lead._id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                selectedLeads: [...formData.selectedLeads, lead._id],
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                selectedLeads: formData.selectedLeads.filter((id) => id !== lead._id),
-                              });
-                            }
-                          }}
-                        />
-                        <span className="text-sm">{lead.name} ({lead.email})</span>
-                      </label>
-                    ))}
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      if (editingCampaignId) {
+                        navigate(`/campaigns/select/${editingCampaignId}`);
+                      } else {
+                        toast.info("Please save the campaign first before selecting recipients");
+                      }
+                    }}
+                  >
+                    Select Recipients ({formData.selectedLeads.length} selected)
+                  </Button>
                 </div>
               )}
               {formData.recipientType !== "custom" && (
