@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu } from "lucide-react";
+import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu, User, KeyRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
@@ -14,13 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { currentUser, logout, initializeAuth } = useCrmAuth();
+  const { currentUser, logout, initializeAuth, originalAdmin, returnToAdmin } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useQuery(
@@ -78,6 +79,15 @@ export function Layout({ children }: LayoutProps) {
 
   // Add: Track previous assigned-to-me leads count to detect new assignments
   const [prevAssignedCount, setPrevAssignedCount] = useState<number | null>(null);
+
+  // Add: Change password dialog state
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const changePasswordMutation = useMutation(api.users.changePassword);
 
   useEffect(() => {
     initializeAuth();
@@ -398,6 +408,39 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
+  const handleChangePassword = async () => {
+    try {
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+      if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+        toast.error("All fields are required");
+        return;
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        toast.error("New passwords do not match");
+        return;
+      }
+      if (passwordForm.newPassword.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        return;
+      }
+      
+      await changePasswordMutation({
+        currentUserId: currentUser._id,
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      
+      toast.success("Password changed successfully");
+      setChangePasswordOpen(false);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to change password");
+    }
+  };
+
   if (!currentUser) {
     return <>{children}</>;
   }
@@ -438,6 +481,23 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Admin Impersonation Banner */}
+      {originalAdmin && (
+        <div className="bg-yellow-500 text-black px-4 py-2 text-center font-medium flex items-center justify-center gap-4">
+          <span>
+            Logged in as <strong>{currentUser?.name || currentUser?.username}</strong> (Admin View)
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={returnToAdmin}
+            className="bg-white hover:bg-gray-100"
+          >
+            Return to Admin
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
@@ -753,19 +813,27 @@ export function Layout({ children }: LayoutProps) {
 
               {/* User Info + Logout */}
               <div className="hidden sm:flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={logout}
-                  className="text-gray-500 hover:text-red-600"
-                  aria-label="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+                      </div>
+                      <User className="w-5 h-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+                      <KeyRound className="w-4 h-4 mr-2" />
+                      Change Password
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={logout} className="text-red-600">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               {/* Compact logout for mobile */}
               <Button
@@ -786,6 +854,43 @@ export function Layout({ children }: LayoutProps) {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="password"
+              placeholder="Current Password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+            />
+            <Input
+              type="password"
+              placeholder="New Password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+            />
+            <Input
+              type="password"
+              placeholder="Confirm New Password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangePasswordOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword}>
+              Change Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Dialog */}
       {isAdmin && (
