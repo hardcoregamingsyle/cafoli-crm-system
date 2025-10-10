@@ -94,16 +94,21 @@ export const getCampaigns = query({
     currentUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.currentUserId);
-    if (!user) return [];
+    try {
+      const user = await ctx.db.get(args.currentUserId);
+      if (!user) return [];
 
-    if (user.role === ROLES.ADMIN) {
-      return await ctx.db.query("campaigns").collect();
-    } else {
-      return await ctx.db
-        .query("campaigns")
-        .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId))
-        .collect();
+      if (user.role === ROLES.ADMIN) {
+        return await ctx.db.query("campaigns").collect();
+      } else {
+        return await ctx.db
+          .query("campaigns")
+          .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId))
+          .collect();
+      }
+    } catch (error) {
+      console.error("Error in getCampaigns:", error);
+      return [];
     }
   },
 });
