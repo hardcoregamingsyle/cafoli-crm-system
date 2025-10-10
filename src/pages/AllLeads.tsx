@@ -60,20 +60,16 @@ export default function AllLeadsPage() {
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const leads = useQuery(
     api.leads.getAllLeads,
-    currentUser && authReady
+    currentUser && !showNotRelevant
       ? {
-          // Pass the selected filter to the backend so results match the UI buttons
           filter,
-          currentUserId: currentUser._id as any,
-          assigneeId:
-            assigneeFilter === "all"
-              ? undefined
-              : assigneeFilter === "unassigned"
-              ? ("unassigned" as any)
-              : (assigneeFilter as any),
+          currentUserId: currentUser._id,
+          assigneeId: selectedAssignee || undefined,
+          paginationOpts: { numItems: 100, cursor: null },
         }
       : "skip"
   );
@@ -101,27 +97,27 @@ export default function AllLeadsPage() {
 
   const notRelevantLeads = useQuery(
     api.leads.getNotRelevantLeads,
-    currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
-      ? { currentUserId: currentUser._id }
-      : "skip"
+    currentUser && showNotRelevant ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
-    if (!currentUser) return leads;
-    
-    // If showing not relevant leads, use that data source
-    if (showNotRelevant && currentUser.role === ROLES.ADMIN) {
-      return notRelevantLeads;
+    if (showNotRelevant) {
+      return (notRelevantLeads as any)?.page ?? [];
     }
     
-    // For dashboard heat routes, non-admins should see their assigned leads
-    if (enforcedHeatRoute && currentUser.role !== ROLES.ADMIN) {
-      return myLeads;
+    if (currentUser?.role === ROLES.ADMIN) {
+      return (leads as any)?.page ?? [];
     }
     
-    // For regular All Leads page, everyone sees the filtered results from getAllLeads
-    return leads;
+    if (currentUser?.role === ROLES.MANAGER) {
+      if (enforcedHeatRoute) {
+        return (myLeads as any)?.page ?? [];
+      }
+      return (leads as any)?.page ?? [];
+    }
+    
+    return (myLeads as any)?.page ?? [];
   }, [currentUser?.role, leads, myLeads, enforcedHeatRoute, showNotRelevant, notRelevantLeads]);
 
   const userOptions = useMemo(() => {

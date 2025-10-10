@@ -42,10 +42,28 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
-  const leads = useQuery(
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      await initializeAuth();
+      setAuthReady(true);
+    };
+    init();
+  }, []);
+
+  const leadsResult = useQuery(
     api.leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    authReady && currentUser
+      ? {
+          currentUserId: currentUser._id,
+          paginationOpts: { numItems: 100, cursor: null },
+        }
+      : "skip"
   );
+
+  const leads = (leadsResult as any)?.page ?? [];
+
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const assignLead = useMutation(api.leads.assignLead);
