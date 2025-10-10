@@ -91,19 +91,27 @@ export const deleteCampaign = mutation({
 
 export const getCampaigns = query({
   args: {
-    currentUserId: v.id("users"),
+    currentUserId: v.union(v.id("users"), v.string()),
   },
   handler: async (ctx, args) => {
     try {
-      const user = await ctx.db.get(args.currentUserId);
+      // Handle invalid ID format gracefully
+      let user;
+      try {
+        user = await ctx.db.get(args.currentUserId as any);
+      } catch (e) {
+        console.error("Invalid user ID format in getCampaigns:", args.currentUserId);
+        return [];
+      }
+      
       if (!user) return [];
 
-      if (user.role === ROLES.ADMIN) {
+      if ((user as any).role === ROLES.ADMIN) {
         return await ctx.db.query("campaigns").collect();
       } else {
         return await ctx.db
           .query("campaigns")
-          .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId))
+          .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId as any))
           .collect();
       }
     } catch (error) {
@@ -135,22 +143,35 @@ export const getCampaignById = query({
 
 export const getLeadsForCampaign = query({
   args: {
-    currentUserId: v.id("users"),
+    currentUserId: v.union(v.id("users"), v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.currentUserId);
-    if (!user) return [];
+    try {
+      // Handle invalid ID format gracefully
+      let user;
+      try {
+        user = await ctx.db.get(args.currentUserId as any);
+      } catch (e) {
+        console.error("Invalid user ID format in getLeadsForCampaign:", args.currentUserId);
+        return [];
+      }
+      
+      if (!user) return [];
 
-    if (user.role === ROLES.ADMIN) {
-      return await ctx.db.query("leads").collect();
-    } else if (user.role === ROLES.MANAGER) {
-      return await ctx.db
-        .query("leads")
-        .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId))
-        .collect();
+      if ((user as any).role === ROLES.ADMIN) {
+        return await ctx.db.query("leads").collect();
+      } else if ((user as any).role === ROLES.MANAGER) {
+        return await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId as any))
+          .collect();
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Error in getLeadsForCampaign:", error);
+      return [];
     }
-
-    return [];
   },
 });
 

@@ -39,12 +39,12 @@ export default function CampaignsPage() {
 
   const campaigns = useQuery(
     api.campaigns.getCampaigns,
-    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+    authReady && currentUser && currentUser._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   const availableLeads = useQuery(
     api.campaigns.getLeadsForCampaign,
-    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+    authReady && currentUser && currentUser._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   const createCampaign = useMutation(api.campaigns.createCampaign);
