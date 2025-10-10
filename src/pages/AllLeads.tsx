@@ -5,10 +5,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Filter } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { ROLES } from "@/convex/schema";
+import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router";
@@ -49,6 +53,15 @@ export default function AllLeadsPage() {
     }
   }, [currentUser, navigate]);
 
+  // Add search state
+  const [search, setSearch] = useState("");
+
+  // Add filter states
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const [filter, setFilter] = useState<Filter>("all");
   const [showNotRelevant, setShowNotRelevant] = useState(false);
   // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
@@ -60,7 +73,6 @@ export default function AllLeadsPage() {
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
   const leads = useQuery(
     api.leads.getAllLeads,
     currentUser && authReady
@@ -123,6 +135,17 @@ export default function AllLeadsPage() {
     // For regular All Leads page, everyone sees the filtered results from getAllLeads
     return leads;
   }, [currentUser?.role, leads, myLeads, enforcedHeatRoute, showNotRelevant, notRelevantLeads]);
+
+  // Get unique sources from all leads
+  const uniqueSources = useMemo(() => {
+    const sources = new Set<string>();
+    (sourceLeads ?? []).forEach((lead: any) => {
+      if (lead?.source) {
+        sources.add(lead.source);
+      }
+    });
+    return Array.from(sources).sort();
+  }, [sourceLeads]);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -210,54 +233,73 @@ export default function AllLeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Compute filtered leads locally
+  // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    const arr: Array<any> = ((sourceLeads ?? []) as Array<any>);
+    let list: Array<any> = sourceLeads ?? [];
+    const q = (search || "").trim().toLowerCase();
 
-    // Apply UI-level assignment filters so assigned leads disappear immediately on /all_leads
-    const withAssignFilters = arr.filter((lead: any) => {
-      const assignedId = String(
-        lead?.assignedTo ||
-          lead?.assignedUserId ||
-          lead?.assignedUser?._id ||
-          ""
-      );
-      const hasAssignee = !!assignedId || !!lead?.assignedUserName;
-
-      // Top buttons: All / Assigned / Unassigned
-      if (filter === "unassigned" && hasAssignee) return false;
-      if (filter === "assigned" && !hasAssignee) return false;
-
-      // Account dropdown: All / Unassigned / Specific user
-      if (assigneeFilter === "unassigned") return !hasAssignee;
-      if (assigneeFilter !== "all") {
-        return assignedId && assignedId === assigneeFilter;
+    // Apply all filters
+    const filtered = list.filter((lead: any) => {
+      // Search filter
+      if (q) {
+        const assignedUserName = lead?.assignedUser?.name || lead?.assignedUser?.username || "";
+        const fields = [
+          lead?.name,
+          lead?.subject,
+          lead?.message,
+          lead?.mobileNo,
+          lead?.altMobileNo,
+          lead?.email,
+          lead?.altEmail,
+          lead?.agencyName,
+          lead?.state,
+          lead?.district,
+          lead?.station,
+          lead?.source,
+          lead?.country,
+          assignedUserName,
+        ];
+        const matchesSearch = fields.some((f: any) => String(f || "").toLowerCase().includes(q));
+        if (!matchesSearch) return false;
       }
+
+      // Status filter
+      if (selectedStatuses.length > 0) {
+        const leadStatus = lead?.status || LEAD_STATUS.YET_TO_DECIDE;
+        if (!selectedStatuses.includes(leadStatus)) return false;
+      }
+
+      // Source filter
+      if (selectedSources.length > 0) {
+        const leadSource = lead?.source || "";
+        if (!selectedSources.includes(leadSource)) return false;
+      }
+
+      // Heat filter
+      if (selectedHeats.length > 0) {
+        const leadHeat = lead?.heat || "";
+        if (!selectedHeats.includes(leadHeat)) return false;
+      }
+
+      // ... keep existing enforcedHeatRoute filter logic
+      if (enforcedHeatRoute) {
+        const leadHeat = (lead?.heat || "").toLowerCase();
+        const normalizedRoute = enforcedHeatRoute === "mature" ? "matured" : enforcedHeatRoute;
+        const normalizedLead = leadHeat === "mature" ? "matured" : leadHeat;
+        if (normalizedLead !== normalizedRoute) return false;
+      }
+
       return true;
     });
 
-    const q = (search || "").trim().toLowerCase();
-    if (!q) return withAssignFilters;
-
-    return withAssignFilters.filter((lead: any) => {
-      const fields = [
-        lead?.name,
-        lead?.subject,
-        lead?.message,
-        lead?.mobileNo,
-        lead?.altMobileNo,
-        lead?.email,
-        lead?.altEmail,
-        lead?.agencyName,
-        lead?.state,
-        lead?.district,
-        lead?.station,
-        lead?.source,
-        lead?.assignedUserName,
-      ];
-      return fields.some((f) => String(f || "").toLowerCase().includes(q));
+    // ... keep existing sort logic
+    return filtered.sort((a: any, b: any) => {
+      const heatOrder: Record<string, number> = { hot: 0, mature: 1, matured: 1, cold: 2 };
+      const aHeat = heatOrder[String(a?.heat || "").toLowerCase()] ?? 3;
+      const bHeat = heatOrder[String(b?.heat || "").toLowerCase()] ?? 3;
+      return aHeat - bHeat;
     });
-  }, [sourceLeads, search, filter, assigneeFilter]);
+  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, enforcedHeatRoute]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
@@ -309,6 +351,31 @@ export default function AllLeadsPage() {
     (a, b) => heatOrder(a?.heat) - heatOrder(b?.heat)
   );
 
+  // Toggle functions for filters
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
+
+  const toggleSource = (source: string) => {
+    setSelectedSources(prev => 
+      prev.includes(source) ? prev.filter(s => s !== source) : [...prev, source]
+    );
+  };
+
+  const toggleHeat = (heat: string) => {
+    setSelectedHeats(prev => 
+      prev.includes(heat) ? prev.filter(h => h !== heat) : [...prev, heat]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedStatuses([]);
+    setSelectedSources([]);
+    setSelectedHeats([]);
+  };
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
@@ -325,15 +392,168 @@ export default function AllLeadsPage() {
               : "All Leads"}
           </h1>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <div className="flex-1 min-w-[180px] sm:min-w-[240px] sm:max-w-[260px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-full sm:w-64">
               <Input
                 placeholder="Search leads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full"
               />
             </div>
+
+            <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Filter
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                    <Badge variant="secondary" className="ml-2">
+                      {selectedStatuses.length + selectedSources.length + selectedHeats.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Filter Leads</SheetTitle>
+                  <SheetDescription>
+                    Select multiple filters to refine your leads
+                  </SheetDescription>
+                </SheetHeader>
+                
+                <div className="mt-6 space-y-6">
+                  {/* Status Filters */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Status</h3>
+                      {selectedStatuses.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedStatuses([])}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="status-relevant"
+                          checked={selectedStatuses.includes(LEAD_STATUS.RELEVANT)}
+                          onCheckedChange={() => toggleStatus(LEAD_STATUS.RELEVANT)}
+                        />
+                        <Label htmlFor="status-relevant" className="cursor-pointer">
+                          Relevant
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="status-yet-to-decide"
+                          checked={selectedStatuses.includes(LEAD_STATUS.YET_TO_DECIDE)}
+                          onCheckedChange={() => toggleStatus(LEAD_STATUS.YET_TO_DECIDE)}
+                        />
+                        <Label htmlFor="status-yet-to-decide" className="cursor-pointer">
+                          Yet to Decide
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Source Filters */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Lead Source</h3>
+                      {selectedSources.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedSources([])}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {uniqueSources.map((source) => (
+                        <div key={source} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`source-${source}`}
+                            checked={selectedSources.includes(source)}
+                            onCheckedChange={() => toggleSource(source)}
+                          />
+                          <Label htmlFor={`source-${source}`} className="cursor-pointer capitalize">
+                            {source}
+                          </Label>
+                        </div>
+                      ))}
+                      {uniqueSources.length === 0 && (
+                        <p className="text-sm text-gray-500">No sources available</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Heat Filters */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Lead Type</h3>
+                      {selectedHeats.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedHeats([])}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-hot"
+                          checked={selectedHeats.includes("hot")}
+                          onCheckedChange={() => toggleHeat("hot")}
+                        />
+                        <Label htmlFor="heat-hot" className="cursor-pointer">
+                          Hot
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-cold"
+                          checked={selectedHeats.includes("cold")}
+                          onCheckedChange={() => toggleHeat("cold")}
+                        />
+                        <Label htmlFor="heat-cold" className="cursor-pointer">
+                          Cold
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="heat-matured"
+                          checked={selectedHeats.includes("matured")}
+                          onCheckedChange={() => toggleHeat("matured")}
+                        />
+                        <Label htmlFor="heat-matured" className="cursor-pointer">
+                          Mature
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clear All Button */}
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={clearFilters}
+                    >
+                      Clear All Filters
+                    </Button>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {currentUser.role === ROLES.ADMIN && (
               <>
