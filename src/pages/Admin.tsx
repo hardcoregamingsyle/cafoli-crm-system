@@ -10,9 +10,11 @@ import { api } from "@/convex/_generated/api";
 import { ROLES, Role } from "@/convex/schema";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { KeyRound, LogIn } from "lucide-react";
 
 export default function AdminPage() {
-  const { currentUser, initializeAuth } = useCrmAuth();
+  const { currentUser, initializeAuth, impersonateUser } = useCrmAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +37,12 @@ export default function AdminPage() {
   const initializeDefaultUsers = useMutation(api.users.initializeDefaultUsers);
   const deleteAllUsersMutation = useMutation(api.users.deleteAllUsers);
   const deleteAllLeadsMutation = useMutation(api.leads.deleteAllLeads);
+  const adminChangePassword = useMutation(api.users.adminChangeUserPassword);
+  const loginAsUserMutation = useMutation(api.users.loginAsUser);
+
+  const [adminPasswordDialogOpen, setAdminPasswordDialogOpen] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
+  const [adminNewPassword, setAdminNewPassword] = useState("");
 
   // Email key manager hooks
   const emailKeys = useQuery(
@@ -222,7 +230,7 @@ export default function AdminPage() {
                   <div className="font-medium">{u.name || u.username}</div>
                   <div className="text-xs text-gray-500">{u.email || "-"}</div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Select
                     defaultValue={u.role || ROLES.STAFF}
                     onValueChange={async (val) => {
@@ -245,8 +253,45 @@ export default function AdminPage() {
                       <SelectItem value={ROLES.STAFF}>Staff</SelectItem>
                     </SelectContent>
                   </Select>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedUserForPassword(u);
+                      setAdminPasswordDialogOpen(true);
+                    }}
+                  >
+                    <KeyRound className="w-4 h-4 mr-1" />
+                    Change Password
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const confirm = window.confirm(`Login as ${u.name || u.username}?`);
+                      if (!confirm) return;
+                      try {
+                        const targetUser = await loginAsUserMutation({
+                          currentUserId: currentUser._id,
+                          targetUserId: u._id,
+                        });
+                        impersonateUser(targetUser, currentUser);
+                        toast.success(`Logged in as ${targetUser.name}`);
+                        navigate("/dashboard");
+                      } catch (e: any) {
+                        toast.error(e?.message || "Failed to login as user");
+                      }
+                    }}
+                  >
+                    <LogIn className="w-4 h-4 mr-1" />
+                    Login As
+                  </Button>
+                  
                   <Button
                     variant="destructive"
+                    size="sm"
                     onClick={async () => {
                       try {
                         await deleteUser({ 
@@ -275,6 +320,55 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+      
+      <Dialog open={adminPasswordDialogOpen} onOpenChange={setAdminPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password for {selectedUserForPassword?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="password"
+              placeholder="New Password"
+              value={adminNewPassword}
+              onChange={(e) => setAdminNewPassword(e.target.value)}
+            />
+            <p className="text-sm text-gray-600">
+              As admin, you can change this user's password without knowing their current password.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAdminPasswordDialogOpen(false);
+              setAdminNewPassword("");
+              setSelectedUserForPassword(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              try {
+                if (!adminNewPassword || adminNewPassword.length < 6) {
+                  toast.error("Password must be at least 6 characters");
+                  return;
+                }
+                await adminChangePassword({
+                  currentUserId: currentUser._id,
+                  targetUserId: selectedUserForPassword._id,
+                  newPassword: adminNewPassword,
+                });
+                toast.success("Password changed successfully");
+                setAdminPasswordDialogOpen(false);
+                setAdminNewPassword("");
+                setSelectedUserForPassword(null);
+              } catch (e: any) {
+                toast.error(e?.message || "Failed to change password");
+              }
+            }}>
+              Change Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

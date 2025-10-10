@@ -290,3 +290,96 @@ export const getAssignableUsers = query({
     return [];
   },
 });
+
+// Change own password
+export const changePassword = mutation({
+  args: {
+    currentUserId: v.id("users"),
+    currentPassword: v.string(),
+    newPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    if (user.password !== args.currentPassword) {
+      throw new Error("Current password is incorrect");
+    }
+    
+    if (args.newPassword.length < 6) {
+      throw new Error("New password must be at least 6 characters");
+    }
+    
+    await ctx.db.patch(args.currentUserId, { password: args.newPassword });
+    
+    await ctx.db.insert("auditLogs", {
+      userId: args.currentUserId,
+      action: "CHANGE_PASSWORD",
+      details: `User changed their own password`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+// Admin changes user password (no current password required)
+export const adminChangeUserPassword = mutation({
+  args: {
+    currentUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    newPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+    
+    const targetUser = await ctx.db.get(args.targetUserId);
+    if (!targetUser) {
+      throw new Error("Target user not found");
+    }
+    
+    if (args.newPassword.length < 6) {
+      throw new Error("New password must be at least 6 characters");
+    }
+    
+    await ctx.db.patch(args.targetUserId, { password: args.newPassword });
+    
+    await ctx.db.insert("auditLogs", {
+      userId: args.currentUserId,
+      action: "ADMIN_CHANGE_PASSWORD",
+      details: `Admin changed password for ${targetUser.username}`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+// Admin impersonation - returns the target user object
+export const loginAsUser = mutation({
+  args: {
+    currentUserId: v.id("users"),
+    targetUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+    
+    const targetUser = await ctx.db.get(args.targetUserId);
+    if (!targetUser) {
+      throw new Error("Target user not found");
+    }
+    
+    await ctx.db.insert("auditLogs", {
+      userId: args.currentUserId,
+      action: "ADMIN_IMPERSONATION",
+      details: `Admin logged in as ${targetUser.username}`,
+      timestamp: Date.now(),
+    });
+    
+    return targetUser;
+  },
+});

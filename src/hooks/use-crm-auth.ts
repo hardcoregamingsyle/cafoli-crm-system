@@ -14,6 +14,16 @@ export function useCrmAuth() {
     }
   });
   
+  // Track if admin is impersonating another user
+  const [originalAdmin, setOriginalAdmin] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem("originalAdmin");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  
   const loginMutation = useMutation(api.users.loginWithCredentials);
   
   const login = async (username: string, password: string) => {
@@ -32,7 +42,9 @@ export function useCrmAuth() {
   
   const logout = () => {
     setCurrentUser(null);
+    setOriginalAdmin(null);
     localStorage.removeItem("crmUser");
+    localStorage.removeItem("originalAdmin");
     // Redirect to login page
     window.location.href = "/";
   };
@@ -43,6 +55,29 @@ export function useCrmAuth() {
     if (stored) {
       setCurrentUser(JSON.parse(stored));
     }
+    const adminStored = localStorage.getItem("originalAdmin");
+    if (adminStored) {
+      setOriginalAdmin(JSON.parse(adminStored));
+    }
+  };
+  
+  const impersonateUser = (targetUser: any, adminUser: any) => {
+    // Store original admin
+    setOriginalAdmin(adminUser);
+    localStorage.setItem("originalAdmin", JSON.stringify(adminUser));
+    
+    // Switch to target user
+    setCurrentUser(targetUser);
+    localStorage.setItem("crmUser", JSON.stringify(targetUser));
+  };
+  
+  const returnToAdmin = () => {
+    if (originalAdmin) {
+      setCurrentUser(originalAdmin);
+      localStorage.setItem("crmUser", JSON.stringify(originalAdmin));
+      setOriginalAdmin(null);
+      localStorage.removeItem("originalAdmin");
+    }
   };
   
   return {
@@ -51,5 +86,8 @@ export function useCrmAuth() {
     login,
     logout,
     initializeAuth,
+    originalAdmin,
+    impersonateUser,
+    returnToAdmin,
   };
 }

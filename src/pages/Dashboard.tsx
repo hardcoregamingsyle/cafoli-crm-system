@@ -5,10 +5,11 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
 import { ROLES } from "@/convex/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // ADD: helpers to categorize sources and count breakdowns
 function normalizeSource(raw: any): string {
@@ -34,20 +35,34 @@ function splitCounts(list: Array<any>) {
 export default function Dashboard() {
   const { currentUser } = useCrmAuth();
   const navigate = useNavigate();
+  
+  // Add: Admin user selector state
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
 
+  // Add: Fetch all users for admin selector
+  const allUsers = useQuery(
+    api.users.getAllUsers,
+    currentUser?.role === ROLES.ADMIN ? { currentUserId: currentUser._id } : "skip"
+  );
+
+  // Determine which user's data to display
+  const displayUserId = currentUser?.role === ROLES.ADMIN && selectedUserId 
+    ? selectedUserId 
+    : currentUser?._id;
+
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    displayUserId ? { currentUserId: displayUserId as any } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
     api.comments.getAllCommentsForUser,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    displayUserId ? { currentUserId: displayUserId as any } : "skip"
   );
 
   if (!currentUser) return null;
@@ -151,6 +166,30 @@ export default function Dashboard() {
           </h1>
           <p className="text-gray-600 mt-2">Key metrics at a glance</p>
           <Badge variant="secondary" className="mt-2 capitalize">{currentUser.role}</Badge>
+          
+          {/* Admin User Selector */}
+          {currentUser.role === ROLES.ADMIN && allUsers && allUsers.length > 0 && (
+            <div className="mt-4 flex justify-center">
+              <Select
+                value={selectedUserId || "own"}
+                onValueChange={(value) => setSelectedUserId(value === "own" ? null : value)}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select user to view" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="own">My Dashboard</SelectItem>
+                  {allUsers
+                    .filter((u: any) => u.role === ROLES.MANAGER || u.role === ROLES.STAFF)
+                    .map((u: any) => (
+                      <SelectItem key={String(u._id)} value={String(u._id)}>
+                        {u.name || u.username} ({u.role})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
