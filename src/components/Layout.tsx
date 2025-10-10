@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu, User, KeyRound } from "lucide-react";
+import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu, User, KeyRound, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
@@ -460,6 +460,12 @@ export function Layout({ children }: LayoutProps) {
       path: "/leads", 
       icon: FileText,
       roles: [ROLES.MANAGER, ROLES.STAFF] 
+    },
+    { 
+      label: "Campaigns", 
+      path: "/campaigns", 
+      icon: Send,
+      roles: [ROLES.ADMIN, ROLES.MANAGER] 
     },
     { 
       label: "Admin Panel", 

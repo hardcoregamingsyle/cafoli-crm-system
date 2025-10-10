@@ -16,6 +16,7 @@ import type {
 import type * as audit from "../audit.js";
 import type * as auth_emailOtp from "../auth/emailOtp.js";
 import type * as auth from "../auth.js";
+import type * as campaigns from "../campaigns.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as emailKeys from "../emailKeys.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   audit: typeof audit;
   "auth/emailOtp": typeof auth_emailOtp;
   auth: typeof auth;
+  campaigns: typeof campaigns;
   comments: typeof comments;
   crons: typeof crons;
   emailKeys: typeof emailKeys;
