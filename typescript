@@ -1,0 +1,4 @@
+const targetUser = await loginAsUserMutation({
+  currentUserId: currentUser._id,
+  targetUserId: u._id,
+});
