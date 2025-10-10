@@ -29,18 +29,10 @@ export function Layout({ children }: LayoutProps) {
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
-  const allLeadsForExportResult = useQuery(
+  const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser && currentUser.role === ROLES.ADMIN
-      ? {
-          filter: "all",
-          currentUserId: currentUser._id,
-          paginationOpts: { numItems: 100, cursor: null },
-        }
-      : "skip"
-  );
-  const allLeadsForExport = (allLeadsForExportResult as any)?.page ?? [];
-
+    currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
+  ) ?? []
   const assignableUsers =
     useQuery(
       api.users.getAssignableUsers,
@@ -51,16 +43,11 @@ export function Layout({ children }: LayoutProps) {
   const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
 
   // Add: subscribe to my leads to detect assignment increases (for sound)
-  const myLeadsForAssignSoundResult = useQuery(
-    api.leads.getMyLeads,
-    currentUser && (currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.STAFF)
-      ? {
-          currentUserId: currentUser._id,
-          paginationOpts: { numItems: 100, cursor: null },
-        }
-      : "skip"
-  );
-  const myLeadsForAssignSound = (myLeadsForAssignSoundResult as any)?.page ?? [];
+  const myLeadsForAssignSound =
+    useQuery(
+      api.leads.getMyLeads,
+      currentUser ? { currentUserId: currentUser._id } : "skip"
+    ) ?? [];
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importAssignInputRef = useRef<HTMLInputElement | null>(null);
