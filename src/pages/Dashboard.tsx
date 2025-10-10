@@ -39,10 +39,15 @@ export default function Dashboard() {
     if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
 
-  const myLeads = useQuery(
+  const myLeadsResult = useQuery(
     api.leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? {
+      currentUserId: currentUser._id,
+      paginationOpts: { numItems: 100, cursor: null },
+    } : "skip"
   );
+
+  const myLeads = (myLeadsResult as any)?.page ?? [];
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
