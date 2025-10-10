@@ -1088,6 +1088,7 @@ export const bulkImportPincodeMappings = mutation({
 export const getNotRelevantLeads = query({
   args: {
     currentUserId: v.union(v.id("users"), v.string()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     try {
@@ -1102,30 +1103,35 @@ export const getNotRelevantLeads = query({
         return [];
       }
 
-      const allLeads = await ctx.db.query("leads").collect();
-      const notRelevantLeads = allLeads.filter((l) => l.status === LEAD_STATUS.NOT_RELEVANT);
+      const result = await ctx.db
+        .query("leads")
+        .filter((q) => q.eq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
+        .order("desc")
+        .paginate(args.paginationOpts);
 
-      // Sort by creation time and add assignedUserName
-      notRelevantLeads.sort((a, b) => a._creationTime - b._creationTime);
-
-      const enrichedLeads: any[] = [];
-      for (const lead of notRelevantLeads) {
-        let assignedUserName: string | null = null;
-        if (lead.assignedTo) {
-          try {
-            const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-            assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
-          } catch {
-            assignedUserName = "Unknown";
+      const enrichedPage = await Promise.all(
+        result.page.map(async (lead) => {
+          let assignedUserName: string | null = null;
+          if (lead.assignedTo) {
+            try {
+              const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+              assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+            } catch {
+              assignedUserName = "Unknown";
+            }
           }
-        }
-        enrichedLeads.push({ ...lead, assignedUserName });
-      }
+          return { ...lead, assignedUserName };
+        })
+      );
 
-      return enrichedLeads;
+      return {
+        page: enrichedPage,
+        isDone: result.isDone,
+        continueCursor: result.continueCursor,
+      };
     } catch (err) {
       console.error("getNotRelevantLeads error:", err);
-      return [];
+      return { page: [], isDone: true, continueCursor: null };
     }
   },
 });
