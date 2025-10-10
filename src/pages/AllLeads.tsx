@@ -149,12 +149,12 @@ export default function AllLeadsPage() {
   useEffect(() => {
     setAllLoadedLeads([]);
     setLeadsCursor(null);
-  }, [filter, selectedAssignee, showNotRelevant]);
+  }, [filter, selectedAssignee]);
 
   useEffect(() => {
     setAllLoadedMyLeads([]);
     setMyLeadsCursor(null);
-  }, [showNotRelevant]);
+  }, [filter]);
 
   useEffect(() => {
     setAllLoadedNotRelevant([]);
@@ -1091,6 +1091,19 @@ export default function AllLeadsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Load More Leads Button */}
+        {canLoadMore && (
+          <div className="flex justify-center py-6">
+            <Button
+              onClick={handleLoadMore}
+              variant="outline"
+              size="lg"
+            >
+              Load More Leads
+            </Button>
+          </div>
+        )}
       </div>
     </Layout>
   );
