@@ -102,7 +102,7 @@ export const getCampaigns = query({
     } else {
       return await ctx.db
         .query("campaigns")
-        .withIndex("createdBy", (q) => q.eq("createdBy", args.currentUserId))
+        .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId))
         .collect();
     }
   },

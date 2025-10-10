@@ -145,8 +145,8 @@ const schema = defineSchema(
       createdBy: v.id("users"),
       sentAt: v.optional(v.number()),
     })
-      .index("createdBy", ["createdBy"])
-      .index("status", ["status"]),
+      .index("by_createdBy", ["createdBy"])
+      .index("by_status", ["status"]),
   },
   {
     schemaValidation: false,
