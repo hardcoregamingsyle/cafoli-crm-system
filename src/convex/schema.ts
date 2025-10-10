@@ -131,6 +131,22 @@ const schema = defineSchema(
       lastError: v.optional(v.string()),
     })
       .index("by_status", ["status"]),
+
+    campaigns: defineTable({
+      subject: v.string(),
+      content: v.string(), // HTML content
+      senderPrefix: v.string(), // e.g., "testing" for testing@mail.skinticals.com
+      recipientType: v.union(v.literal("my_leads"), v.literal("all_leads"), v.literal("custom")),
+      recipientIds: v.array(v.id("leads")),
+      attachments: v.optional(v.array(v.id("_storage"))),
+      status: v.union(v.literal("draft"), v.literal("sending"), v.literal("sent"), v.literal("failed")),
+      sentCount: v.number(),
+      failedCount: v.number(),
+      createdBy: v.id("users"),
+      sentAt: v.optional(v.number()),
+    })
+      .index("createdBy", ["createdBy"])
+      .index("status", ["status"]),
   },
   {
     schemaValidation: false,

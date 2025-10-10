@@ -14,6 +14,7 @@ import "./types/global.d.ts";
 import AllLeadsPage from "@/pages/AllLeads.tsx";
 import MyLeadsPage from "@/pages/MyLeads.tsx";
 import AdminPage from "@/pages/Admin.tsx";
+import CampaignsPage from "@/pages/Campaigns.tsx";
 import NotificationsPage from "@/pages/Notifications.tsx";
 import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
@@ -65,6 +66,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
+          <Route path="/campaigns" element={<ConvexProviderWrapper><CampaignsPage /></ConvexProviderWrapper>} />
           <Route path="/notifications" element={<ConvexProviderWrapper><NotificationsPage /></ConvexProviderWrapper>} />
           <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
           <Route path="/ip-logs" element={<ConvexProviderWrapper><IpLogsPage /></ConvexProviderWrapper>} />
