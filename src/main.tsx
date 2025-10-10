@@ -15,10 +15,12 @@ import AllLeadsPage from "@/pages/AllLeads.tsx";
 import MyLeadsPage from "@/pages/MyLeads.tsx";
 import AdminPage from "@/pages/Admin.tsx";
 import CampaignsPage from "@/pages/Campaigns.tsx";
+import CampaignSelectRecipientsPage from "@/pages/CampaignSelectRecipients.tsx";
 import NotificationsPage from "@/pages/Notifications.tsx";
 import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import CampaignSelectRecipientsPage from "@/pages/CampaignSelectRecipientsPage.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -67,6 +69,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
           <Route path="/campaigns" element={<ConvexProviderWrapper><CampaignsPage /></ConvexProviderWrapper>} />
+          <Route path="/campaigns/select/:campaignId" element={<ConvexProviderWrapper><CampaignSelectRecipientsPage /></ConvexProviderWrapper>} />
           <Route path="/notifications" element={<ConvexProviderWrapper><NotificationsPage /></ConvexProviderWrapper>} />
           <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
           <Route path="/ip-logs" element={<ConvexProviderWrapper><IpLogsPage /></ConvexProviderWrapper>} />
