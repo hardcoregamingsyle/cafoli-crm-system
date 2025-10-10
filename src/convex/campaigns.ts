@@ -95,16 +95,25 @@ export const getCampaigns = query({
   },
   handler: async (ctx, args) => {
     try {
+      // Validate that we have a non-empty ID
+      if (!args.currentUserId || typeof args.currentUserId === 'string' && args.currentUserId.trim() === '') {
+        console.error("Empty or invalid currentUserId in getCampaigns");
+        return [];
+      }
+
       // Handle invalid ID format gracefully
       let user;
       try {
         user = await ctx.db.get(args.currentUserId as any);
       } catch (e) {
-        console.error("Invalid user ID format in getCampaigns:", args.currentUserId);
+        console.error("Invalid user ID format in getCampaigns:", args.currentUserId, e);
         return [];
       }
       
-      if (!user) return [];
+      if (!user) {
+        console.error("User not found in getCampaigns:", args.currentUserId);
+        return [];
+      }
 
       if ((user as any).role === ROLES.ADMIN) {
         return await ctx.db.query("campaigns").collect();
@@ -147,16 +156,25 @@ export const getLeadsForCampaign = query({
   },
   handler: async (ctx, args) => {
     try {
+      // Validate that we have a non-empty ID
+      if (!args.currentUserId || typeof args.currentUserId === 'string' && args.currentUserId.trim() === '') {
+        console.error("Empty or invalid currentUserId in getLeadsForCampaign");
+        return [];
+      }
+
       // Handle invalid ID format gracefully
       let user;
       try {
         user = await ctx.db.get(args.currentUserId as any);
       } catch (e) {
-        console.error("Invalid user ID format in getLeadsForCampaign:", args.currentUserId);
+        console.error("Invalid user ID format in getLeadsForCampaign:", args.currentUserId, e);
         return [];
       }
       
-      if (!user) return [];
+      if (!user) {
+        console.error("User not found in getLeadsForCampaign:", args.currentUserId);
+        return [];
+      }
 
       if ((user as any).role === ROLES.ADMIN) {
         return await ctx.db.query("leads").collect();
