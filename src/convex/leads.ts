@@ -72,16 +72,15 @@ export const getAllLeads = query({
       // Build query based on filters
       if (args.assigneeId) {
         const assigneeIdResolved = await resolveUserId(ctx, args.assigneeId);
-        if (assigneeIdResolved) {
-          result = await ctx.db
-            .query("leads")
-            .withIndex("assignedTo", (q) => q.eq("assignedTo", assigneeIdResolved))
-            .filter((q) => q.neq(q.field("status"), "not_relevant"))
-            .order("desc")
-            .paginate(args.paginationOpts);
-        } else {
+        if (!assigneeIdResolved) {
           return { page: [], isDone: true, continueCursor: null };
         }
+        result = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", assigneeIdResolved._id))
+          .filter((q) => q.neq(q.field("status"), "not_relevant"))
+          .order("desc")
+          .paginate(args.paginationOpts);
       } else if (args.filter === "assigned") {
         result = await ctx.db
           .query("leads")
