@@ -16,6 +16,36 @@ async function getCurrentUser(ctx: any) {
   return user;
 }
 
+// Helper to resolve user by ID or string
+async function resolveUser(ctx: any, userId: any) {
+  if (!userId) return null;
+  try {
+    if (typeof userId === "string" && userId.length === 32) {
+      return await ctx.db.get(userId as Id<"users">);
+    } else if (typeof userId === "string" && userId.length > 20) {
+      return await ctx.db.get(userId as any);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to resolve user ID from string
+async function resolveUserId(ctx: any, userId: any) {
+  if (!userId) return null;
+  try {
+    if (typeof userId === "string" && userId.length === 32) {
+      return await ctx.db.get(userId as Id<"users">);
+    } else if (typeof userId === "string" && userId.length > 20) {
+      return await ctx.db.get(userId as any);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
@@ -26,114 +56,54 @@ export const getAllLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      // Hardened: resolve currentUser safely without unique()
-      let currentUser: any = null;
-
-      // Helper to resolve Owner admin without assuming the username index exists
-      const resolveOwner = async () => {
-        try {
-          const byIndex = await ctx.db
-            .query("users")
-            .withIndex("username", (q: any) => q.eq("username", "Owner"))
-            .collect();
-          if (byIndex[0]) return byIndex[0];
-        } catch {
-          // Index may be missing; fall back to full scan
-        }
-        const allUsers = await ctx.db.query("users").collect();
-        const owner = allUsers.find((u: any) => u.username === "Owner");
-        if (owner) return owner;
-        // Fallback: any admin, else any user
-        const anyAdmin = allUsers.find((u: any) => u.role === ROLES.ADMIN);
-        return anyAdmin ?? allUsers[0] ?? null;
-      };
-
-      if (args.currentUserId) {
-        try {
-          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
-            // Try direct get; catch any invalid id shape
-            currentUser = await ctx.db.get(args.currentUserId as any);
-          } else {
-            // Fallback directly to Owner without unique()
-            currentUser = await resolveOwner();
-          }
-        } catch {
-          // If anything fails, fallback to Owner via collect()
-          currentUser = await resolveOwner();
-        }
-      } else {
-        // No currentUserId passed; fallback to Owner
-        currentUser = await resolveOwner();
+      const currentUser = await resolveUser(ctx, args.currentUserId);
+      if (!currentUser) {
+        console.error("[getAllLeads] User not found or invalid ID");
+        return { page: [], isDone: true, continueCursor: null };
       }
 
-      if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {
-        return [];
+      if (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER) {
+        console.error("[getAllLeads] Unauthorized access attempt");
+        return { page: [], isDone: true, continueCursor: null };
       }
 
       let result;
 
-      // Exclude 'not_relevant' status by default
-      if (args.filter === "unassigned") {
-        let q = ctx.db
-          .query("leads")
-          .withIndex("assignedTo")
-          .filter((q) =>
-            q.and(
-              q.eq(q.field("assignedTo"), undefined),
-              q.neq(q.field("status"), "not_relevant")
-            )
-          );
-        
-        // Apply assigneeId filter if provided (though unassigned shouldn't have assigneeId)
-        if (args.assigneeId) {
-          const assigneeIdResolved =
-            typeof args.assigneeId === "string" && args.assigneeId.length === 32
-              ? (args.assigneeId as Id<"users">)
-              : args.assigneeId;
-          q = q.filter((q) => q.eq(q.field("assignedTo"), assigneeIdResolved));
+      // Build query based on filters
+      if (args.assigneeId) {
+        const assigneeIdResolved = await resolveUserId(ctx, args.assigneeId);
+        if (assigneeIdResolved) {
+          result = await ctx.db
+            .query("leads")
+            .withIndex("assignedTo", (q) => q.eq("assignedTo", assigneeIdResolved))
+            .filter((q) => q.neq(q.field("status"), "not_relevant"))
+            .order("desc")
+            .paginate(args.paginationOpts);
+        } else {
+          return { page: [], isDone: true, continueCursor: null };
         }
-        
-        result = await q.order("desc").paginate(args.paginationOpts);
       } else if (args.filter === "assigned") {
-        let q = ctx.db
+        result = await ctx.db
           .query("leads")
-          .withIndex("assignedTo")
-          .filter((q) =>
-            q.and(
-              q.neq(q.field("assignedTo"), undefined),
-              q.neq(q.field("status"), "not_relevant")
-            )
-          );
-        
-        // Apply assigneeId filter if provided
-        if (args.assigneeId) {
-          const assigneeIdResolved =
-            typeof args.assigneeId === "string" && args.assigneeId.length === 32
-              ? (args.assigneeId as Id<"users">)
-              : args.assigneeId;
-          q = q.filter((q) => q.eq(q.field("assignedTo"), assigneeIdResolved));
-        }
-        
-        result = await q.order("desc").paginate(args.paginationOpts);
+          .filter((q) => q.neq(q.field("status"), "not_relevant"))
+          .filter((q) => q.neq(q.field("assignedTo"), undefined))
+          .order("desc")
+          .paginate(args.paginationOpts);
+      } else if (args.filter === "unassigned") {
+        result = await ctx.db
+          .query("leads")
+          .filter((q) => q.neq(q.field("status"), "not_relevant"))
+          .filter((q) => q.eq(q.field("assignedTo"), undefined))
+          .order("desc")
+          .paginate(args.paginationOpts);
       } else {
-        // "all" - exclude not_relevant
-        let q = ctx.db
+        result = await ctx.db
           .query("leads")
-          .filter((q) => q.neq(q.field("status"), "not_relevant"));
-        
-        // Apply assigneeId filter if provided
-        if (args.assigneeId) {
-          const assigneeIdResolved =
-            typeof args.assigneeId === "string" && args.assigneeId.length === 32
-              ? (args.assigneeId as Id<"users">)
-              : args.assigneeId;
-          q = q.filter((q) => q.eq(q.field("assignedTo"), assigneeIdResolved));
-        }
-        
-        result = await q.order("desc").paginate(args.paginationOpts);
+          .filter((q) => q.neq(q.field("status"), "not_relevant"))
+          .order("desc")
+          .paginate(args.paginationOpts);
       }
 
-      // Enrich leads with assigned user names
       const enrichedPage = await Promise.all(
         result.page.map(async (lead) => {
           let assignedUserName = undefined;
@@ -141,14 +111,11 @@ export const getAllLeads = query({
             try {
               const assignedUser = await ctx.db.get(lead.assignedTo);
               assignedUserName = assignedUser?.name || assignedUser?.username;
-            } catch {
-              // ignore
+            } catch (e) {
+              console.error("[getAllLeads] Error fetching assigned user:", e);
             }
           }
-          return {
-            ...lead,
-            assignedUserName,
-          };
+          return { ...lead, assignedUserName };
         })
       );
 
@@ -158,7 +125,7 @@ export const getAllLeads = query({
         continueCursor: result.continueCursor,
       };
     } catch (error) {
-      console.error("getAllLeads error:", error);
+      console.error("[getAllLeads] Error:", error);
       return { page: [], isDone: true, continueCursor: null };
     }
   },
@@ -172,21 +139,13 @@ export const getMyLeads = query({
   },
   handler: async (ctx, args) => {
     try {
-      let currentUser: any = null;
-      // FIX: Robustly resolve currentUser for both Id and string formats
-      if (args.currentUserId) {
-        try {
-          currentUser = await ctx.db.get(args.currentUserId as any);
-        } catch (_) {
-          currentUser = null;
-        }
-      }
-      
-      if (!currentUser || currentUser.role === ROLES.ADMIN) {
-        return [];
+      const currentUser = await resolveUser(ctx, args.currentUserId);
+      if (!currentUser) {
+        console.error("[getMyLeads] User not found");
+        return { page: [], isDone: true, continueCursor: null };
       }
 
-      const leads = await ctx.db
+      const result = await ctx.db
         .query("leads")
         .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
         .filter((q) => q.neq(q.field("status"), "not_relevant"))
@@ -194,12 +153,58 @@ export const getMyLeads = query({
         .paginate(args.paginationOpts);
 
       return {
-        page: leads.page,
-        isDone: leads.isDone,
-        continueCursor: leads.continueCursor,
+        page: result.page,
+        isDone: result.isDone,
+        continueCursor: result.continueCursor,
       };
     } catch (error) {
-      console.error("getMyLeads error:", error);
+      console.error("[getMyLeads] Error:", error);
+      return { page: [], isDone: true, continueCursor: null };
+    }
+  },
+});
+
+// Get all leads marked as not relevant (Admin only)
+export const getNotRelevantLeads = query({
+  args: {
+    currentUserId: v.union(v.id("users"), v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    try {
+      const currentUser = await resolveUser(ctx, args.currentUserId);
+      if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+        return { page: [], isDone: true, continueCursor: null };
+      }
+
+      const result = await ctx.db
+        .query("leads")
+        .withIndex("status", (q) => q.eq("status", "not_relevant"))
+        .order("desc")
+        .paginate(args.paginationOpts);
+
+      const enrichedPage = await Promise.all(
+        result.page.map(async (lead) => {
+          let assignedUserName = undefined;
+          if (lead.assignedTo) {
+            try {
+              const assignedUser = await ctx.db.get(lead.assignedTo);
+              assignedUserName = assignedUser?.name || assignedUser?.username;
+            } catch (e) {
+              console.error("[getNotRelevantLeads] Error fetching assigned user:", e);
+            }
+          }
+          return { ...lead, assignedUserName };
+        })
+      );
+
+      return {
+        page: enrichedPage,
+        isDone: result.isDone,
+        continueCursor: result.continueCursor,
+      };
+    } catch (error) {
+      console.error("[getNotRelevantLeads] Error:", error);
       return { page: [], isDone: true, continueCursor: null };
     }
   },
@@ -1081,58 +1086,6 @@ export const bulkImportPincodeMappings = mutation({
       details: `Imported/updated ${upserts} pincode mapping(s)`,
       timestamp: Date.now(),
     });
-  },
-});
-
-// Get all leads marked as not relevant (Admin only)
-export const getNotRelevantLeads = query({
-  args: {
-    currentUserId: v.union(v.id("users"), v.string()),
-    paginationOpts: paginationOptsValidator,
-  },
-  handler: async (ctx, args) => {
-    try {
-      let currentUser: any = null;
-      try {
-        currentUser = await ctx.db.get(args.currentUserId as any);
-      } catch {
-        return [];
-      }
-
-      if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-        return [];
-      }
-
-      const result = await ctx.db
-        .query("leads")
-        .filter((q) => q.eq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
-        .order("desc")
-        .paginate(args.paginationOpts);
-
-      const enrichedPage = await Promise.all(
-        result.page.map(async (lead) => {
-          let assignedUserName: string | null = null;
-          if (lead.assignedTo) {
-            try {
-              const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-              assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
-            } catch {
-              assignedUserName = "Unknown";
-            }
-          }
-          return { ...lead, assignedUserName };
-        })
-      );
-
-      return {
-        page: enrichedPage,
-        isDone: result.isDone,
-        continueCursor: result.continueCursor,
-      };
-    } catch (err) {
-      console.error("getNotRelevantLeads error:", err);
-      return { page: [], isDone: true, continueCursor: null };
-    }
   },
 });
 
