@@ -92,12 +92,12 @@ export default function AllLeadsPage() {
   // New: also subscribe to my leads (used for dashboard heat routes for Manager/Staff)
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id, paginationOpts: { numItems: 100, cursor: null } } : "skip"
   );
 
   const notRelevantLeads = useQuery(
     api.leads.getNotRelevantLeads,
-    currentUser && showNotRelevant ? { currentUserId: currentUser._id } : "skip"
+    currentUser && showNotRelevant ? { currentUserId: currentUser._id, paginationOpts: { numItems: 100, cursor: null } } : "skip"
   );
 
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
