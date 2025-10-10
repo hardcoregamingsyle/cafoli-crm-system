@@ -256,13 +256,7 @@ http.route({
       const limit = Math.max(1, Math.min(limitParam, 50));
 
       const currentUserId = await ensureAdminUserId(ctx);
-      const result: any = await ctx.runQuery(api.leads.getAllLeads, { 
-        filter: "all", 
-        currentUserId,
-        paginationOpts: { numItems: 100, cursor: null }
-      });
-      
-      const all = result?.page ?? [];
+      const all: any[] = (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
 
       // Sort by creation time asc (as our query returns), take latest
       const latest = all.slice(-limit).map((l: any) => ({
@@ -296,13 +290,8 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     try {
       const currentUserId = await ensureAdminUserId(ctx);
-      const result: any = await ctx.runQuery(api.leads.getAllLeads, { 
-        filter: "all", 
-        currentUserId,
-        paginationOpts: { numItems: 100, cursor: null }
-      });
-      
-      const all = result?.page ?? [];
+      const all: any[] =
+        (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
 
       const count = all.length;
       const latest = count > 0 ? all[all.length - 1] : null;

@@ -51,45 +51,40 @@ export default function AllLeadsPage() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [showNotRelevant, setShowNotRelevant] = useState(false);
-  
+  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
   useEffect(() => {
     if (!authReady || !currentUser) return;
     if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
       setFilter("unassigned");
     }
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
-  
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-
-  // Pagination state
-  const [leadsCursor, setLeadsCursor] = useState<string | null>(null);
-  const [myLeadsCursor, setMyLeadsCursor] = useState<string | null>(null);
-  const [notRelevantCursor, setNotRelevantCursor] = useState<string | null>(null);
-
   const leads = useQuery(
     api.leads.getAllLeads,
-    currentUser && !showNotRelevant
+    currentUser && authReady
       ? {
+          // Pass the selected filter to the backend so results match the UI buttons
           filter,
-          currentUserId: currentUser._id,
-          assigneeId: selectedAssignee || undefined,
-          paginationOpts: { numItems: 100, cursor: leadsCursor },
+          currentUserId: currentUser._id as any,
+          assigneeId:
+            assigneeFilter === "all"
+              ? undefined
+              : assigneeFilter === "unassigned"
+              ? ("unassigned" as any)
+              : (assigneeFilter as any),
         }
       : "skip"
   );
-
   const users = useQuery(
     api.users.getAllUsers,
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  );
-  
+  ); // Admin only
   const assignable = useQuery(
     api.users.getAssignableUsers,
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  );
-
+  ); // Admin + Manager
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
@@ -98,87 +93,36 @@ export default function AllLeadsPage() {
   const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
   const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
 
+  // New: also subscribe to my leads (used for dashboard heat routes for Manager/Staff)
   const myLeads = useQuery(
     api.leads.getMyLeads,
-    currentUser && authReady 
-      ? { currentUserId: currentUser._id, paginationOpts: { numItems: 100, cursor: myLeadsCursor } } 
-      : "skip"
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   );
 
   const notRelevantLeads = useQuery(
     api.leads.getNotRelevantLeads,
-    currentUser && showNotRelevant 
-      ? { currentUserId: currentUser._id, paginationOpts: { numItems: 100, cursor: notRelevantCursor } } 
+    currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
       : "skip"
   );
 
-  // Accumulate all loaded leads
-  const [allLoadedLeads, setAllLoadedLeads] = useState<any[]>([]);
-  const [allLoadedMyLeads, setAllLoadedMyLeads] = useState<any[]>([]);
-  const [allLoadedNotRelevant, setAllLoadedNotRelevant] = useState<any[]>([]);
-
-  // Update accumulated leads when new data arrives
-  useEffect(() => {
-    if (leads && (leads as any)?.page) {
-      setAllLoadedLeads(prev => {
-        if (leadsCursor === null) return (leads as any).page;
-        return [...prev, ...(leads as any).page];
-      });
-    }
-  }, [leads, leadsCursor]);
-
-  useEffect(() => {
-    if (myLeads && (myLeads as any)?.page) {
-      setAllLoadedMyLeads(prev => {
-        if (myLeadsCursor === null) return (myLeads as any).page;
-        return [...prev, ...(myLeads as any).page];
-      });
-    }
-  }, [myLeads, myLeadsCursor]);
-
-  useEffect(() => {
-    if (notRelevantLeads && (notRelevantLeads as any)?.page) {
-      setAllLoadedNotRelevant(prev => {
-        if (notRelevantCursor === null) return (notRelevantLeads as any).page;
-        return [...prev, ...(notRelevantLeads as any).page];
-      });
-    }
-  }, [notRelevantLeads, notRelevantCursor]);
-
-  // Reset accumulated leads when filters change
-  useEffect(() => {
-    setAllLoadedLeads([]);
-    setLeadsCursor(null);
-  }, [filter, selectedAssignee]);
-
-  useEffect(() => {
-    setAllLoadedMyLeads([]);
-    setMyLeadsCursor(null);
-  }, [filter]);
-
-  useEffect(() => {
-    setAllLoadedNotRelevant([]);
-    setNotRelevantCursor(null);
-  }, [showNotRelevant]);
-
+  // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
-    if (showNotRelevant) {
-      return allLoadedNotRelevant;
+    if (!currentUser) return leads;
+    
+    // If showing not relevant leads, use that data source
+    if (showNotRelevant && currentUser.role === ROLES.ADMIN) {
+      return notRelevantLeads;
     }
     
-    if (currentUser?.role === ROLES.ADMIN) {
-      return allLoadedLeads;
+    // For dashboard heat routes, non-admins should see their assigned leads
+    if (enforcedHeatRoute && currentUser.role !== ROLES.ADMIN) {
+      return myLeads;
     }
     
-    if (currentUser?.role === ROLES.MANAGER) {
-      if (enforcedHeatRoute) {
-        return allLoadedMyLeads;
-      }
-      return allLoadedLeads;
-    }
-    
-    return allLoadedMyLeads;
-  }, [currentUser?.role, allLoadedLeads, allLoadedMyLeads, enforcedHeatRoute, showNotRelevant, allLoadedNotRelevant]);
+    // For regular All Leads page, everyone sees the filtered results from getAllLeads
+    return leads;
+  }, [currentUser?.role, leads, myLeads, enforcedHeatRoute, showNotRelevant, notRelevantLeads]);
 
   const userOptions = useMemo(() => {
     if (!currentUser) return [];
@@ -364,23 +308,6 @@ export default function AllLeadsPage() {
   const displayedLeadsSorted: Array<any> = [...((filteredLeadsByDashboardHeat ?? []) as Array<any>)].sort(
     (a, b) => heatOrder(a?.heat) - heatOrder(b?.heat)
   );
-
-  // Load more functionality
-  const canLoadMore = showNotRelevant 
-    ? !(notRelevantLeads as any)?.isDone
-    : currentUser?.role === ROLES.ADMIN || (currentUser?.role === ROLES.MANAGER && !enforcedHeatRoute)
-    ? !(leads as any)?.isDone
-    : !(myLeads as any)?.isDone;
-
-  const handleLoadMore = () => {
-    if (showNotRelevant) {
-      setNotRelevantCursor((notRelevantLeads as any)?.continueCursor || null);
-    } else if (currentUser?.role === ROLES.ADMIN || (currentUser?.role === ROLES.MANAGER && !enforcedHeatRoute)) {
-      setLeadsCursor((leads as any)?.continueCursor || null);
-    } else {
-      setMyLeadsCursor((myLeads as any)?.continueCursor || null);
-    }
-  };
 
   return (
     <Layout>
@@ -1081,29 +1008,8 @@ export default function AllLeadsPage() {
                 </AccordionItem>
               ))}
             </Accordion>
-
-            {canLoadMore && (
-              <div className="mt-6 flex justify-center">
-                <Button onClick={handleLoadMore} variant="outline">
-                  Load More Leads
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
-
-        {/* Load More Leads Button */}
-        {canLoadMore && (
-          <div className="flex justify-center py-6">
-            <Button
-              onClick={handleLoadMore}
-              variant="outline"
-              size="lg"
-            >
-              Load More Leads
-            </Button>
-          </div>
-        )}
       </div>
     </Layout>
   );
