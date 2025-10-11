@@ -219,11 +219,24 @@ export const createLead = mutation({
     const existing = await findDuplicateLead(ctx, args.mobileNo, args.email);
 
     if (existing) {
-      // Club records: patch any missing/empty fields on the existing doc
+      // Club records: concatenate different info and patch missing fields
       const patch: Record<string, any> = {};
+      let hasChanges = false;
+      
       if (!existing.name && args.name) patch.name = args.name;
-      if (!existing.subject && args.subject) patch.subject = args.subject;
-      if (!existing.message && args.message) patch.message = args.message;
+      
+      // Concatenate subject if different
+      if (args.subject && existing.subject !== args.subject) {
+        patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
+        hasChanges = true;
+      }
+      
+      // Concatenate message if different
+      if (args.message && existing.message !== args.message) {
+        patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
+        hasChanges = true;
+      }
+      
       if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.state && args.state) patch.state = args.state;
@@ -231,6 +244,22 @@ export const createLead = mutation({
 
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
+      }
+
+      // Add comment about duplicate lead posting
+      if (hasChanges) {
+        let anyUserId: any = null;
+        const anyUsers = await ctx.db.query("users").collect();
+        if (anyUsers.length > 0) {
+          anyUserId = anyUsers[0]._id;
+        }
+        
+        await ctx.db.insert("comments", {
+          leadId: existing._id,
+          userId: anyUserId,
+          content: "The Lead was Posted again",
+          timestamp: Date.now(),
+        });
       }
 
       // If existing is already assigned, notify assignee about the clubbed lead
@@ -245,7 +274,7 @@ export const createLead = mutation({
         });
       }
 
-      // Audit log the clubbing (replace .first() with a safe lookup)
+      // Audit log the clubbing
       let anyUserId: any = null;
       const anyUsers = await ctx.db.query("users").collect();
       if (anyUsers.length > 0) {
@@ -573,11 +602,24 @@ export const bulkCreateLeads = mutation({
       const existing = await findDuplicateLead(ctx, incoming.mobileNo, incoming.email);
 
       if (existing) {
-        // Club records: fill missing/empty fields from incoming
+        // Club records: concatenate different info and fill missing fields
         const patch: Record<string, any> = {};
+        let hasChanges = false;
+        
         if (!existing.name && incoming.name) patch.name = incoming.name;
-        if (!existing.subject && incoming.subject) patch.subject = incoming.subject;
-        if (!existing.message && incoming.message) patch.message = incoming.message;
+        
+        // Concatenate subject if different
+        if (incoming.subject && existing.subject !== incoming.subject) {
+          patch.subject = existing.subject ? `${existing.subject} & ${incoming.subject}` : incoming.subject;
+          hasChanges = true;
+        }
+        
+        // Concatenate message if different
+        if (incoming.message && existing.message !== incoming.message) {
+          patch.message = existing.message ? `${existing.message} & ${incoming.message}` : incoming.message;
+          hasChanges = true;
+        }
+        
         if (!existing.altMobileNo && incoming.altMobileNo) patch.altMobileNo = incoming.altMobileNo;
         if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
         if (!existing.state && finalState) patch.state = finalState;
@@ -606,6 +648,16 @@ export const bulkCreateLeads = mutation({
 
         if (Object.keys(patch).length > 0) {
           await ctx.db.patch(existing._id, patch);
+        }
+
+        // Add comment about duplicate lead posting
+        if (hasChanges) {
+          await ctx.db.insert("comments", {
+            leadId: existing._id,
+            userId: currentUser._id,
+            content: "The Lead was Posted again",
+            timestamp: Date.now(),
+          });
         }
 
         if (existing.assignedTo) {

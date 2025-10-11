@@ -133,11 +133,24 @@ export const createLeadFromGoogleScript = internalMutation({
         : null);
 
     if (existing) {
-      // Club fields into existing
+      // Club fields into existing with concatenation
       const patch: Record<string, any> = {};
+      let hasChanges = false;
+      
       if (!existing.name && args.name) patch.name = args.name;
-      if (!existing.subject && args.subject) patch.subject = args.subject;
-      if (!existing.message && args.message) patch.message = args.message;
+      
+      // Concatenate subject if different
+      if (args.subject && existing.subject !== args.subject) {
+        patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
+        hasChanges = true;
+      }
+      
+      // Concatenate message if different
+      if (args.message && existing.message !== args.message) {
+        patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
+        hasChanges = true;
+      }
+      
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
       if (!existing.state && args.state) patch.state = args.state;
@@ -163,6 +176,17 @@ export const createLeadFromGoogleScript = internalMutation({
 
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
+      }
+
+      // Add comment about duplicate lead posting
+      if (hasChanges) {
+        const loggingUserId = await ensureLoggingUserId(ctx);
+        await ctx.db.insert("comments", {
+          leadId: existing._id,
+          userId: loggingUserId,
+          content: "The Lead was Posted again",
+          timestamp: Date.now(),
+        });
       }
 
       // If it had an assignee before, notify them about clubbing
@@ -271,11 +295,24 @@ export const createLeadFromSource = internalMutation({
         : null);
 
     if (existing) {
-      // Club fields into existing
+      // Club fields into existing with concatenation
       const patch: Record<string, any> = {};
+      let hasChanges = false;
+      
       if (!existing.name && args.name) patch.name = args.name;
-      if (!existing.subject && args.subject) patch.subject = args.subject;
-      if (!existing.message && args.message) patch.message = args.message;
+      
+      // Concatenate subject if different
+      if (args.subject && existing.subject !== args.subject) {
+        patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
+        hasChanges = true;
+      }
+      
+      // Concatenate message if different
+      if (args.message && existing.message !== args.message) {
+        patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
+        hasChanges = true;
+      }
+      
       if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.state && args.state) patch.state = args.state;
@@ -283,6 +320,17 @@ export const createLeadFromSource = internalMutation({
 
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
+      }
+
+      // Add comment about duplicate lead posting
+      if (hasChanges) {
+        const loggingUserId = await ensureLoggingUserId(ctx);
+        await ctx.db.insert("comments", {
+          leadId: existing._id,
+          userId: loggingUserId,
+          content: "The Lead was Posted again",
+          timestamp: Date.now(),
+        });
       }
 
       // If it had an assignee, notify them
