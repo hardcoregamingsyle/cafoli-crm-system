@@ -631,20 +631,14 @@ export const bulkCreateLeads = mutation({
         if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
 
         // Assignment logic (updated):
-        // - If args.assignedTo provided:
-        //    - If existing unassigned -> assign to args.assignedTo
-        //    - If existing assigned (different) -> reassign to args.assignedTo (prefer incoming group)
+        // - If existing lead already has an assignee, preserve it (do not reassign)
+        // - If existing lead is unassigned and args.assignedTo is provided, assign it
         let assignedJustNow = false;
-        let assignmentChanged = false;
-        if (args.assignedTo) {
-          if (!existing.assignedTo) {
-            patch.assignedTo = args.assignedTo;
-            assignedJustNow = true;
-          } else if (String(existing.assignedTo) !== String(args.assignedTo)) {
-            patch.assignedTo = args.assignedTo;
-            assignmentChanged = true;
-          }
+        if (args.assignedTo && !existing.assignedTo) {
+          patch.assignedTo = args.assignedTo;
+          assignedJustNow = true;
         }
+        // If existing is already assigned, we keep it as-is (no reassignment)
 
         if (Object.keys(patch).length > 0) {
           await ctx.db.patch(existing._id, patch);
@@ -670,12 +664,12 @@ export const bulkCreateLeads = mutation({
             relatedLeadId: existing._id,
           });
         }
-        // Notify new assignee in both assign and reassign cases
-        if ((assignedJustNow || assignmentChanged) && args.assignedTo) {
+        // Notify new assignee only if we just assigned (not reassigned)
+        if (assignedJustNow && args.assignedTo) {
           await ctx.db.insert("notifications", {
             userId: args.assignedTo,
             title: "Lead Assigned",
-            message: `A lead was ${assignmentChanged ? "reassigned" : "assigned"} to you via import.`,
+            message: `A lead was assigned to you via import.`,
             read: false,
             type: "lead_assigned",
             relatedLeadId: existing._id,

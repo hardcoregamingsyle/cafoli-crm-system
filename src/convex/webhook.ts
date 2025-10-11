@@ -162,17 +162,12 @@ export const createLeadFromGoogleScript = internalMutation({
       if (args.serialNo && !existing.serialNo) patch.serialNo = args.serialNo;
 
       // Assignment rule:
-      // - If incoming has assignee:
-      //    - If existing unassigned -> assign to incoming
-      //    - If existing assigned (different) -> reassign to incoming (prefer incoming)
-      // - Else keep existing as-is
-      if (incomingAssigneeId) {
-        if (!existing.assignedTo) {
-          patch.assignedTo = incomingAssigneeId;
-        } else if (String(existing.assignedTo) !== String(incomingAssigneeId)) {
-          patch.assignedTo = incomingAssigneeId;
-        }
+      // - If existing lead already has an assignee, preserve it (do not reassign)
+      // - If existing lead is unassigned and incoming has assignee, assign it
+      if (incomingAssigneeId && !existing.assignedTo) {
+        patch.assignedTo = incomingAssigneeId;
       }
+      // If existing is already assigned, we keep it as-is (no reassignment)
 
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
@@ -200,8 +195,8 @@ export const createLeadFromGoogleScript = internalMutation({
           relatedLeadId: existing._id,
         });
       }
-      // If reassigned to a different user, also notify new assignee
-      if (incomingAssigneeId && String(existing.assignedTo) !== String(incomingAssigneeId)) {
+      // Only notify new assignee if we just assigned (not if already assigned)
+      if (incomingAssigneeId && !existing.assignedTo && patch.assignedTo) {
         await ctx.db.insert("notifications", {
           userId: incomingAssigneeId,
           title: "Lead Assigned",
