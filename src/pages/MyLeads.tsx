@@ -411,6 +411,9 @@ export default function MyLeadsPage() {
                       <div className="text-sm">
                         <div className="font-medium">{lead.name} <span className="text-gray-500">• {lead.subject}</span></div>
                         <div className="text-xs text-gray-600 line-clamp-1">{lead.message}</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Created: {new Date(lead._creationTime).toLocaleString()}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">Assigned</Badge>
