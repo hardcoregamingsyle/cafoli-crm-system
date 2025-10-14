@@ -25,12 +25,13 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Add authReady state
+  // Add authReady state - initialize as false to prevent premature queries
   const [authReady, setAuthReady] = useState(false);
   
+  // Conditionally execute query only when auth is ready and user exists
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+    authReady && currentUser?._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
@@ -100,6 +101,11 @@ export function Layout({ children }: LayoutProps) {
     };
     init();
   }, []); // run once to avoid re-run loops
+
+  // If auth is not ready yet, show nothing (prevents query execution)
+  if (!authReady) {
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50" />;
+  }
 
   // Play sound + toast when new leads arrive (single vs multiple)
   useEffect(() => {
@@ -449,7 +455,11 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
+  // After auth is ready, if no user exists, redirect to login
   if (!currentUser) {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/' && window.location.pathname !== '/login') {
+      window.location.href = '/';
+    }
     return <>{children}</>;
   }
 
