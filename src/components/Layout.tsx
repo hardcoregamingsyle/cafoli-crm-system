@@ -26,18 +26,18 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
+    authReady && currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
   ) ?? []
   const assignableUsers =
     useQuery(
       api.users.getAssignableUsers,
-      currentUser ? { currentUserId: currentUser._id } : "skip"
+      authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
@@ -47,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
   const myLeadsForAssignSound =
     useQuery(
       api.leads.getMyLeads,
-      currentUser ? { currentUserId: currentUser._id } : "skip"
+      authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
