@@ -24,24 +24,20 @@ export function Layout({ children }: LayoutProps) {
   const { currentUser, logout, initializeAuth, originalAdmin, returnToAdmin } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Add authReady state
-  const [authReady, setAuthReady] = useState(false);
-  
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
     api.leads.getAllLeads,
-    authReady && currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
+    currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
   ) ?? []
   const assignableUsers =
     useQuery(
       api.users.getAssignableUsers,
-      authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+      currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
   const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
   const runDeduplication = useMutation(api.leads.runDeduplication);
@@ -51,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
   const myLeadsForAssignSound =
     useQuery(
       api.leads.getMyLeads,
-      authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+      currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,11 +90,7 @@ export function Layout({ children }: LayoutProps) {
   const changePasswordMutation = useMutation(api.users.changePassword);
 
   useEffect(() => {
-    const init = async () => {
-      await initializeAuth();
-      setAuthReady(true);
-    };
-    init();
+    initializeAuth();
   }, []); // run once to avoid re-run loops
 
   // Play sound + toast when new leads arrive (single vs multiple)
