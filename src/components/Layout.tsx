@@ -26,10 +26,12 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [authReady, setAuthReady] = useState(false);
   
-  const unreadCount = useQuery(
-    api.notifications.getUnreadCount,
-    authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
-  );
+  // Notifications temporarily disabled to prevent server errors
+  // const unreadCount = useQuery(
+  //   api.notifications.getUnreadCount,
+  //   authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
+  // );
+  const unreadCount = 0; // Disabled
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
@@ -588,7 +590,8 @@ export function Layout({ children }: LayoutProps) {
                       </Button>
                     )}
                     <div className="flex items-center gap-2">
-                      <Button
+                      {/* Notifications - Temporarily Disabled */}
+                      {/* <Button
                         variant="ghost"
                         className="flex-1"
                         onClick={() => {
@@ -598,10 +601,10 @@ export function Layout({ children }: LayoutProps) {
                       >
                         <Bell className="w-4 h-4 mr-2" />
                         Notifications
-                      </Button>
+                      </Button> */}
                       <Button
                         variant="ghost"
-                        className="flex-1 text-red-600"
+                        className="w-full text-red-600"
                         onClick={() => {
                           setMobileNavOpen(false);
                           logout();
@@ -669,8 +672,8 @@ export function Layout({ children }: LayoutProps) {
                 </Button>
               )}
 
-              {/* Notifications */}
-              <Button
+              {/* Notifications - Temporarily Disabled */}
+              {/* <Button
                 variant="ghost"
                 size="icon"
                 className="relative"
@@ -686,7 +689,7 @@ export function Layout({ children }: LayoutProps) {
                     {unreadCount}
                   </Badge>
                 )}
-              </Button>
+              </Button> */}
 
               {/* Import/Export (Admin only, desktop already) */}
               {isAdmin && (
