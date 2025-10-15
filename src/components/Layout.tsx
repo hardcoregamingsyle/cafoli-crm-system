@@ -100,6 +100,13 @@ export function Layout({ children }: LayoutProps) {
     return () => clearTimeout(timer);
   }, []); // run once to avoid re-run loops
 
+  // Redirect to login if no user after auth is ready
+  useEffect(() => {
+    if (authReady && !currentUser && location.pathname !== "/") {
+      navigate("/");
+    }
+  }, [authReady, currentUser, location.pathname, navigate]);
+
   // Play sound + toast when new leads arrive (single vs multiple)
   useEffect(() => {
     if (!currentUser) return;
@@ -448,7 +455,13 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
-  if (!currentUser) {
+  // If auth is ready and no user, don't render Layout (let redirect happen)
+  if (authReady && !currentUser) {
+    return <>{children}</>;
+  }
+
+  // If auth not ready yet, show loading or just children
+  if (!authReady || !currentUser) {
     return <>{children}</>;
   }
 
