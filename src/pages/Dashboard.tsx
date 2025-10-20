@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
@@ -7,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
+import { Users, FileText, Clock, TrendingUp, Bell, Target, PlusCircle } from "lucide-react";
 import { ROLES } from "@/convex/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -161,9 +162,27 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1" />
+            <div className="flex-1 text-center">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Dashboard
+              </h1>
+            </div>
+            <div className="flex-1 flex justify-end">
+              <Button
+                onClick={() => {
+                  // Trigger the add lead dialog from Layout
+                  const addLeadBtn = document.querySelector('[aria-label="Add Lead"]') as HTMLButtonElement;
+                  if (addLeadBtn) addLeadBtn.click();
+                }}
+                className="gap-2"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add Lead
+              </Button>
+            </div>
+          </div>
           <p className="text-gray-600 mt-2">Key metrics at a glance</p>
           <Badge variant="secondary" className="mt-2 capitalize">{currentUser.role}</Badge>
           

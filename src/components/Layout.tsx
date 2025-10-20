@@ -76,6 +76,7 @@ export function Layout({ children }: LayoutProps) {
     district: "",
     pincode: "",
     agencyName: "",
+    assignedTo: "", // Add assignee field
   });
 
   // Track previous total leads count to detect newly arrived leads
@@ -577,7 +578,7 @@ export function Layout({ children }: LayoutProps) {
                     })}
                   </nav>
                   <div className="px-2 pt-2 pb-4 border-t space-y-2">
-                    {(isAdmin || isManager) && (
+                    {(isAdmin || isManager || currentUser.role === ROLES.STAFF) && (
                       <Button
                         className="w-full gap-2"
                         onClick={() => {
@@ -659,17 +660,30 @@ export function Layout({ children }: LayoutProps) {
 
             {/* User Actions */}
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Add Lead quick action on mobile */}
-              {(isAdmin || isManager) && (
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="sm:hidden"
-                  onClick={() => setAddDialogOpen(true)}
-                  aria-label="Add Lead"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                </Button>
+              {/* Add Lead button - visible on all screen sizes for all roles */}
+              {(isAdmin || isManager || currentUser.role === ROLES.STAFF) && (
+                <>
+                  {/* Mobile icon version */}
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="sm:hidden"
+                    onClick={() => setAddDialogOpen(true)}
+                    aria-label="Add Lead"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                  </Button>
+                  {/* Desktop button version */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="hidden sm:flex gap-2"
+                    onClick={() => setAddDialogOpen(true)}
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Add Lead
+                  </Button>
+                </>
               )}
 
               {/* Notifications - Temporarily Disabled */}
@@ -969,10 +983,10 @@ export function Layout({ children }: LayoutProps) {
         </Dialog>
       )}
 
-      {/* Add Lead Dialog (Admin + Manager) */}
-      {(isAdmin || isManager) && (
+      {/* Add Lead Dialog (Admin + Manager + Staff) */}
+      {(isAdmin || isManager || currentUser.role === ROLES.STAFF) && (
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Lead Manually</DialogTitle>
             </DialogHeader>
@@ -1050,6 +1064,27 @@ export function Layout({ children }: LayoutProps) {
                 />
               </div>
             </div>
+            
+            {/* Assignee Selector */}
+            <div className="mt-4">
+              <label className="text-sm font-medium mb-2 block">Assign To (Optional)</label>
+              <Select
+                value={leadForm.assignedTo}
+                onValueChange={(v) => setLeadForm((f) => ({ ...f, assignedTo: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Leave unassigned or select user" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Assign to Self</SelectItem>
+                  {(assignableUsers ?? []).map((u: any) => (
+                    <SelectItem key={String(u._id)} value={String(u._id)}>
+                      {u.name || u.username} ({u.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button
                 variant="outline"
@@ -1073,6 +1108,11 @@ export function Layout({ children }: LayoutProps) {
                         return;
                       }
                     }
+                    // Determine assignee: "self" means current user, otherwise use selected ID
+                    const assigneeId = leadForm.assignedTo === "self" 
+                      ? currentUser._id 
+                      : leadForm.assignedTo || undefined;
+
                     await bulkCreateLeads({
                       leads: [
                         {
@@ -1091,6 +1131,7 @@ export function Layout({ children }: LayoutProps) {
                           agencyName: leadForm.agencyName || undefined,
                         },
                       ],
+                      assignedTo: assigneeId as any,
                       currentUserId: currentUser._id,
                     });
                     toast.success("Lead added");
@@ -1109,6 +1150,7 @@ export function Layout({ children }: LayoutProps) {
                       district: "",
                       pincode: "",
                       agencyName: "",
+                      assignedTo: "",
                     });
                   } catch (e: any) {
                     toast.error(e?.message || "Failed to add lead");
