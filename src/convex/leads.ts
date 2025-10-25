@@ -759,17 +759,19 @@ export const runDeduplication = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Load all leads
+    // Load only unassigned leads for deduplication
     const all = await ctx.db.query("leads").collect();
-    if (all.length === 0) {
+    const unassignedLeads = all.filter(lead => !lead.assignedTo);
+    
+    if (unassignedLeads.length === 0) {
       return { groupsProcessed: 0, mergedCount: 0, deletedCount: 0, notificationsSent: 0 };
     }
 
-    // Build groups by mobileNo and email
-    type Group = { key: string; members: typeof all };
-    const byKey: Record<string, Array<typeof all[number]>> = {};
+    // Build groups by mobileNo and email (only for unassigned leads)
+    type Group = { key: string; members: typeof unassignedLeads };
+    const byKey: Record<string, Array<typeof unassignedLeads[number]>> = {};
 
-    for (const l of all) {
+    for (const l of unassignedLeads) {
       const keys: Array<string> = [];
       if (l.mobileNo) keys.push(`m:${l.mobileNo}`);
       if (l.email) keys.push(`e:${l.email}`);
@@ -788,7 +790,7 @@ export const runDeduplication = mutation({
     let notificationsSent = 0;
 
     // Helper to club members into a single canonical doc (oldest by _creationTime)
-    const clubGroup = async (members: Array<typeof all[number]>) => {
+    const clubGroup = async (members: Array<typeof unassignedLeads[number]>) => {
       // Filter out already processed docs
       const fresh = members.filter(m => !visitedDocIds.has(String(m._id)));
       if (fresh.length <= 1) {
@@ -801,12 +803,30 @@ export const runDeduplication = mutation({
       const primary = fresh[0];
       const rest = fresh.slice(1);
 
-      // Build patch by filling missing fields
+      // Build patch by concatenating name/subject/message and filling missing fields
       const patch: Record<string, any> = {};
+      let hasChanges = false;
+      
       for (const r of rest) {
-        if (!primary.name && r.name) patch.name = r.name;
-        if (!primary.subject && r.subject) patch.subject = r.subject;
-        if (!primary.message && r.message) patch.message = r.message;
+        // Concatenate name if different
+        if (r.name && primary.name !== r.name) {
+          patch.name = primary.name ? `${primary.name} & ${r.name}` : r.name;
+          hasChanges = true;
+        }
+        
+        // Concatenate subject if different
+        if (r.subject && primary.subject !== r.subject) {
+          patch.subject = primary.subject ? `${primary.subject} & ${r.subject}` : r.subject;
+          hasChanges = true;
+        }
+        
+        // Concatenate message if different
+        if (r.message && primary.message !== r.message) {
+          patch.message = primary.message ? `${primary.message} & ${r.message}` : r.message;
+          hasChanges = true;
+        }
+        
+        // Fill missing fields only
         if (!primary.altMobileNo && r.altMobileNo) patch.altMobileNo = r.altMobileNo;
         if (!primary.altEmail && r.altEmail) patch.altEmail = r.altEmail;
         if (!primary.state && r.state) patch.state = r.state;
@@ -840,6 +860,16 @@ export const runDeduplication = mutation({
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(primary._id, patch);
         mergedCount++;
+      }
+      
+      // Add "Duplicate leads, Clubbed" comment if fields were concatenated
+      if (hasChanges) {
+        await ctx.db.insert("comments", {
+          leadId: primary._id,
+          userId: currentUser._id,
+          content: "Duplicate leads, Clubbed",
+          timestamp: Date.now(),
+        });
       }
 
       // Notify the assignee if there is one
