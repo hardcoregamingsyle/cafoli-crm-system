@@ -260,33 +260,28 @@ export const createLead = mutation({
           content: "The Lead was Posted again",
           timestamp: Date.now(),
         });
-      }
 
-      // If existing is already assigned, notify assignee about the clubbed lead
-      if (existing.assignedTo) {
-        await ctx.db.insert("notifications", {
-          userId: existing.assignedTo,
-          title: "Duplicate Lead Clubbed",
-          message: `A new lead matching ${existing.name || existing.mobileNo || existing.email} was clubbed into your assigned lead.`,
-          read: false,
-          type: "lead_assigned",
+        // If existing is already assigned, notify assignee about the clubbed lead
+        if (existing.assignedTo) {
+          await ctx.db.insert("notifications", {
+            userId: existing.assignedTo,
+            title: "Duplicate Lead Clubbed",
+            message: `A new lead matching ${existing.name || existing.mobileNo || existing.email} was clubbed into your assigned lead.`,
+            read: false,
+            type: "lead_assigned",
+            relatedLeadId: existing._id,
+          });
+        }
+
+        // Audit log the clubbing
+        await ctx.db.insert("auditLogs", {
+          userId: anyUserId,
+          action: "CLUB_DUPLICATE_LEAD",
+          details: `Clubbed new lead into existing lead ${existing._id}`,
+          timestamp: Date.now(),
           relatedLeadId: existing._id,
         });
       }
-
-      // Audit log the clubbing
-      let anyUserId: any = null;
-      const anyUsers = await ctx.db.query("users").collect();
-      if (anyUsers.length > 0) {
-        anyUserId = anyUsers[0]._id;
-      }
-      await ctx.db.insert("auditLogs", {
-        userId: anyUserId,
-        action: "CLUB_DUPLICATE_LEAD",
-        details: `Clubbed new lead into existing lead ${existing._id}`,
-        timestamp: Date.now(),
-        relatedLeadId: existing._id,
-      });
 
       return existing._id;
     }

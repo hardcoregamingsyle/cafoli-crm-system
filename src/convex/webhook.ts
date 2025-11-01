@@ -132,6 +132,11 @@ export const createLeadFromGoogleScript = internalMutation({
             .unique()
         : null);
 
+    // Check if existing lead is marked as not relevant - skip if so
+    if (existing && existing.status === "not_relevant") {
+      return false;
+    }
+
     if (existing) {
       // Club fields into existing with concatenation
       const patch: Record<string, any> = {};
@@ -288,6 +293,11 @@ export const createLeadFromSource = internalMutation({
             .withIndex("email", (q) => q.eq("email", emailForDedup))
             .unique()
         : null);
+
+    // Check if existing lead is marked as not relevant - skip if so
+    if (existing && existing.status === "not_relevant") {
+      return false;
+    }
 
     if (existing) {
       // Club fields into existing with concatenation
