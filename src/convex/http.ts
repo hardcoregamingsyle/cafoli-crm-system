@@ -161,6 +161,83 @@ http.route({
   }),
 });
 
+// Add: WhatsApp webhook listener
+http.route({
+  path: "/webhook/whatsapp",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/webhook/whatsapp",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      // WhatsApp webhook verification (GET request with challenge)
+      const url = new URL(req.url);
+      const mode = url.searchParams.get("hub.mode");
+      const token = url.searchParams.get("hub.verify_token");
+      const challenge = url.searchParams.get("hub.challenge");
+
+      // Log the verification attempt
+      await ctx.runMutation(internal.webhook.insertLog, {
+        payload: {
+          type: "WHATSAPP_VERIFICATION",
+          mode,
+          token,
+          challenge,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Verify the token (you can set WHATSAPP_VERIFY_TOKEN in your env vars)
+      const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || "your_verify_token";
+      
+      if (mode === "subscribe" && token === verifyToken) {
+        // Respond with the challenge to verify the webhook
+        return new Response(challenge, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+        });
+      } else {
+        return corsJson({ ok: false, error: "Verification failed" }, 403);
+      }
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/webhook/whatsapp",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const payload = await parseRequestPayload(req);
+
+      // Log the incoming WhatsApp webhook
+      await ctx.runMutation(internal.webhook.insertLog, {
+        payload: {
+          type: "WHATSAPP_WEBHOOK",
+          data: payload,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Process WhatsApp webhook data here
+      // You can add custom logic to handle messages, status updates, etc.
+
+      return corsJson({ ok: true, message: "WhatsApp webhook received" }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "error" }, 500);
+    }
+  }),
+});
+
 // New: List webhook logs via HTTP (reads the same deployment as the webhook)
 http.route({
   path: "/api/webhook/logs_list",
