@@ -147,6 +147,20 @@ const schema = defineSchema(
     })
       .index("by_createdBy", ["createdBy"])
       .index("by_status", ["status"]),
+
+    whatsappMessages: defineTable({
+      leadId: v.optional(v.id("leads")),
+      phoneNumber: v.string(),
+      message: v.string(),
+      direction: v.union(v.literal("inbound"), v.literal("outbound")),
+      messageId: v.union(v.string(), v.null()),
+      status: v.optional(v.string()),
+      timestamp: v.number(),
+      metadata: v.optional(v.any()),
+    })
+      .index("leadId", ["leadId"])
+      .index("phoneNumber", ["phoneNumber"])
+      .index("timestamp", ["timestamp"]),
   },
   {
     schemaValidation: false,

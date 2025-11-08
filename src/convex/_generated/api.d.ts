@@ -27,6 +27,8 @@ import type * as notifications from "../notifications.js";
 import type * as sms from "../sms.js";
 import type * as users from "../users.js";
 import type * as webhook from "../webhook.js";
+import type * as whatsapp from "../whatsapp.js";
+import type * as whatsappQueries from "../whatsappQueries.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -51,6 +53,8 @@ declare const fullApi: ApiFromModules<{
   sms: typeof sms;
   users: typeof users;
   webhook: typeof webhook;
+  whatsapp: typeof whatsapp;
+  whatsappQueries: typeof whatsappQueries;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

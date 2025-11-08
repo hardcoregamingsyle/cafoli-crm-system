@@ -549,3 +549,56 @@ export const importFromWebhookLogs = mutation({
     return { created, clubbed, skipped };
   },
 });
+
+// Add mutation to store WhatsApp messages
+export const storeWhatsAppMessage = internalMutation({
+  args: {
+    phoneNumber: v.string(),
+    message: v.string(),
+    messageId: v.string(),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    // Normalize phone number
+    let normalizedPhone = args.phoneNumber.replace(/[^\d+]/g, "");
+    if (!normalizedPhone.startsWith("+")) {
+      if (normalizedPhone.startsWith("91")) {
+        normalizedPhone = "+" + normalizedPhone;
+      } else {
+        normalizedPhone = "+" + normalizedPhone;
+      }
+    }
+
+    // Try to find matching lead by phone number
+    const allLeads = await ctx.db.query("leads").collect();
+    const matchingLead = allLeads.find(
+      (lead) =>
+        lead.mobileNo?.replace(/[^\d+]/g, "").includes(args.phoneNumber.replace(/[^\d+]/g, "").slice(-10)) ||
+        lead.altMobileNo?.replace(/[^\d+]/g, "").includes(args.phoneNumber.replace(/[^\d+]/g, "").slice(-10))
+    );
+
+    // Store the message
+    await ctx.db.insert("whatsappMessages", {
+      leadId: matchingLead?._id,
+      phoneNumber: normalizedPhone,
+      message: args.message,
+      direction: "inbound",
+      messageId: args.messageId,
+      status: "received",
+      timestamp: Date.now(),
+      metadata: args.metadata,
+    });
+
+    // Add comment to lead if found
+    if (matchingLead) {
+      await ctx.db.insert("comments", {
+        leadId: matchingLead._id,
+        userId: null as any, // System message
+        content: `WhatsApp message received: ${args.message}`,
+        timestamp: Date.now(),
+      });
+    }
+
+    return { success: true, leadId: matchingLead?._id };
+  },
+});

@@ -238,6 +238,96 @@ http.route({
   }),
 });
 
+// Add WhatsApp webhook handler
+http.route({
+  path: "/api/webhook/whatsapp",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get("hub.mode");
+    const token = url.searchParams.get("hub.verify_token");
+    const challenge = url.searchParams.get("hub.challenge");
+
+    const verifyToken = process.env.WEBHOOK_VERIFICATION_TOKEN;
+
+    if (mode === "subscribe" && token === verifyToken) {
+      console.log("WhatsApp webhook verified");
+      return new Response(challenge || "", { status: 200 });
+    } else {
+      console.error("WhatsApp webhook verification failed");
+      return new Response("Forbidden", { status: 403 });
+    }
+  }),
+});
+
+http.route({
+  path: "/api/webhook/whatsapp",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+
+      // Process WhatsApp webhook event
+      if (body.object === "whatsapp_business_account") {
+        const entries = body.entry || [];
+
+        for (const entry of entries) {
+          const changes = entry.changes || [];
+
+          for (const change of changes) {
+            if (change.field === "messages") {
+              const value = change.value;
+              const messages = value.messages || [];
+
+              for (const message of messages) {
+                const phoneNumber = message.from;
+                const messageType = message.type;
+                const messageId = message.id;
+
+                let messageText = "";
+
+                if (messageType === "text") {
+                  messageText = message.text.body;
+                } else if (messageType === "button") {
+                  messageText = `[Button] ${message.button.text}`;
+                } else if (messageType === "interactive") {
+                  const interactive = message.interactive;
+                  if (interactive.type === "button_reply") {
+                    messageText = `[Button Reply] ${interactive.button_reply.title}`;
+                  } else if (interactive.type === "list_reply") {
+                    messageText = `[List Reply] ${interactive.list_reply.title}`;
+                  }
+                } else {
+                  messageText = `[${messageType}]`;
+                }
+
+                // Store the incoming message
+                await ctx.runMutation(internal.webhook.storeWhatsAppMessage, {
+                  phoneNumber,
+                  message: messageText,
+                  messageId,
+                  metadata: message,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error: any) {
+      console.error("WhatsApp webhook error:", error);
+      return new Response(JSON.stringify({ ok: false, error: error.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }),
+});
+
 // New: List webhook logs via HTTP (reads the same deployment as the webhook)
 http.route({
   path: "/api/webhook/logs_list",
