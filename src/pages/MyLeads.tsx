@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation, useAction, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useEffect, useState, useRef, useMemo } from "react";
@@ -42,8 +42,9 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
+  // Fetch my leads
   const leads = useQuery(
-    api.leads.getMyLeads,
+    api.leads.getMyLeadsPaginated,
     currentUser ? { currentUserId: currentUser._id } : "skip"
   );
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
@@ -122,7 +123,7 @@ export default function MyLeadsPage() {
     return Array.from(sources).sort();
   }, [leads]);
 
-  // Enhanced filtering logic
+  // Filter and sort leads
   const filteredLeads = useMemo(() => {
     const list: Array<any> = (leads ?? []);
     const q = (search || "").trim().toLowerCase();
@@ -400,7 +401,7 @@ export default function MyLeadsPage() {
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader>
-            <CardTitle>Leads</CardTitle>
+            <CardTitle>Leads ({filteredLeads.length} shown)</CardTitle>
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
