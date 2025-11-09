@@ -1,4 +1,6 @@
-const targetUser = await loginAsUserMutation({
-  currentUserId: currentUser._id,
-  targetUserId: u._id,
-});
+const pendingRequests = useQuery(
+  api.masterdata.getPendingRequests,
+  authReady && currentUser && currentUser.role === ROLES.ADMIN
+    ? { currentUserId: currentUser._id }
+    : "skip"
+);

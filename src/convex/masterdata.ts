@@ -104,6 +104,11 @@ export const requestLeads = mutation({
 export const getPendingRequests = query({
   args: { currentUserId: v.id("users") },
   handler: async (ctx, args) => {
+    // Add null check for currentUserId
+    if (!args.currentUserId) {
+      return [];
+    }
+    
     const user = await ctx.db.get(args.currentUserId);
     if (!user || user.role !== ROLES.ADMIN) {
       return [];
