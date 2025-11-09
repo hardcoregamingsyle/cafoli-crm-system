@@ -105,19 +105,19 @@ export function Layout({ children }: LayoutProps) {
   const processLeadRequest = useMutation(api.masterdata.processLeadRequest);
   const pendingRequests = useQuery(
     api.masterdata.getPendingRequests,
-    authReady && currentUser?._id && currentUser.role === ROLES.ADMIN
+    authReady && currentUser && currentUser._id && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   );
   const myRequestStatus = useQuery(
     api.masterdata.getMyRequestStatus,
-    authReady && currentUser?._id && currentUser.role !== ROLES.ADMIN
+    authReady && currentUser && currentUser._id && currentUser.role !== ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   );
   const availableMasterdataCount = useQuery(
     api.masterdata.getAvailableMasterdataCount,
-    authReady && currentUser?._id && currentUser.role === ROLES.ADMIN
+    authReady && currentUser && currentUser._id && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   );
