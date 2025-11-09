@@ -7,21 +7,21 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    // Validate leadId format before any database operations
-    if (!args.leadId || typeof args.leadId !== "string") {
-      console.warn("Invalid leadId provided to getLeadMessages:", args.leadId);
-      return [];
-    }
-
     try {
-      // Verify the lead exists first
-      const lead = await ctx.db.get(args.leadId);
-      if (!lead) {
-        console.log("Lead not found:", args.leadId);
+      // Validate leadId exists and is a string
+      if (!args.leadId || typeof args.leadId !== "string" || args.leadId.trim() === "") {
+        console.warn("Invalid or empty leadId provided to getLeadMessages:", args.leadId);
         return [];
       }
 
-      // Query messages with index if available, otherwise filter
+      // Verify the lead exists first
+      const lead = await ctx.db.get(args.leadId);
+      if (!lead) {
+        console.log("Lead not found for leadId:", args.leadId);
+        return [];
+      }
+
+      // Query messages with filter
       const messages = await ctx.db
         .query("whatsappMessages")
         .filter((q) => q.eq(q.field("leadId"), args.leadId))
@@ -29,7 +29,7 @@ export const getLeadMessages = query({
       
       return messages.sort((a, b) => a.timestamp - b.timestamp);
     } catch (error) {
-      console.error("Error fetching WhatsApp messages for leadId:", args.leadId, error);
+      console.error("Error in getLeadMessages for leadId:", args.leadId, "Error:", error);
       // Return empty array instead of throwing to prevent UI crashes
       return [];
     }

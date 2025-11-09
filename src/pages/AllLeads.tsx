@@ -15,6 +15,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
+import * as React from "react";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router";
 import { toast } from "sonner";
@@ -1287,17 +1288,17 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
   // Enhanced validation: only query if we have a valid leadId
-  // Check for proper ID format (Convex IDs are alphanumeric strings)
-  const isValidLeadId = Boolean(
-    leadId && 
-    typeof leadId === "string" &&
-    leadId.trim().length > 0 && 
-    leadId !== "undefined" && 
-    leadId !== "null" &&
-    leadId !== "skip" &&
-    !leadId.includes("skip") &&
-    /^[a-zA-Z0-9_]+$/.test(leadId)
-  );
+  // Check for proper ID format (Convex IDs are alphanumeric strings with underscores)
+  const isValidLeadId = React.useMemo(() => {
+    if (!leadId || typeof leadId !== "string") return false;
+    const trimmed = leadId.trim();
+    if (trimmed.length === 0) return false;
+    if (trimmed === "undefined" || trimmed === "null" || trimmed === "skip") return false;
+    if (trimmed.includes("skip")) return false;
+    // Convex IDs are alphanumeric with underscores, typically starting with a letter
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) return false;
+    return true;
+  }, [leadId]);
   
   const messages = useQuery(
     api.whatsappQueries.getLeadMessages,
