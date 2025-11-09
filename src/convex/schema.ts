@@ -164,13 +164,13 @@ const schema = defineSchema(
 
     leadRequests: defineTable({
       requestedBy: v.id("users"),
-      requestedByName: v.string(),
       requestedByRole: v.string(),
       numberOfLeads: v.number(),
-      status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined")),
-      processedBy: v.optional(v.id("users")),
-      processedAt: v.optional(v.number()),
-    }).index("by_status", ["status"]).index("by_requestedBy", ["requestedBy"]),
+      status: v.string(), // e.g., "pending", "accepted", "declined"
+})
+  .index("by_requestedBy", ["requestedBy"])
+  .index("by_status", ["status"]); // ✅ add this line
+
 
     masterdata: defineTable({
       name: v.string(),
