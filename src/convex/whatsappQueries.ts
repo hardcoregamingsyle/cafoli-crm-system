@@ -7,6 +7,12 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
+    // Validate leadId format before any database operations
+    if (!args.leadId || typeof args.leadId !== "string") {
+      console.warn("Invalid leadId provided to getLeadMessages:", args.leadId);
+      return [];
+    }
+
     try {
       // Verify the lead exists first
       const lead = await ctx.db.get(args.leadId);
@@ -23,7 +29,7 @@ export const getLeadMessages = query({
       
       return messages.sort((a, b) => a.timestamp - b.timestamp);
     } catch (error) {
-      console.error("Error fetching WhatsApp messages:", error);
+      console.error("Error fetching WhatsApp messages for leadId:", args.leadId, error);
       // Return empty array instead of throwing to prevent UI crashes
       return [];
     }

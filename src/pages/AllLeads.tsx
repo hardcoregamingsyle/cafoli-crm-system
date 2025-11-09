@@ -1287,11 +1287,17 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
   // Enhanced validation: only query if we have a valid leadId
-  const isValidLeadId = leadId && 
+  // Check for proper ID format (Convex IDs are alphanumeric strings)
+  const isValidLeadId = Boolean(
+    leadId && 
+    typeof leadId === "string" &&
     leadId.trim().length > 0 && 
     leadId !== "undefined" && 
     leadId !== "null" &&
-    !leadId.includes("skip");
+    leadId !== "skip" &&
+    !leadId.includes("skip") &&
+    /^[a-zA-Z0-9_]+$/.test(leadId)
+  );
   
   const messages = useQuery(
     api.whatsappQueries.getLeadMessages,
