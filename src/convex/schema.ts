@@ -137,17 +137,18 @@ export default defineSchema({
   })
     .index("by_isAssigned", ["isAssigned"]),
 
-  leadRequests: defineTable({
-    requestedBy: v.id("users"),
-    requestedByName: v.string(),
-    requestedByRole: v.string(),
-    numberOfLeads: v.number(),
-    status: v.string(),
-    processedBy: v.optional(v.id("users")),
-    processedAt: v.optional(v.number()),
-  })
-    .index("by_requestedBy", ["requestedBy"])
-    .index("by_status", ["status"]),
+ leadRequests: defineTable({
+  requestedBy: v.id("users"),
+  requestedByName: v.string(),
+  requestedByRole: v.string(),
+  numberOfLeads: v.number(),
+  status: v.string(),
+  processedBy: v.optional(v.id("users")),
+  processedAt: v.optional(v.number()),
+})
+  .index("by_requestedBy", ["requestedBy"])
+  .index("by_status", ["status"]),
+
 
   campaigns: defineTable({
     name: v.string(),
