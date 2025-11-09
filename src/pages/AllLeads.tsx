@@ -9,7 +9,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Filter } from "lucide-react";
-import { MessageCircle } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -1206,13 +1205,6 @@ export default function AllLeadsPage() {
                     {/* Comments */}
                     <CommentsBox leadId={String(lead._id)} currentUserId={String(currentUser._id)} />
 
-                    {/* WhatsApp Messages */}
-                    <WhatsAppBox 
-                      leadId={String(lead._id)} 
-                      phoneNumber={lead.mobileNo || ""} 
-                      currentUserId={String(currentUser._id)} 
-                    />
-
                     {/* Admin-only controls */}
                     {currentUser.role === ROLES.ADMIN && (
                       <div className="mt-4">
@@ -1282,122 +1274,6 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
           Add
         </Button>
       </div>
-    </div>
-  );
-}
-
-function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
-  // Validate leadId format and skip query if invalid
-  const shouldFetchMessages = React.useMemo(() => {
-    if (!leadId || typeof leadId !== "string") return false;
-    const trimmed = leadId.trim();
-    // Check for obviously invalid values
-    if (trimmed.length === 0 || trimmed === "undefined" || trimmed === "null" || trimmed === "skip") return false;
-    // Convex IDs are alphanumeric strings (base32 encoded)
-    // They should be at least 16 characters and contain only valid base32 chars
-    if (trimmed.length < 16) return false;
-    if (!/^[a-z0-9]+$/i.test(trimmed)) return false;
-    return true;
-  }, [leadId]);
-  
-  const messages = useQuery(
-    api.whatsappQueries.getLeadMessages,
-    shouldFetchMessages ? { leadId: leadId as any } : "skip"
-  ) ?? [];
-  
-  const sendWhatsAppMessage = useAction(api.whatsapp.sendMessage);
-  const [messageText, setMessageText] = useState("");
-  const [sending, setSending] = useState(false);
-
-  const handleSend = async () => {
-    if (!messageText.trim() || !phoneNumber) {
-      toast.error("Message and phone number are required");
-      return;
-    }
-
-    if (!shouldFetchMessages) {
-      toast.error("Invalid lead ID");
-      return;
-    }
-
-    setSending(true);
-    try {
-      await sendWhatsAppMessage({
-        phoneNumber: phoneNumber,
-        message: messageText,
-        leadId: leadId as any,
-      });
-      toast.success("WhatsApp message sent");
-      setMessageText("");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to send WhatsApp message");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="space-y-2 border-t pt-3 mt-3">
-      <div className="flex items-center gap-2 text-xs text-gray-500">
-        <MessageCircle className="w-4 h-4" />
-        <span>WhatsApp Messages</span>
-      </div>
-      
-      {!phoneNumber && (
-        <div className="text-xs text-gray-400">No phone number available</div>
-      )}
-
-      {phoneNumber && (
-        <>
-          <div className="space-y-1 max-h-32 overflow-y-auto pr-1 bg-gray-50 rounded p-2">
-            {messages.length === 0 && (
-              <div className="text-xs text-gray-400">No WhatsApp messages yet</div>
-            )}
-            {messages.map((msg: any) => (
-              <div
-                key={msg._id}
-                className={`text-xs p-2 rounded ${
-                  msg.direction === "outbound"
-                    ? "bg-blue-100 ml-4"
-                    : "bg-white mr-4"
-                }`}
-              >
-                <div className="font-medium">
-                  {msg.direction === "outbound" ? "Sent" : "Received"}
-                </div>
-                <div className="mt-1">{msg.message}</div>
-                <div className="text-gray-400 mt-1">
-                  {new Date(msg.timestamp).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Type WhatsApp message..."
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              disabled={sending}
-            />
-            <Button
-              variant="outline"
-              onClick={handleSend}
-              disabled={sending || !messageText.trim()}
-              className="gap-2"
-            >
-              <MessageCircle className="w-4 h-4" />
-              {sending ? "Sending..." : "Send"}
-            </Button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
