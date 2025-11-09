@@ -1,107 +1,66 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+export const LEAD_STATUS = {
+  NEW: "new",
+  CONTACTED: "contacted",
+  QUALIFIED: "qualified",
+  CLOSED: "closed",
+};
+
 export const ROLES = {
   ADMIN: "admin",
-  MANAGER: "manager",
-  STAFF: "staff",
+  USER: "user",
 };
 
 export default defineSchema({
-  // ------------------ USERS ------------------
   users: defineTable({
     name: v.string(),
     email: v.string(),
+    username: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
     role: v.optional(v.string()),
     phone: v.optional(v.string()),
-    passwordHash: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
 
-  // ------------------ LEADS ------------------
-  leads: defineTable({
-    name: v.string(),
-    subject: v.string(),
-    message: v.string(),
-    mobileNo: v.string(),
-    email: v.string(),
-    altMobileNo: v.optional(v.string()),
-    altEmail: v.optional(v.string()),
-    state: v.string(),
-    source: v.string(),
-    station: v.optional(v.string()),
-    district: v.optional(v.string()),
-    pincode: v.optional(v.string()),
-    agencyName: v.optional(v.string()),
-    assignedTo: v.optional(v.id("users")),
-    assignedBy: v.optional(v.id("users")),
-    assignedAt: v.optional(v.number()),
-    createdAt: v.number(),
-    updatedAt: v.optional(v.number()),
-    status: v.optional(v.string()),
-    feedback: v.optional(v.string()),
-  })
-    .index("by_email", ["email"])
-    .index("by_status", ["status"])
-    .index("by_assignedTo", ["assignedTo"])
-    .index("by_source", ["source"]),
-
-  // ------------------ LEAD REQUESTS ------------------
-  leadRequests: defineTable({
-    requestedBy: v.id("users"),
-    requestedByRole: v.string(),
-    numberOfLeads: v.number(),
-    status: v.string(), // "pending", "approved", "declined"
-    createdAt: v.number(),
-  })
-    .index("by_requestedBy", ["requestedBy"])
-    .index("by_status", ["status"]), // ✅ fixed trailing comma and parenthesis
-
-  // ------------------ ACTIVITY LOG ------------------
-  activityLogs: defineTable({
+  auditLogs: defineTable({
     userId: v.id("users"),
     action: v.string(),
-    details: v.optional(v.string()),
-    createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+    timestamp: v.number(),
+  }),
 
-  // ------------------ SOURCES ------------------
-  sources: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
+  notifications: defineTable({
+    userId: v.id("users"),
+    message: v.string(),
     createdAt: v.number(),
-  }).index("by_name", ["name"]),
+  }),
 
-  // ------------------ STATES ------------------
-  states: defineTable({
-    name: v.string(),
+  comments: defineTable({
+    leadId: v.id("leads"),
+    text: v.string(),
     createdAt: v.number(),
-  }).index("by_name", ["name"]),
+  }),
 
-  // ------------------ DISTRICTS ------------------
-  districts: defineTable({
-    stateId: v.id("states"),
+  leads: defineTable({
     name: v.string(),
+    email: v.string(),
+    mobileNo: v.string(),
+    status: v.optional(v.string()),
+    state: v.string(),
     createdAt: v.number(),
+    serialNo: v.optional(v.string()),
   })
-    .index("by_state", ["stateId"])
-    .index("by_name", ["name"]),
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
 
-  // ------------------ PINCODES ------------------
-  pincodes: defineTable({
-    districtId: v.id("districts"),
-    code: v.string(),
-    createdAt: v.number(),
+  whatsappMessages: defineTable({
+    leadId: v.id("leads"),
+    phoneNumber: v.string(),
+    message: v.string(),
+    timestamp: v.number(),
   })
-    .index("by_district", ["districtId"])
-    .index("by_code", ["code"]),
-
-  // ------------------ MISC ------------------
-  metadata: defineTable({
-    key: v.string(),
-    value: v.string(),
-    updatedAt: v.number(),
-  }).index("by_key", ["key"]),
+    .index("by_creation_time", ["_creationTime"]),
 });
