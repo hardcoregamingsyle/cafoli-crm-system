@@ -57,7 +57,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_requestedBy", ["requestedBy"])
-    .index("by_status", ["status"]), // ✅ this fixes your query crash
+    .index("by_status", ["status"]), // ✅ fixed trailing comma and parenthesis
 
   // ------------------ ACTIVITY LOG ------------------
   activityLogs: defineTable({
