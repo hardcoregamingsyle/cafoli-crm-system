@@ -1287,25 +1287,22 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 }
 
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
-  // Enhanced validation: only query if we have a valid leadId
-  // Check for proper ID format (Convex IDs follow a specific pattern)
-  const isValidLeadId = React.useMemo(() => {
+  // Validate leadId format and skip query if invalid
+  const shouldFetchMessages = React.useMemo(() => {
     if (!leadId || typeof leadId !== "string") return false;
     const trimmed = leadId.trim();
-    if (trimmed.length === 0) return false;
-    if (trimmed === "undefined" || trimmed === "null" || trimmed === "skip") return false;
-    // Convex IDs are base32-encoded strings that start with a table prefix
-    // They typically look like: jd7x8y9z0a1b2c3d4e5f6g7h
-    // More lenient check: just ensure it's a non-empty alphanumeric string
-    if (!/^[a-z0-9_]+$/i.test(trimmed)) return false;
-    // Additional check: Convex IDs are typically at least 16 characters
-    if (trimmed.length < 10) return false;
+    // Check for obviously invalid values
+    if (trimmed.length === 0 || trimmed === "undefined" || trimmed === "null" || trimmed === "skip") return false;
+    // Convex IDs are alphanumeric strings (base32 encoded)
+    // They should be at least 16 characters and contain only valid base32 chars
+    if (trimmed.length < 16) return false;
+    if (!/^[a-z0-9]+$/i.test(trimmed)) return false;
     return true;
   }, [leadId]);
   
   const messages = useQuery(
     api.whatsappQueries.getLeadMessages,
-    isValidLeadId ? { leadId: leadId as any } : "skip"
+    shouldFetchMessages ? { leadId: leadId as any } : "skip"
   ) ?? [];
   
   const sendWhatsAppMessage = useAction(api.whatsapp.sendMessage);
@@ -1318,7 +1315,7 @@ function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; p
       return;
     }
 
-    if (!isValidLeadId) {
+    if (!shouldFetchMessages) {
       toast.error("Invalid lead ID");
       return;
     }

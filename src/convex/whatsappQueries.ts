@@ -7,30 +7,42 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    // Early validation with comprehensive checks
-    if (!args.leadId) {
-      console.warn("getLeadMessages called with null/undefined leadId");
-      return [];
-    }
-
     try {
-      // Verify the lead exists first before querying messages
-      const lead = await ctx.db.get(args.leadId);
-      if (!lead) {
-        console.log("Lead not found for leadId:", args.leadId);
+      // Validate leadId is provided
+      if (!args.leadId) {
+        console.warn("[getLeadMessages] Called with null/undefined leadId");
         return [];
       }
 
-      // Query messages with filter
+      // Attempt to get the lead - this will throw if ID format is invalid
+      let lead;
+      try {
+        lead = await ctx.db.get(args.leadId);
+      } catch (idError: any) {
+        console.error("[getLeadMessages] Invalid ID format:", {
+          leadId: args.leadId,
+          error: idError?.message
+        });
+        return [];
+      }
+
+      // Check if lead exists
+      if (!lead) {
+        console.warn("[getLeadMessages] Lead not found:", args.leadId);
+        return [];
+      }
+
+      // Query messages using index for better performance
       const messages = await ctx.db
         .query("whatsappMessages")
-        .filter((q) => q.eq(q.field("leadId"), args.leadId))
+        .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
         .collect();
       
+      // Sort by timestamp ascending
       return messages.sort((a, b) => a.timestamp - b.timestamp);
     } catch (error: any) {
-      // Log the error but don't throw - return empty array to prevent UI crashes
-      console.error("Error in getLeadMessages:", {
+      // Catch-all error handler - log and return empty array
+      console.error("[getLeadMessages] Unexpected error:", {
         leadId: args.leadId,
         error: error?.message || String(error),
         stack: error?.stack
