@@ -7,10 +7,9 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    const messages = await ctx.db
-      .query("whatsappMessages")
-      .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
-      .collect();
+    // Filter messages by leadId manually since the index might have issues with optional fields
+    const allMessages = await ctx.db.query("whatsappMessages").collect();
+    const messages = allMessages.filter((msg) => msg.leadId === args.leadId);
     
     return messages.sort((a, b) => a.timestamp - b.timestamp);
   },

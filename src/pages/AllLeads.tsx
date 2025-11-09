@@ -1288,7 +1288,7 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
   const messages = useQuery(
     api.whatsappQueries.getLeadMessages,
-    leadId ? { leadId: leadId as any } : "skip"
+    leadId && leadId.length > 0 ? { leadId: leadId as any } : "skip"
   ) ?? [];
   const sendWhatsAppMessage = useAction(api.whatsapp.sendMessage);
   const [messageText, setMessageText] = useState("");
