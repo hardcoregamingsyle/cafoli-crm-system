@@ -45,11 +45,15 @@ export const uploadMasterdata = mutation({
 
 // Get available masterdata count (Admin only)
 export const getAvailableMasterdataCount = query({
-  args: { currentUserId: v.id("users") },
+  args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
+    if (!args.currentUserId) {
+      return 0;
+    }
+    
     const user = await ctx.db.get(args.currentUserId);
     if (!user || user.role !== ROLES.ADMIN) {
-      throw new Error("Unauthorized");
+      return 0;
     }
 
     const available = await ctx.db
@@ -102,7 +106,7 @@ export const requestLeads = mutation({
 
 // Get pending requests (Admin only)
 export const getPendingRequests = query({
-  args: { currentUserId: v.id("users") },
+  args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
     // Add null check for currentUserId
     if (!args.currentUserId) {
@@ -125,8 +129,12 @@ export const getPendingRequests = query({
 
 // Get my request status (Manager/Staff)
 export const getMyRequestStatus = query({
-  args: { currentUserId: v.id("users") },
+  args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
+    if (!args.currentUserId) {
+      return null;
+    }
+    
     const user = await ctx.db.get(args.currentUserId);
     if (!user) {
       return null;
@@ -134,7 +142,7 @@ export const getMyRequestStatus = query({
 
     const request = await ctx.db
       .query("leadRequests")
-      .withIndex("by_requestedBy", (q) => q.eq("requestedBy", args.currentUserId))
+      .withIndex("by_requestedBy", (q) => q.eq("requestedBy", user._id))
       .order("desc")
       .first();
 
