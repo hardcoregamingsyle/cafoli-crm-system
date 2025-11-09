@@ -161,6 +161,34 @@ const schema = defineSchema(
       .index("leadId", ["leadId"])
       .index("phoneNumber", ["phoneNumber"])
       .index("timestamp", ["timestamp"]),
+
+    leadRequests: defineTable({
+      requestedBy: v.id("users"),
+      requestedByName: v.string(),
+      requestedByRole: v.string(),
+      numberOfLeads: v.number(),
+      status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined")),
+      processedBy: v.optional(v.id("users")),
+      processedAt: v.optional(v.number()),
+    }).index("by_status", ["status"]).index("by_requestedBy", ["requestedBy"]),
+
+    masterdata: defineTable({
+      name: v.string(),
+      subject: v.string(),
+      message: v.string(),
+      mobileNo: v.string(),
+      email: v.string(),
+      altMobileNo: v.optional(v.string()),
+      altEmail: v.optional(v.string()),
+      state: v.string(),
+      source: v.string(),
+      station: v.optional(v.string()),
+      district: v.optional(v.string()),
+      pincode: v.optional(v.string()),
+      agencyName: v.optional(v.string()),
+      country: v.optional(v.string()),
+      isAssigned: v.boolean(),
+    }).index("by_isAssigned", ["isAssigned"]),
   },
   {
     schemaValidation: false,

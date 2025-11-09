@@ -93,6 +93,35 @@ export function Layout({ children }: LayoutProps) {
   });
   const changePasswordMutation = useMutation(api.users.changePassword);
 
+  const importMasterdataInputRef = useRef<HTMLInputElement | null>(null);
+  const [requestLeadsDialogOpen, setRequestLeadsDialogOpen] = useState(false);
+  const [requestedLeadsCount, setRequestedLeadsCount] = useState("");
+  const [masterdataDialogOpen, setMasterdataDialogOpen] = useState(false);
+  const [pendingRequestDialogOpen, setPendingRequestDialogOpen] = useState(false);
+  const [requestStatusDialogOpen, setRequestStatusDialogOpen] = useState(false);
+
+  const uploadMasterdata = useMutation(api.masterdata.uploadMasterdata);
+  const requestLeadsMutation = useMutation(api.masterdata.requestLeads);
+  const processLeadRequest = useMutation(api.masterdata.processLeadRequest);
+  const pendingRequests = useQuery(
+    api.masterdata.getPendingRequests,
+    authReady && currentUser && currentUser.role === ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
+      : "skip"
+  );
+  const myRequestStatus = useQuery(
+    api.masterdata.getMyRequestStatus,
+    authReady && currentUser && currentUser.role !== ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
+      : "skip"
+  );
+  const availableMasterdataCount = useQuery(
+    api.masterdata.getAvailableMasterdataCount,
+    authReady && currentUser && currentUser.role === ROLES.ADMIN
+      ? { currentUserId: currentUser._id }
+      : "skip"
+  );
+
   useEffect(() => {
     initializeAuth();
     // Small delay to ensure auth is fully initialized
@@ -267,6 +296,87 @@ export function Layout({ children }: LayoutProps) {
       toast.success(`Imported/updated ${records.length} pincode mapping(s) in ${totalBatches} batch(es)`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to import pincode CSV");
+    }
+  };
+
+  // Add: Upload masterdata handler
+  const handleUploadMasterdata = async (file: File) => {
+    try {
+      if (file.size === 0) {
+        toast.error("The selected CSV file is empty.");
+        return;
+      }
+      const text = await file.text();
+      const rows = parseCsv(text);
+      const leads = mapRowsToLeads(rows);
+      
+      if (leads.length === 0) {
+        toast("No valid rows found. Ensure at least a mobile number is present.");
+        return;
+      }
+
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+
+      toast(`Uploading ${leads.length} masterdata lead(s)...`);
+
+      await uploadMasterdata({
+        leads,
+        currentUserId: currentUser._id,
+      });
+
+      toast.success(`Uploaded ${leads.length} masterdata lead(s)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to upload masterdata");
+    }
+  };
+
+  // Add: Request leads handler
+  const handleRequestLeads = async () => {
+    try {
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+      
+      const count = parseInt(requestedLeadsCount);
+      if (isNaN(count) || count < 1) {
+        toast.error("Please enter a valid number (minimum 1)");
+        return;
+      }
+
+      await requestLeadsMutation({
+        numberOfLeads: count,
+        currentUserId: currentUser._id,
+      });
+
+      toast.success(`Request for ${count} lead(s) submitted`);
+      setRequestLeadsDialogOpen(false);
+      setRequestedLeadsCount("");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to submit request");
+    }
+  };
+
+  // Add: Process request handler
+  const handleProcessRequest = async (requestId: any, action: "accept" | "decline") => {
+    try {
+      if (!currentUser?._id) {
+        toast.error("Not authenticated");
+        return;
+      }
+
+      await processLeadRequest({
+        requestId,
+        action,
+        currentUserId: currentUser._id,
+      });
+
+      toast.success(`Request ${action}ed successfully`);
+    } catch (e: any) {
+      toast.error(e?.message || `Failed to ${action} request`);
     }
   };
 
@@ -456,6 +566,43 @@ export function Layout({ children }: LayoutProps) {
       toast.error(e?.message || "Failed to change password");
     }
   };
+
+  // Show pending request dialog for admin
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) return;
+    if (pendingRequests && pendingRequests.length > 0) {
+      setPendingRequestDialogOpen(true);
+    }
+  }, [currentUser, pendingRequests]);
+
+  // Show request status dialog for manager/staff
+  useEffect(() => {
+    if (!currentUser || currentUser.role === ROLES.ADMIN) return;
+    if (myRequestStatus && myRequestStatus.status !== "pending") {
+      // Show notification for processed requests
+      const timeSinceProcessed = myRequestStatus.processedAt
+        ? Date.now() - myRequestStatus.processedAt
+        : Infinity;
+      
+      // Only show if processed within last 5 minutes
+      if (timeSinceProcessed < 5 * 60 * 1000) {
+        setRequestStatusDialogOpen(true);
+      }
+    }
+  }, [currentUser, myRequestStatus]);
+
+  // Poll for pending requests every 5 minutes (admin)
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) return;
+    
+    const interval = setInterval(() => {
+      if (pendingRequests && pendingRequests.length > 0) {
+        setPendingRequestDialogOpen(true);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [currentUser, pendingRequests]);
 
   // If auth is ready and no user, don't render Layout (let redirect happen)
   if (authReady && !currentUser) {
@@ -716,30 +863,33 @@ export function Layout({ children }: LayoutProps) {
                     <UserPlus className="w-4 h-4" />
                     Import And Assign
                   </Button>
-                  {/* New: Run Deduplication */}
                   <Button
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={async () => {
-                      try {
-                        if (!currentUser?._id) {
-                          toast.error("Not authenticated");
-                          return;
-                        }
-                        const confirmRun = window.confirm("Run deduplication across all leads now?");
-                        if (!confirmRun) return;
-                        const res = await runDeduplication({ currentUserId: currentUser._id });
-                        toast.success(
-                          `Dedup done: groups=${res?.groupsProcessed ?? 0}, merged=${res?.mergedCount ?? 0}, deleted=${res?.deletedCount ?? 0}`
-                        );
-                      } catch (e: any) {
-                        toast.error(e?.message || "Failed to run deduplication");
-                      }
-                    }}
+                    onClick={() => importMasterdataInputRef.current?.click()}
                   >
-                    Run Deduplication
+                    <Upload className="w-4 h-4" />
+                    Add Masterdata
+                    {availableMasterdataCount !== undefined && availableMasterdataCount > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {availableMasterdataCount}
+                      </Badge>
+                    )}
                   </Button>
+                  <input
+                    ref={importMasterdataInputRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const inputEl = e.currentTarget;
+                      const file = inputEl.files?.[0];
+                      if (!file) return;
+                      await handleUploadMasterdata(file);
+                      inputEl.value = "";
+                    }}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
@@ -839,6 +989,19 @@ export function Layout({ children }: LayoutProps) {
                     }}
                   />
                 </div>
+              )}
+
+              {/* NEW: Request Leads button for Manager/Staff */}
+              {(isManager || currentUser.role === ROLES.STAFF) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setRequestLeadsDialogOpen(true)}
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Request Leads
+                </Button>
               )}
 
               {/* User Info + Logout */}
@@ -1116,6 +1279,128 @@ export function Layout({ children }: LayoutProps) {
                 }}
               >
                 Save Lead
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* NEW: Request Leads Dialog (Manager/Staff) */}
+      {(isManager || currentUser.role === ROLES.STAFF) && (
+        <Dialog open={requestLeadsDialogOpen} onOpenChange={setRequestLeadsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Request Leads</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Enter the number of leads you would like to request from the masterdata pool.
+              </p>
+              <Input
+                type="number"
+                min="1"
+                placeholder="Number of leads (minimum 1)"
+                value={requestedLeadsCount}
+                onChange={(e) => setRequestedLeadsCount(e.target.value)}
+              />
+              {myRequestStatus && myRequestStatus.status === "pending" && (
+                <div className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
+                  You already have a pending request for {myRequestStatus.numberOfLeads} leads.
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRequestLeadsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleRequestLeads}>
+                Submit Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* NEW: Pending Request Dialog (Admin) */}
+      {isAdmin && pendingRequests && pendingRequests.length > 0 && (
+        <Dialog open={pendingRequestDialogOpen} onOpenChange={setPendingRequestDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Pending Lead Requests</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {pendingRequests.map((request) => (
+                <div key={request._id} className="border rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">User:</span> {request.requestedByName}
+                    </div>
+                    <div>
+                      <span className="font-medium">Role:</span>{" "}
+                      <span className="capitalize">{request.requestedByRole}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">Leads Requested:</span> {request.numberOfLeads}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleProcessRequest(request._id, "accept")}
+                      className="flex-1"
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleProcessRequest(request._id, "decline")}
+                      className="flex-1"
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPendingRequestDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* NEW: Request Status Dialog (Manager/Staff) */}
+      {(isManager || currentUser.role === ROLES.STAFF) && myRequestStatus && myRequestStatus.status !== "pending" && (
+        <Dialog open={requestStatusDialogOpen} onOpenChange={setRequestStatusDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {myRequestStatus.status === "accepted" ? "Request Accepted" : "Request Declined"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {myRequestStatus.status === "accepted" ? (
+                <div className="text-center space-y-2">
+                  <div className="text-green-600 text-lg font-medium">✓ Your request was accepted!</div>
+                  <p className="text-sm text-gray-600">
+                    {myRequestStatus.numberOfLeads} lead(s) have been assigned to you.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center space-y-2">
+                  <div className="text-red-600 text-lg font-medium">✗ Your request was declined</div>
+                  <p className="text-sm text-gray-600">
+                    Your request for {myRequestStatus.numberOfLeads} lead(s) was not approved.
+                  </p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setRequestStatusDialogOpen(false)}>
+                OK
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -23,6 +23,7 @@ import type * as emailKeys from "../emailKeys.js";
 import type * as emails from "../emails.js";
 import type * as http from "../http.js";
 import type * as leads from "../leads.js";
+import type * as masterdata from "../masterdata.js";
 import type * as notifications from "../notifications.js";
 import type * as sms from "../sms.js";
 import type * as users from "../users.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   emails: typeof emails;
   http: typeof http;
   leads: typeof leads;
+  masterdata: typeof masterdata;
   notifications: typeof notifications;
   sms: typeof sms;
   users: typeof users;
