@@ -215,6 +215,24 @@ export const getAllLeadsPaginated = query({
         return [];
       }
 
+      // Helper function to enrich leads with assignedUserName
+      const enrichLeads = async (leadsToEnrich: any[]) => {
+        const enrichedLeads: any[] = [];
+        for (const lead of leadsToEnrich) {
+          let assignedUserName: string | null = null;
+          if (lead.assignedTo) {
+            try {
+              const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
+              assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
+            } catch {
+              assignedUserName = "Unknown";
+            }
+          }
+          enrichedLeads.push({ ...lead, assignedUserName });
+        }
+        return enrichedLeads;
+      };
+
       // Build query based on role and filters
       let leads: any[] = [];
       
@@ -229,24 +247,58 @@ export const getAllLeadsPaginated = query({
           .order("asc")
           .collect();
         
-        return leads.map(lead => ({ ...lead, assignedUserName: null }));
-      } else {
-        // Admin can see all leads with filtering
-        const rawAssignee = args.assigneeId;
-        let normalizedAssignee = rawAssignee;
+        return enrichLeads(leads);
+      }
 
-        if (typeof rawAssignee === "string") {
-          const val = rawAssignee.trim();
-          if (val === "" || val === "all") {
-            normalizedAssignee = "all";
-          } else if (val === "unassigned") {
-            normalizedAssignee = "unassigned";
-          } else {
-            normalizedAssignee = val;
-          }
+      // Admin can see all leads with filtering
+      const rawAssignee = args.assigneeId;
+      let normalizedAssignee = rawAssignee;
+
+      if (typeof rawAssignee === "string") {
+        const val = rawAssignee.trim();
+        if (val === "" || val === "all") {
+          normalizedAssignee = "all";
+        } else if (val === "unassigned") {
+          normalizedAssignee = "unassigned";
+        } else {
+          normalizedAssignee = val;
         }
+      }
 
-        if (normalizedAssignee === "unassigned") {
+      if (normalizedAssignee === "unassigned") {
+        leads = await ctx.db
+          .query("leads")
+          .filter((q) => q.and(
+            q.eq(q.field("assignedTo"), undefined),
+            q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
+          ))
+          .order("asc")
+          .collect();
+        
+        return enrichLeads(leads);
+      } else if (normalizedAssignee && normalizedAssignee !== "all") {
+        leads = await ctx.db
+          .query("leads")
+          .filter((q) => q.and(
+            q.eq(q.field("assignedTo"), normalizedAssignee as any),
+            q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
+          ))
+          .order("asc")
+          .collect();
+        
+        return enrichLeads(leads);
+      } else {
+        // Apply general filter
+        if (args.filter === "assigned") {
+          leads = await ctx.db
+            .query("leads")
+            .filter((q) => q.and(
+              q.neq(q.field("assignedTo"), undefined),
+              q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
+            ))
+            .order("asc")
+            .collect();
+        } else if (args.filter === "unassigned") {
           leads = await ctx.db
             .query("leads")
             .filter((q) => q.and(
@@ -255,78 +307,15 @@ export const getAllLeadsPaginated = query({
             ))
             .order("asc")
             .collect();
-          
-          return leads.map(lead => ({ ...lead, assignedUserName: null }));
-        } else if (normalizedAssignee && normalizedAssignee !== "all") {
+        } else {
           leads = await ctx.db
             .query("leads")
-            .filter((q) => q.and(
-              q.eq(q.field("assignedTo"), normalizedAssignee as any),
-              q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
-            ))
+            .filter((q) => q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
             .order("asc")
             .collect();
-          
-          // Enrich with assignedUserName
-          const enrichedLeads: any[] = [];
-          for (const lead of leads) {
-            let assignedUserName: string | null = null;
-            if (lead.assignedTo) {
-              try {
-                const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-                assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
-              } catch {
-                assignedUserName = "Unknown";
-              }
-            }
-            enrichedLeads.push({ ...lead, assignedUserName });
-          }
-          return enrichedLeads;
-        } else {
-          // Apply general filter
-          if (args.filter === "assigned") {
-            leads = await ctx.db
-              .query("leads")
-              .filter((q) => q.and(
-                q.neq(q.field("assignedTo"), undefined),
-                q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
-              ))
-              .order("asc")
-              .collect();
-          } else if (args.filter === "unassigned") {
-            leads = await ctx.db
-              .query("leads")
-              .filter((q) => q.and(
-                q.eq(q.field("assignedTo"), undefined),
-                q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT)
-              ))
-              .order("asc")
-              .collect();
-            
-            return leads.map(lead => ({ ...lead, assignedUserName: null }));
-          } else {
-            leads = await ctx.db
-              .query("leads")
-              .filter((q) => q.neq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
-              .order("asc")
-              .collect();
-          }
-          
-          const enrichedLeads: any[] = [];
-          for (const lead of leads) {
-            let assignedUserName: string | null = null;
-            if (lead.assignedTo) {
-              try {
-                const assignedUser = (await ctx.db.get(lead.assignedTo)) as any;
-                assignedUserName = assignedUser?.name || assignedUser?.username || "Unknown";
-              } catch {
-                assignedUserName = "Unknown";
-              }
-            }
-            enrichedLeads.push({ ...lead, assignedUserName });
-          }
-          return enrichedLeads;
         }
+        
+        return enrichLeads(leads);
       }
     } catch (err) {
       console.error("getAllLeadsPaginated error:", err);
