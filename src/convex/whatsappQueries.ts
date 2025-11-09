@@ -7,11 +7,25 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    // Filter messages by leadId manually since the index might have issues with optional fields
-    const allMessages = await ctx.db.query("whatsappMessages").collect();
-    const messages = allMessages.filter((msg) => msg.leadId === args.leadId);
-    
-    return messages.sort((a, b) => a.timestamp - b.timestamp);
+    try {
+      // Verify the lead exists first
+      const lead = await ctx.db.get(args.leadId);
+      if (!lead) {
+        return [];
+      }
+
+      // Get all messages and filter by leadId
+      const allMessages = await ctx.db.query("whatsappMessages").collect();
+      const messages = allMessages.filter((msg) => {
+        // Handle both string comparison and direct ID comparison
+        return msg.leadId && String(msg.leadId) === String(args.leadId);
+      });
+      
+      return messages.sort((a, b) => a.timestamp - b.timestamp);
+    } catch (error) {
+      console.error("Error fetching WhatsApp messages:", error);
+      return [];
+    }
   },
 });
 
@@ -21,12 +35,17 @@ export const getMessagesByPhone = query({
     phoneNumber: v.string(),
   },
   handler: async (ctx, args) => {
-    const messages = await ctx.db
-      .query("whatsappMessages")
-      .withIndex("phoneNumber", (q) => q.eq("phoneNumber", args.phoneNumber))
-      .collect();
-    
-    return messages.sort((a, b) => a.timestamp - b.timestamp);
+    try {
+      const messages = await ctx.db
+        .query("whatsappMessages")
+        .withIndex("phoneNumber", (q) => q.eq("phoneNumber", args.phoneNumber))
+        .collect();
+      
+      return messages.sort((a, b) => a.timestamp - b.timestamp);
+    } catch (error) {
+      console.error("Error fetching messages by phone:", error);
+      return [];
+    }
   },
 });
 
@@ -41,15 +60,20 @@ export const logMessage = internalMutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("whatsappMessages", {
-      leadId: args.leadId,
-      phoneNumber: args.phoneNumber,
-      message: args.message,
-      direction: args.direction,
-      messageId: args.messageId,
-      status: args.status || "sent",
-      timestamp: Date.now(),
-    });
-    return { success: true };
+    try {
+      await ctx.db.insert("whatsappMessages", {
+        leadId: args.leadId,
+        phoneNumber: args.phoneNumber,
+        message: args.message,
+        direction: args.direction,
+        messageId: args.messageId,
+        status: args.status || "sent",
+        timestamp: Date.now(),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Error logging WhatsApp message:", error);
+      throw error;
+    }
   },
 });
