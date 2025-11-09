@@ -1286,12 +1286,16 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 }
 
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
-  // Only query if we have a valid leadId
-  const shouldQuery = leadId && leadId.trim().length > 0 && leadId !== "undefined" && leadId !== "null";
+  // Enhanced validation: only query if we have a valid leadId
+  const isValidLeadId = leadId && 
+    leadId.trim().length > 0 && 
+    leadId !== "undefined" && 
+    leadId !== "null" &&
+    !leadId.includes("skip");
   
   const messages = useQuery(
     api.whatsappQueries.getLeadMessages,
-    shouldQuery ? { leadId: leadId as any } : "skip"
+    isValidLeadId ? { leadId: leadId as any } : "skip"
   ) ?? [];
   
   const sendWhatsAppMessage = useAction(api.whatsapp.sendMessage);
@@ -1304,7 +1308,7 @@ function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; p
       return;
     }
 
-    if (!shouldQuery) {
+    if (!isValidLeadId) {
       toast.error("Invalid lead ID");
       return;
     }

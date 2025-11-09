@@ -11,19 +11,20 @@ export const getLeadMessages = query({
       // Verify the lead exists first
       const lead = await ctx.db.get(args.leadId);
       if (!lead) {
+        console.log("Lead not found:", args.leadId);
         return [];
       }
 
-      // Get all messages and filter by leadId
-      const allMessages = await ctx.db.query("whatsappMessages").collect();
-      const messages = allMessages.filter((msg) => {
-        // Handle both string comparison and direct ID comparison
-        return msg.leadId && String(msg.leadId) === String(args.leadId);
-      });
+      // Query messages with index if available, otherwise filter
+      const messages = await ctx.db
+        .query("whatsappMessages")
+        .filter((q) => q.eq(q.field("leadId"), args.leadId))
+        .collect();
       
       return messages.sort((a, b) => a.timestamp - b.timestamp);
     } catch (error) {
       console.error("Error fetching WhatsApp messages:", error);
+      // Return empty array instead of throwing to prevent UI crashes
       return [];
     }
   },
