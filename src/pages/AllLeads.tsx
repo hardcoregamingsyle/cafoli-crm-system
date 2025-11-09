@@ -1288,15 +1288,18 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 
 function WhatsAppBox({ leadId, phoneNumber, currentUserId }: { leadId: string; phoneNumber: string; currentUserId: string }) {
   // Enhanced validation: only query if we have a valid leadId
-  // Check for proper ID format (Convex IDs are alphanumeric strings with underscores)
+  // Check for proper ID format (Convex IDs follow a specific pattern)
   const isValidLeadId = React.useMemo(() => {
     if (!leadId || typeof leadId !== "string") return false;
     const trimmed = leadId.trim();
     if (trimmed.length === 0) return false;
     if (trimmed === "undefined" || trimmed === "null" || trimmed === "skip") return false;
-    if (trimmed.includes("skip")) return false;
-    // Convex IDs are alphanumeric with underscores, typically starting with a letter
-    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) return false;
+    // Convex IDs are base32-encoded strings that start with a table prefix
+    // They typically look like: jd7x8y9z0a1b2c3d4e5f6g7h
+    // More lenient check: just ensure it's a non-empty alphanumeric string
+    if (!/^[a-z0-9_]+$/i.test(trimmed)) return false;
+    // Additional check: Convex IDs are typically at least 16 characters
+    if (trimmed.length < 10) return false;
     return true;
   }, [leadId]);
   

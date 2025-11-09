@@ -7,14 +7,14 @@ export const getLeadMessages = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    try {
-      // Validate leadId exists and is a string
-      if (!args.leadId || typeof args.leadId !== "string" || args.leadId.trim() === "") {
-        console.warn("Invalid or empty leadId provided to getLeadMessages:", args.leadId);
-        return [];
-      }
+    // Early validation with comprehensive checks
+    if (!args.leadId) {
+      console.warn("getLeadMessages called with null/undefined leadId");
+      return [];
+    }
 
-      // Verify the lead exists first
+    try {
+      // Verify the lead exists first before querying messages
       const lead = await ctx.db.get(args.leadId);
       if (!lead) {
         console.log("Lead not found for leadId:", args.leadId);
@@ -28,9 +28,13 @@ export const getLeadMessages = query({
         .collect();
       
       return messages.sort((a, b) => a.timestamp - b.timestamp);
-    } catch (error) {
-      console.error("Error in getLeadMessages for leadId:", args.leadId, "Error:", error);
-      // Return empty array instead of throwing to prevent UI crashes
+    } catch (error: any) {
+      // Log the error but don't throw - return empty array to prevent UI crashes
+      console.error("Error in getLeadMessages:", {
+        leadId: args.leadId,
+        error: error?.message || String(error),
+        stack: error?.stack
+      });
       return [];
     }
   },
