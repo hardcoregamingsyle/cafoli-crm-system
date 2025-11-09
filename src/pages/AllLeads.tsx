@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Filter } from "lucide-react";
 import { MessageCircle } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation, useAction, usePaginatedQuery } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
@@ -74,23 +74,22 @@ export default function AllLeadsPage() {
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [selectedAssignee, setSelectedAssignee] = useState<string | undefined>(undefined);
-
-  // Determine batch size based on role
-  const batchSize = currentUser?.role === ROLES.ADMIN ? 100 : 50;
-
-  // Get all leads with pagination support
   const leads = useQuery(
-    api.leads.getAllLeadsPaginated,
+    api.leads.getAllLeads,
     currentUser && authReady
       ? {
-          filter: filter,
-          currentUserId: currentUser._id,
-          assigneeId: selectedAssignee,
+          // Pass the selected filter to the backend so results match the UI buttons
+          filter,
+          currentUserId: currentUser._id as any,
+          assigneeId:
+            assigneeFilter === "all"
+              ? undefined
+              : assigneeFilter === "unassigned"
+              ? ("unassigned" as any)
+              : (assigneeFilter as any),
         }
       : "skip"
   );
-
   const users = useQuery(
     api.users.getAllUsers,
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
@@ -237,12 +236,14 @@ export default function AllLeadsPage() {
 
   // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    const list: Array<any> = sourceLeads ?? [];
+    let list: Array<any> = sourceLeads ?? [];
     const q = (search || "").trim().toLowerCase();
 
+    // Apply all filters
     const filtered = list.filter((lead: any) => {
       // Search filter
       if (q) {
+        const assignedUserName = lead?.assignedUser?.name || lead?.assignedUser?.username || "";
         const fields = [
           lead?.name,
           lead?.subject,
@@ -255,7 +256,9 @@ export default function AllLeadsPage() {
           lead?.state,
           lead?.district,
           lead?.station,
+          lead?.source,
           lead?.country,
+          assignedUserName,
         ];
         const matchesSearch = fields.some((f: any) => String(f || "").toLowerCase().includes(q));
         if (!matchesSearch) return false;
@@ -279,18 +282,25 @@ export default function AllLeadsPage() {
         if (!selectedHeats.includes(leadHeat)) return false;
       }
 
+      // ... keep existing enforcedHeatRoute filter logic
+      if (enforcedHeatRoute) {
+        const leadHeat = (lead?.heat || "").toLowerCase();
+        const normalizedRoute = enforcedHeatRoute === "mature" ? "matured" : enforcedHeatRoute;
+        const normalizedLead = leadHeat === "mature" ? "matured" : leadHeat;
+        if (normalizedLead !== normalizedRoute) return false;
+      }
+
       return true;
     });
 
     // ... keep existing sort logic
     return filtered.sort((a: any, b: any) => {
-      const heatOrder: Record<string, number> = { hot: 1, matured: 2, cold: 3 };
-      const aHeat = heatOrder[a?.heat || ""] || 999;
-      const bHeat = heatOrder[b?.heat || ""] || 999;
-      if (aHeat !== bHeat) return aHeat - bHeat;
-      return (a?._creationTime ?? 0) - (b?._creationTime ?? 0);
+      const heatOrder: Record<string, number> = { hot: 0, mature: 1, matured: 1, cold: 2 };
+      const aHeat = heatOrder[String(a?.heat || "").toLowerCase()] ?? 3;
+      const bHeat = heatOrder[String(b?.heat || "").toLowerCase()] ?? 3;
+      return aHeat - bHeat;
     });
-  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats]);
+  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, enforcedHeatRoute]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
@@ -369,7 +379,7 @@ export default function AllLeadsPage() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">
             {showNotRelevant
@@ -640,11 +650,11 @@ export default function AllLeadsPage() {
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader>
-            <CardTitle>Leads ({(filteredLeads ?? []).length} shown)</CardTitle>
+            <CardTitle>Leads</CardTitle>
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {(filteredLeads ?? []).map((lead: any) => (
+              {displayedLeadsSorted.map((lead: any) => (
                 <AccordionItem key={String(lead._id)} value={String(lead._id)}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col w-full gap-2">
