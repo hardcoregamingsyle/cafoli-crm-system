@@ -6,43 +6,80 @@ export const LEAD_STATUS = {
   CONTACTED: "contacted",
   QUALIFIED: "qualified",
   CLOSED: "closed",
+  RELEVANT: "relevant",
+  NOT_RELEVANT: "not_relevant",
+  YET_TO_DECIDE: "yet_to_decide",
 };
 
 export const ROLES = {
   ADMIN: "admin",
+  MANAGER: "manager",
+  STAFF: "staff",
   USER: "user",
 };
+
+export type Role = "admin" | "manager" | "staff" | "user";
+
+export const roleValidator = v.union(
+  v.literal("admin"),
+  v.literal("manager"),
+  v.literal("staff"),
+  v.literal("user")
+);
+
+export const leadStatusValidator = v.union(
+  v.literal("new"),
+  v.literal("contacted"),
+  v.literal("qualified"),
+  v.literal("closed"),
+  v.literal("relevant"),
+  v.literal("not_relevant"),
+  v.literal("yet_to_decide")
+);
 
 export default defineSchema({
   users: defineTable({
     name: v.string(),
-    email: v.string(),
+    email: v.optional(v.string()),
     username: v.optional(v.string()),
+    password: v.optional(v.string()),
     passwordHash: v.optional(v.string()),
     role: v.optional(v.string()),
     phone: v.optional(v.string()),
-    createdAt: v.number(),
+    createdAt: v.optional(v.number()),
+    createdBy: v.optional(v.id("users")),
   })
     .index("by_email", ["email"])
-    .index("by_role", ["role"]),
+    .index("by_role", ["role"])
+    .index("username", ["username"]),
 
   auditLogs: defineTable({
     userId: v.id("users"),
     action: v.string(),
     timestamp: v.number(),
-  }),
+    details: v.optional(v.string()),
+    relatedLeadId: v.optional(v.id("leads")),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_action", ["action"]),
 
   notifications: defineTable({
     userId: v.id("users"),
     message: v.string(),
-    createdAt: v.number(),
-  }),
+    title: v.optional(v.string()),
+    read: v.optional(v.boolean()),
+    type: v.optional(v.string()),
+    relatedLeadId: v.optional(v.id("leads")),
+  })
+    .index("userId", ["userId"]),
 
   comments: defineTable({
     leadId: v.id("leads"),
-    text: v.string(),
-    createdAt: v.number(),
-  }),
+    userId: v.id("users"),
+    content: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("leadId", ["leadId"]),
 
   leads: defineTable({
     name: v.string(),
@@ -50,17 +87,124 @@ export default defineSchema({
     mobileNo: v.string(),
     status: v.optional(v.string()),
     state: v.string(),
-    createdAt: v.number(),
-    serialNo: v.optional(v.string()),
+    serialNo: v.optional(v.number()),
+    subject: v.optional(v.string()),
+    message: v.optional(v.string()),
+    altMobileNo: v.optional(v.string()),
+    altEmail: v.optional(v.string()),
+    source: v.optional(v.string()),
+    assignedTo: v.optional(v.id("users")),
+    nextFollowup: v.optional(v.number()),
+    station: v.optional(v.string()),
+    district: v.optional(v.string()),
+    pincode: v.optional(v.string()),
+    agencyName: v.optional(v.string()),
+    heat: v.optional(v.string()),
   })
-    .index("by_email", ["email"])
-    .index("by_status", ["status"]),
+    .index("email", ["email"])
+    .index("by_status", ["status"])
+    .index("mobileNo", ["mobileNo"])
+    .index("assignedTo", ["assignedTo"]),
 
   whatsappMessages: defineTable({
-    leadId: v.id("leads"),
+    leadId: v.optional(v.id("leads")),
     phoneNumber: v.string(),
     message: v.string(),
+    direction: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    status: v.optional(v.string()),
     timestamp: v.number(),
+    metadata: v.optional(v.any()),
   })
-    .index("by_creation_time", ["_creationTime"]),
+    .index("by_leadId", ["leadId"])
+    .index("by_phoneNumber", ["phoneNumber"]),
+
+  masterdata: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    message: v.string(),
+    mobileNo: v.string(),
+    email: v.string(),
+    altMobileNo: v.optional(v.string()),
+    altEmail: v.optional(v.string()),
+    state: v.string(),
+    source: v.string(),
+    station: v.optional(v.string()),
+    district: v.optional(v.string()),
+    pincode: v.optional(v.string()),
+    agencyName: v.optional(v.string()),
+    isAssigned: v.boolean(),
+  })
+    .index("by_isAssigned", ["isAssigned"]),
+
+  leadRequests: defineTable({
+    requestedBy: v.id("users"),
+    requestedByName: v.string(),
+    requestedByRole: v.string(),
+    numberOfLeads: v.number(),
+    status: v.string(),
+    processedBy: v.optional(v.id("users")),
+    processedAt: v.optional(v.number()),
+  })
+    .index("by_requestedBy", ["requestedBy"])
+    .index("by_status", ["status"]),
+
+  campaigns: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    status: v.optional(v.string()),
+    recipientIds: v.optional(v.array(v.id("leads"))),
+    content: v.optional(v.string()),
+  })
+    .index("by_createdBy", ["createdBy"]),
+
+  pincodeMappings: defineTable({
+    pincode: v.string(),
+    district: v.optional(v.string()),
+    state: v.optional(v.string()),
+  })
+    .index("pincode", ["pincode"]),
+
+  webhookLogs: defineTable({
+    timestamp: v.number(),
+    method: v.string(),
+    path: v.string(),
+    body: v.optional(v.string()),
+    headers: v.optional(v.string()),
+    ip: v.optional(v.string()),
+  }),
+
+  ipLogs: defineTable({
+    userId: v.id("users"),
+    ip: v.string(),
+    timestamp: v.number(),
+    action: v.string(),
+  })
+    .index("by_userId", ["userId"]),
+
+  emailApiKeys: defineTable({
+    name: v.string(),
+    apiKey: v.string(),
+    active: v.boolean(),
+    dailyLimit: v.number(),
+    sentToday: v.optional(v.number()),
+    lastResetAt: v.optional(v.number()),
+  })
+    .index("by_name", ["name"])
+    .index("by_active", ["active"]),
+
+  emailQueue: defineTable({
+    to: v.string(),
+    subject: v.string(),
+    body: v.optional(v.string()),
+    text: v.optional(v.string()),
+    status: v.string(),
+    attempts: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"]),
 });

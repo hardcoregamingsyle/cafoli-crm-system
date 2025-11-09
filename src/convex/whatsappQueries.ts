@@ -35,7 +35,7 @@ export const getLeadMessages = query({
       // Query messages using index for better performance
       const messages = await ctx.db
         .query("whatsappMessages")
-        .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
+        .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
         .collect();
       
       // Sort by timestamp ascending
@@ -61,7 +61,7 @@ export const getMessagesByPhone = query({
     try {
       const messages = await ctx.db
         .query("whatsappMessages")
-        .withIndex("phoneNumber", (q) => q.eq("phoneNumber", args.phoneNumber))
+        .withIndex("by_phoneNumber", (q) => q.eq("phoneNumber", args.phoneNumber))
         .collect();
       
       return messages.sort((a, b) => a.timestamp - b.timestamp);
@@ -89,7 +89,7 @@ export const logMessage = internalMutation({
         phoneNumber: args.phoneNumber,
         message: args.message,
         direction: args.direction,
-        messageId: args.messageId,
+        messageId: args.messageId || undefined,
         status: args.status || "sent",
         timestamp: Date.now(),
       });

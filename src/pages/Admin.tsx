@@ -377,7 +377,7 @@ function CreateUserForm({ onCreate }: { onCreate: (data: { name: string; usernam
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>(ROLES.STAFF);
+  const [role, setRole] = useState<Role>(ROLES.STAFF as Role);
   const [email, setEmail] = useState("");
 
   return (
@@ -402,7 +402,7 @@ function CreateUserForm({ onCreate }: { onCreate: (data: { name: string; usernam
             }
             try {
               await onCreate({ name, username, password, role, email: email || undefined });
-              setName(""); setUsername(""); setPassword(""); setRole(ROLES.STAFF); setEmail("");
+              setName(""); setUsername(""); setPassword(""); setRole(ROLES.STAFF as Role); setEmail("");
             } catch (e: any) {
               const raw = e?.message ?? "";
               const msg = typeof raw === "string" && raw.toLowerCase().includes("username already exists")

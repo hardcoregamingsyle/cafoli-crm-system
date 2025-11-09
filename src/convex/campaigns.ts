@@ -19,16 +19,14 @@ export const createCampaign = mutation({
     }
 
     const campaignId = await ctx.db.insert("campaigns", {
+      name: args.subject,
       subject: args.subject,
+      body: args.content,
       content: args.content,
-      senderPrefix: args.senderPrefix,
-      recipientType: args.recipientType,
       recipientIds: args.recipientIds,
-      attachments: args.attachments,
       status: "draft",
-      sentCount: 0,
-      failedCount: 0,
       createdBy: args.currentUserId,
+      createdAt: Date.now(),
     });
 
     return campaignId;
