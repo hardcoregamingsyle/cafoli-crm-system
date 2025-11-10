@@ -726,4 +726,94 @@ http.route({
   }),
 });
 
+// Add: Migration export endpoint
+http.route({
+  path: "/api/migrate/export",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/migrate/export",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+      const deployment = body.deployment || "precious-cricket-778";
+      const includeFileStorage = body.includeFileStorage !== false;
+
+      // Call the internal action to export data
+      const result = await ctx.runAction(internal.migrate.exportData, {
+        deployment,
+        includeFileStorage,
+      });
+
+      if (!result.success) {
+        return corsJson({ ok: false, error: "Export failed" }, 500);
+      }
+
+      // Convert base64 back to binary and return as blob
+      const buffer = Buffer.from(result.data, "base64");
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${result.filename}"`,
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "Export failed" }, 500);
+    }
+  }),
+});
+
+// Add: Migration import endpoint
+http.route({
+  path: "/api/migrate/import",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/api/migrate/import",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const formData = await req.formData();
+      const file = formData.get("file") as File;
+      const deployment = formData.get("deployment") as string;
+
+      if (!file || !deployment) {
+        return corsJson({ ok: false, error: "Missing file or deployment" }, 400);
+      }
+
+      // Convert file to base64
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64Data = buffer.toString("base64");
+
+      // Call the internal action to import data
+      const result = await ctx.runAction(internal.migrate.importData, {
+        deployment,
+        fileData: base64Data,
+        filename: file.name,
+        replaceAll: false,
+      });
+
+      if (!result.success) {
+        return corsJson({ ok: false, error: "Import failed" }, 500);
+      }
+
+      return corsJson({ ok: true, message: result.message }, 200);
+    } catch (e: any) {
+      return corsJson({ ok: false, error: e.message || "Import failed" }, 500);
+    }
+  }),
+});
+
 export default http;
