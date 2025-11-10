@@ -1,6 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Initialize currentUser from localStorage to prevent redirect loops
 export function useCrmAuth() {
@@ -8,8 +8,21 @@ export function useCrmAuth() {
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
       const stored = localStorage.getItem("crmUser");
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const user = JSON.parse(stored);
+      
+      // Validate that the user ID is from the users table
+      if (user?._id && !String(user._id).startsWith("k")) {
+        // Invalid user ID format, clear storage
+        localStorage.removeItem("crmUser");
+        localStorage.removeItem("originalAdmin");
+        return null;
+      }
+      
+      return user;
     } catch {
+      localStorage.removeItem("crmUser");
+      localStorage.removeItem("originalAdmin");
       return null;
     }
   });
@@ -53,7 +66,17 @@ export function useCrmAuth() {
     // Still keep this for idempotency; now it's already initialized at hook creation
     const stored = localStorage.getItem("crmUser");
     if (stored) {
-      setCurrentUser(JSON.parse(stored));
+      try {
+        const user = JSON.parse(stored);
+        // Validate user ID format
+        if (user?._id && !String(user._id).startsWith("k")) {
+          logout();
+          return;
+        }
+        setCurrentUser(user);
+      } catch {
+        logout();
+      }
     }
     const adminStored = localStorage.getItem("originalAdmin");
     if (adminStored) {

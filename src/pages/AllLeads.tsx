@@ -22,7 +22,7 @@ import { toast } from "sonner";
 type Filter = "all" | "assigned" | "unassigned";
 
 export default function AllLeadsPage() {
-  const { currentUser, initializeAuth } = useCrmAuth();
+  const { currentUser, initializeAuth, logout } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,11 +48,11 @@ export default function AllLeadsPage() {
 
   // Redirect unauthenticated users to login
   useEffect(() => {
-    if (!currentUser) {
+    if (authReady && !currentUser) {
       navigate("/");
       return;
     }
-  }, [currentUser, navigate]);
+  }, [authReady, currentUser, navigate]);
 
   // Add search state
   const [search, setSearch] = useState("");
@@ -72,32 +72,62 @@ export default function AllLeadsPage() {
       setFilter("unassigned");
     }
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
+  
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const leads = useQuery(
-    api.leads.getAllLeads,
-    currentUser && authReady
-      ? {
-          // Pass the selected filter to the backend so results match the UI buttons
-          filter,
-          currentUserId: currentUser._id as any,
-          assigneeId:
-            assigneeFilter === "all"
-              ? undefined
-              : assigneeFilter === "unassigned"
-              ? ("unassigned" as any)
-              : (assigneeFilter as any),
-        }
-      : "skip"
-  );
-  const users = useQuery(
-    api.users.getAllUsers,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ); // Admin only
-  const assignable = useQuery(
-    api.users.getAssignableUsers,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ); // Admin + Manager
+  
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+    leads = useQuery(
+      api.leads.getAllLeads,
+      currentUser && authReady
+        ? {
+            filter,
+            currentUserId: currentUser._id as any,
+            assigneeId:
+              assigneeFilter === "all"
+                ? undefined
+                : assigneeFilter === "unassigned"
+                ? ("unassigned" as any)
+                : (assigneeFilter as any),
+          }
+        : "skip"
+    );
+    
+    users = useQuery(
+      api.users.getAllUsers,
+      currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    );
+    
+    assignable = useQuery(
+      api.users.getAssignableUsers,
+      currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    );
+    
+    myLeads = useQuery(
+      api.leads.getMyLeads,
+      currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    );
+    
+    notRelevantLeads = useQuery(
+      api.leads.getNotRelevantLeads,
+      currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
+        ? { currentUserId: currentUser._id }
+        : "skip"
+    );
+  } catch (error: any) {
+    // If there's an authentication error (invalid user ID), log out
+    if (error?.message?.includes("ArgumentValidationError") || 
+        error?.message?.includes("does not match the table name")) {
+      console.error("Authentication error detected, logging out:", error);
+      logout();
+      return null;
+    }
+    throw error;
+  }
+
   const assignLead = useMutation(api.leads.assignLead);
   const setNextFollowup = useMutation(api.leads.setNextFollowup);
   const cancelFollowup = useMutation(api.leads.cancelFollowup);
@@ -105,19 +135,6 @@ export default function AllLeadsPage() {
   const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
   const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
   const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
-
-  // New: also subscribe to my leads (used for dashboard heat routes for Manager/Staff)
-  const myLeads = useQuery(
-    api.leads.getMyLeads,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  );
-
-  const notRelevantLeads = useQuery(
-    api.leads.getNotRelevantLeads,
-    currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
-      ? { currentUserId: currentUser._id }
-      : "skip"
-  );
 
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
