@@ -1,6 +1,6 @@
-const pendingRequests = useQuery(
-  api.masterdata.getPendingRequests,
-  authReady && currentUser && currentUser.role === ROLES.ADMIN
+const myRequestStatus = useQuery(
+  api.masterdata.getMyRequestStatus,
+  authReady && currentUser?._id && currentUser.role !== ROLES.ADMIN
     ? { currentUserId: currentUser._id }
     : "skip"
 );

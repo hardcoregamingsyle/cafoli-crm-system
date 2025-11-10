@@ -141,20 +141,23 @@ export const getMyRequestStatus = query({
   args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
     try {
+      // Early return if no user ID provided
       if (!args.currentUserId) {
         return null;
       }
       
+      // Validate user exists
       const user = await ctx.db.get(args.currentUserId);
       if (!user) {
         return null;
       }
 
-      // Add additional check: only proceed if user is not an admin
+      // Only proceed if user is not an admin
       if (user.role === ROLES.ADMIN) {
         return null;
       }
 
+      // Query for the user's most recent request
       const request = await ctx.db
         .query("leadRequests")
         .withIndex("by_requestedBy", (q) => q.eq("requestedBy", user._id))
@@ -163,6 +166,7 @@ export const getMyRequestStatus = query({
 
       return request || null;
     } catch (error) {
+      // Log error for debugging but return null to prevent crashes
       console.error("Error in getMyRequestStatus:", error);
       return null;
     }

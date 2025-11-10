@@ -114,7 +114,7 @@ export function Layout({ children }: LayoutProps) {
     authReady && currentUser?._id && currentUser.role !== ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
-  );
+  ) ?? null;
   const availableMasterdataCount = useQuery(
     api.masterdata.getAvailableMasterdataCount,
     authReady && currentUser?._id && currentUser.role === ROLES.ADMIN
