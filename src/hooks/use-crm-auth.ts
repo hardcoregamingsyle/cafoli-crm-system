@@ -11,8 +11,8 @@ export function useCrmAuth() {
       if (!stored) return null;
       const user = JSON.parse(stored);
       
-      // Validate that the user ID is from the users table
-      if (user?._id && !String(user._id).startsWith("k")) {
+      // Validate that the user ID exists and looks valid (basic check)
+      if (!user?._id || typeof user._id !== 'string' || user._id.length < 10) {
         // Invalid user ID format, clear storage
         localStorage.removeItem("crmUser");
         localStorage.removeItem("originalAdmin");
@@ -68,8 +68,8 @@ export function useCrmAuth() {
     if (stored) {
       try {
         const user = JSON.parse(stored);
-        // Validate user ID format
-        if (user?._id && !String(user._id).startsWith("k")) {
+        // Basic validation only
+        if (!user?._id || typeof user._id !== 'string' || user._id.length < 10) {
           logout();
           return;
         }
