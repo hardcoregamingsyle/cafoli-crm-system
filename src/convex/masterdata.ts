@@ -108,31 +108,36 @@ export const requestLeads = mutation({
 export const getPendingRequests = query({
   args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    // Return empty array if no currentUserId provided
-    if (!args.currentUserId) {
-      return [];
-    }
-    
-    // Get user and validate
-    const user = await ctx.db.get(args.currentUserId);
-    
-    // Return empty array if user doesn't exist
-    if (!user) {
-      return [];
-    }
-    
-    // Return empty array if user is not an admin
-    if (user.role !== ROLES.ADMIN) {
-      return [];
-    }
+    try {
+      // Return empty array if no currentUserId provided
+      if (!args.currentUserId) {
+        return [];
+      }
+      
+      // Get user and validate
+      const user = await ctx.db.get(args.currentUserId);
+      
+      // Return empty array if user doesn't exist
+      if (!user) {
+        return [];
+      }
+      
+      // Return empty array if user is not an admin
+      if (user.role !== ROLES.ADMIN) {
+        return [];
+      }
 
-    // Only fetch requests if all checks pass
-    const requests = await ctx.db
-      .query("leadRequests")
-      .withIndex("by_status", (q) => q.eq("status", "pending"))
-      .collect();
+      // Only fetch requests if all checks pass
+      const requests = await ctx.db
+        .query("leadRequests")
+        .withIndex("by_status", (q) => q.eq("status", "pending"))
+        .collect();
 
-    return requests;
+      return requests;
+    } catch (error) {
+      console.error("Error in getPendingRequests:", error);
+      return [];
+    }
   },
 });
 
@@ -146,7 +151,7 @@ export const getMyRequestStatus = query({
         return null;
       }
       
-      // Validate user exists
+      // Validate user exists before proceeding
       const user = await ctx.db.get(args.currentUserId);
       if (!user) {
         return null;
