@@ -114,8 +114,15 @@ export const getPendingRequests = query({
         return [];
       }
       
-      // Get user and validate
-      const user = await ctx.db.get(args.currentUserId);
+      // Get user and validate - wrap in try-catch for invalid IDs
+      let user;
+      try {
+        user = await ctx.db.get(args.currentUserId);
+      } catch (error) {
+        // Invalid ID format or other database error
+        console.error("Error fetching user in getPendingRequests:", error);
+        return [];
+      }
       
       // Return empty array if user doesn't exist
       if (!user) {
@@ -151,8 +158,16 @@ export const getMyRequestStatus = query({
         return null;
       }
       
-      // Validate user exists before proceeding
-      const user = await ctx.db.get(args.currentUserId);
+      // Validate user exists before proceeding - wrap in try-catch for invalid IDs
+      let user;
+      try {
+        user = await ctx.db.get(args.currentUserId);
+      } catch (error) {
+        // Invalid ID format or other database error
+        console.error("Error fetching user in getMyRequestStatus:", error);
+        return null;
+      }
+      
       if (!user) {
         return null;
       }
