@@ -2,6 +2,11 @@ import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useState, useEffect } from "react";
 
+// Helper function to validate user ID format
+const isValidUserId = (id: any): boolean => {
+  return typeof id === 'string' && id.length >= 10 && !id.includes('undefined') && !id.includes('null');
+};
+
 // Initialize currentUser from localStorage to prevent redirect loops
 export function useCrmAuth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +17,7 @@ export function useCrmAuth() {
       const user = JSON.parse(stored);
       
       // Validate that the user ID exists and looks valid (basic check)
-      if (!user?._id || typeof user._id !== 'string' || user._id.length < 10) {
+      if (!isValidUserId(user?._id)) {
         // Invalid user ID format, clear storage
         localStorage.removeItem("crmUser");
         localStorage.removeItem("originalAdmin");
@@ -31,7 +36,16 @@ export function useCrmAuth() {
   const [originalAdmin, setOriginalAdmin] = useState<any>(() => {
     try {
       const stored = localStorage.getItem("originalAdmin");
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const admin = JSON.parse(stored);
+      
+      // Validate admin ID as well
+      if (!isValidUserId(admin?._id)) {
+        localStorage.removeItem("originalAdmin");
+        return null;
+      }
+      
+      return admin;
     } catch {
       return null;
     }
@@ -43,6 +57,12 @@ export function useCrmAuth() {
     setIsLoading(true);
     try {
       const user = await loginMutation({ username, password });
+      
+      // Validate the returned user ID before storing
+      if (!isValidUserId(user?._id)) {
+        throw new Error("Invalid user ID returned from server");
+      }
+      
       setCurrentUser(user);
       localStorage.setItem("crmUser", JSON.stringify(user));
       return user;
@@ -69,7 +89,7 @@ export function useCrmAuth() {
       try {
         const user = JSON.parse(stored);
         // Basic validation only
-        if (!user?._id || typeof user._id !== 'string' || user._id.length < 10) {
+        if (!isValidUserId(user?._id)) {
           logout();
           return;
         }
@@ -80,11 +100,27 @@ export function useCrmAuth() {
     }
     const adminStored = localStorage.getItem("originalAdmin");
     if (adminStored) {
-      setOriginalAdmin(JSON.parse(adminStored));
+      try {
+        const admin = JSON.parse(adminStored);
+        if (!isValidUserId(admin?._id)) {
+          localStorage.removeItem("originalAdmin");
+          setOriginalAdmin(null);
+          return;
+        }
+        setOriginalAdmin(admin);
+      } catch {
+        localStorage.removeItem("originalAdmin");
+        setOriginalAdmin(null);
+      }
     }
   };
   
   const impersonateUser = (targetUser: any, adminUser: any) => {
+    // Validate both user IDs before impersonation
+    if (!isValidUserId(targetUser?._id) || !isValidUserId(adminUser?._id)) {
+      throw new Error("Invalid user IDs for impersonation");
+    }
+    
     // Store original admin
     setOriginalAdmin(adminUser);
     localStorage.setItem("originalAdmin", JSON.stringify(adminUser));
@@ -95,7 +131,7 @@ export function useCrmAuth() {
   };
   
   const returnToAdmin = () => {
-    if (originalAdmin) {
+    if (originalAdmin && isValidUserId(originalAdmin._id)) {
       setCurrentUser(originalAdmin);
       localStorage.setItem("crmUser", JSON.stringify(originalAdmin));
       setOriginalAdmin(null);
