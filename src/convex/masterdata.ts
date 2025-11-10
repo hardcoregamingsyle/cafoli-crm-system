@@ -140,27 +140,32 @@ export const getPendingRequests = query({
 export const getMyRequestStatus = query({
   args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    if (!args.currentUserId) {
+    try {
+      if (!args.currentUserId) {
+        return null;
+      }
+      
+      const user = await ctx.db.get(args.currentUserId);
+      if (!user) {
+        return null;
+      }
+
+      // Add additional check: only proceed if user is not an admin
+      if (user.role === ROLES.ADMIN) {
+        return null;
+      }
+
+      const request = await ctx.db
+        .query("leadRequests")
+        .withIndex("by_requestedBy", (q) => q.eq("requestedBy", user._id))
+        .order("desc")
+        .first();
+
+      return request || null;
+    } catch (error) {
+      console.error("Error in getMyRequestStatus:", error);
       return null;
     }
-    
-    const user = await ctx.db.get(args.currentUserId);
-    if (!user) {
-      return null;
-    }
-
-    // Add additional check: only proceed if user is not an admin
-    if (user.role === ROLES.ADMIN) {
-      return null;
-    }
-
-    const request = await ctx.db
-      .query("leadRequests")
-      .withIndex("by_requestedBy", (q) => q.eq("requestedBy", user._id))
-      .order("desc")
-      .first();
-
-    return request || null;
   },
 });
 
