@@ -41,24 +41,29 @@ export default function Migrate() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      toast.info(`Exporting data from ${sourceDeployment}...`);
+      const exportSlug = import.meta.env.VITE_EXPORT_SLUG || sourceDeployment;
+      toast.info(`Exporting data from ${exportSlug}...`);
       
-      // Call the backend export endpoint
+      // Use Convex CLI command approach via backend action
       const response = await fetch(`${import.meta.env.VITE_CONVEX_URL}/api/migrate/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deployment: sourceDeployment }),
+        body: JSON.stringify({ 
+          deployment: exportSlug,
+          includeFileStorage: true 
+        }),
       });
 
       if (!response.ok) {
-        throw new Error("Export failed");
+        const errorText = await response.text();
+        throw new Error(errorText || "Export failed");
       }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${sourceDeployment}-backup-${Date.now()}.zip`;
+      link.download = `${exportSlug}-backup-${Date.now()}.zip`;
       link.click();
       URL.revokeObjectURL(url);
 
