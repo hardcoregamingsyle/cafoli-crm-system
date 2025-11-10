@@ -108,16 +108,25 @@ export const requestLeads = mutation({
 export const getPendingRequests = query({
   args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    // Add null check for currentUserId
+    // Return empty array if no currentUserId provided
     if (!args.currentUserId) {
       return [];
     }
     
+    // Get user and validate
     const user = await ctx.db.get(args.currentUserId);
-    if (!user || user.role !== ROLES.ADMIN) {
+    
+    // Return empty array if user doesn't exist
+    if (!user) {
+      return [];
+    }
+    
+    // Return empty array if user is not an admin
+    if (user.role !== ROLES.ADMIN) {
       return [];
     }
 
+    // Only fetch requests if all checks pass
     const requests = await ctx.db
       .query("leadRequests")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
