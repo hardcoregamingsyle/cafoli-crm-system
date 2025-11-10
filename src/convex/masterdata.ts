@@ -140,13 +140,18 @@ export const getMyRequestStatus = query({
       return null;
     }
 
+    // Add additional check: only proceed if user is not an admin
+    if (user.role === ROLES.ADMIN) {
+      return null;
+    }
+
     const request = await ctx.db
       .query("leadRequests")
       .withIndex("by_requestedBy", (q) => q.eq("requestedBy", user._id))
       .order("desc")
       .first();
 
-    return request;
+    return request || null;
   },
 });
 
