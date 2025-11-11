@@ -13,19 +13,27 @@ import { BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Flame, Snowfl
 export default function ReportPage() {
   const { currentUser } = useCrmAuth();
   
-  // Feature launch date: November 11, 2025
-  const FEATURE_LAUNCH_DATE = new Date(2025, 10, 11); // Month is 0-indexed, so 10 = November
-  FEATURE_LAUNCH_DATE.setHours(0, 0, 0, 0);
+  // Helper function to get IST date (GMT+5:30)
+  const getISTDate = (date?: Date) => {
+    const d = date || new Date();
+    // Convert to IST by adding 5 hours 30 minutes offset
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+    const utcTime = d.getTime() + (d.getTimezoneOffset() * 60 * 1000);
+    const istTime = new Date(utcTime + istOffset);
+    istTime.setHours(0, 0, 0, 0);
+    return istTime;
+  };
   
-  // Get today's date + 1 day (allow 1 day in the future)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Feature launch date: November 11, 2025 (IST)
+  const FEATURE_LAUNCH_DATE = getISTDate(new Date(2025, 10, 11)); // Month is 0-indexed, so 10 = November
+  
+  // Get today's date in IST + 1 day (allow 1 day in the future)
+  const today = getISTDate();
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + 1);
   
   // Determine minimum date: user creation date or feature launch date (whichever is later)
-  const userCreationDate = currentUser?._creationTime ? new Date(currentUser._creationTime) : FEATURE_LAUNCH_DATE;
-  userCreationDate.setHours(0, 0, 0, 0);
+  const userCreationDate = currentUser?._creationTime ? getISTDate(new Date(currentUser._creationTime)) : FEATURE_LAUNCH_DATE;
   const minDate = userCreationDate > FEATURE_LAUNCH_DATE ? userCreationDate : FEATURE_LAUNCH_DATE;
   
   // Set default dates to today
@@ -93,9 +101,11 @@ export default function ReportPage() {
     setToDate(dateStr);
   };
 
-  // Convert dates to timestamps
-  const fromTimestamp = new Date(fromDate).setHours(0, 0, 0, 0);
-  const toTimestamp = new Date(toDate).setHours(23, 59, 59, 999);
+  // Convert dates to timestamps (IST)
+  const fromDateIST = new Date(fromDate + "T00:00:00+05:30");
+  const toDateIST = new Date(toDate + "T23:59:59+05:30");
+  const fromTimestamp = fromDateIST.getTime();
+  const toTimestamp = toDateIST.getTime();
 
   const reportData = useQuery(
     api.leads.getReportData,
