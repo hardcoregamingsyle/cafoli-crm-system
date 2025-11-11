@@ -1166,7 +1166,8 @@ export const getNotRelevantLeads = query({
 });
 
 // New query to get report data for a user within a date range
-// Optimized to avoid reading too many documents
+// Shows all currently assigned leads (not filtered by creation date)
+// This ensures that when you assign leads to yourself, they appear immediately in the report
 export const getReportData = query({
   args: {
     currentUserId: v.id("users"),
@@ -1179,15 +1180,14 @@ export const getReportData = query({
       throw new Error("Unauthorized");
     }
 
-    // Get leads assigned to this user using indexed query
+    // Get all currently assigned leads for this user
     let myLeads: any[] = [];
     if (currentUser.role === ROLES.ADMIN) {
-      // Admin sees all leads - use pagination to avoid hitting limits
-      // For reports, we'll limit to a reasonable number
+      // Admin sees all leads - limit to avoid hitting document limits
       myLeads = await ctx.db
         .query("leads")
         .order("desc")
-        .take(10000); // Reasonable limit for reporting
+        .take(10000);
     } else {
       // Manager/Staff see only their assigned leads
       try {
@@ -1205,11 +1205,11 @@ export const getReportData = query({
       }
     }
 
-    // For the report, show ALL currently assigned leads (don't filter by creation date)
+    // Report shows ALL currently assigned leads (not filtered by creation date)
     // This way, when you assign yourself leads, they show up immediately
     const leadsInRange = myLeads;
 
-    // Calculate metrics directly without fetching audit logs
+    // Calculate metrics directly
     const totalAssigned = leadsInRange.length;
 
     // Count overdue followups (leads where nextFollowup is in the past)

@@ -129,7 +129,7 @@ export default function ReportPage() {
         <Card>
           <CardHeader>
             <CardTitle>Date Range</CardTitle>
-            <CardDescription>Select the date range for your report (automatically updates)</CardDescription>
+            <CardDescription>Showing all currently assigned leads (date range for future filtering)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
