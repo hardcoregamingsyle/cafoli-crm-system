@@ -102,10 +102,17 @@ export default function ReportPage() {
   };
 
   // Convert dates to timestamps (IST)
-  const fromDateIST = new Date(fromDate + "T00:00:00+05:30");
-  const toDateIST = new Date(toDate + "T23:59:59+05:30");
-  const fromTimestamp = fromDateIST.getTime();
-  const toTimestamp = toDateIST.getTime();
+  // Parse the date string and create IST timestamps
+  const fromDateParts = fromDate.split('-').map(Number);
+  const toDateParts = toDate.split('-').map(Number);
+  
+  // Create dates in IST (subtract 5.5 hours to get the UTC equivalent of IST midnight)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const fromDateUTC = new Date(Date.UTC(fromDateParts[0], fromDateParts[1] - 1, fromDateParts[2], 0, 0, 0));
+  const toDateUTC = new Date(Date.UTC(toDateParts[0], toDateParts[1] - 1, toDateParts[2], 23, 59, 59, 999));
+  
+  const fromTimestamp = fromDateUTC.getTime() - istOffset;
+  const toTimestamp = toDateUTC.getTime() - istOffset;
 
   const reportData = useQuery(
     api.leads.getReportData,
