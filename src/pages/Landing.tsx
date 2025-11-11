@@ -1,13 +1,37 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
-import { ArrowRight, Users, TrendingUp, Bell, Shield } from "lucide-react";
+import { ArrowRight, Users, TrendingUp, Bell, Shield, FileText } from "lucide-react";
 
 export default function Landing() {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Header with Report Button */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">C</span>
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Cafoli CRM
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => navigate("/report")}
+            >
+              <FileText className="w-4 h-4" />
+              Report
+            </Button>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

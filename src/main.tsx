@@ -21,6 +21,7 @@ import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import MigratePage from "@/pages/Migrate.tsx";
+import ReportPage from "@/pages/Report.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -74,6 +75,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
           <Route path="/ip-logs" element={<ConvexProviderWrapper><IpLogsPage /></ConvexProviderWrapper>} />
           <Route path="/migrate" element={<ConvexProviderWrapper><MigratePage /></ConvexProviderWrapper>} />
+          <Route path="/report" element={<ConvexProviderWrapper><ReportPage /></ConvexProviderWrapper>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
