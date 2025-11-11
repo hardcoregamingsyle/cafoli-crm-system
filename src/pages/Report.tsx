@@ -17,9 +17,11 @@ export default function ReportPage() {
   const FEATURE_LAUNCH_DATE = new Date(2025, 10, 11); // Month is 0-indexed, so 10 = November
   FEATURE_LAUNCH_DATE.setHours(0, 0, 0, 0);
   
-  // Get today's date
+  // Get today's date + 1 day (allow 1 day in the future)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 1);
   
   // Determine minimum date: user creation date or feature launch date (whichever is later)
   const userCreationDate = currentUser?._creationTime ? new Date(currentUser._creationTime) : FEATURE_LAUNCH_DATE;
@@ -35,10 +37,10 @@ export default function ReportPage() {
     const selectedDate = new Date(dateStr);
     selectedDate.setHours(0, 0, 0, 0);
     
-    // Cannot go into the future
-    if (selectedDate > today) {
-      setFromDate(today.toISOString().split("T")[0]);
-      toast.error("Cannot select a future date");
+    // Cannot go more than 1 day into the future
+    if (selectedDate > maxDate) {
+      setFromDate(maxDate.toISOString().split("T")[0]);
+      toast.error("Cannot select a date more than 1 day in the future");
       return;
     }
     
@@ -65,10 +67,10 @@ export default function ReportPage() {
     const selectedDate = new Date(dateStr);
     selectedDate.setHours(0, 0, 0, 0);
     
-    // Cannot go into the future
-    if (selectedDate > today) {
-      setToDate(today.toISOString().split("T")[0]);
-      toast.error("Cannot select a future date");
+    // Cannot go more than 1 day into the future
+    if (selectedDate > maxDate) {
+      setToDate(maxDate.toISOString().split("T")[0]);
+      toast.error("Cannot select a date more than 1 day in the future");
       return;
     }
     
@@ -137,7 +139,7 @@ export default function ReportPage() {
                   id="fromDate"
                   type="date"
                   value={fromDate}
-                  max={today.toISOString().split("T")[0]}
+                  max={maxDate.toISOString().split("T")[0]}
                   min={minDate.toISOString().split("T")[0]}
                   onChange={(e) => validateAndSetFromDate(e.target.value)}
                 />
@@ -148,7 +150,7 @@ export default function ReportPage() {
                   id="toDate"
                   type="date"
                   value={toDate}
-                  max={today.toISOString().split("T")[0]}
+                  max={maxDate.toISOString().split("T")[0]}
                   min={minDate.toISOString().split("T")[0]}
                   onChange={(e) => validateAndSetToDate(e.target.value)}
                 />
