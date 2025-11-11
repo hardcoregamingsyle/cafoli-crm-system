@@ -14,7 +14,7 @@ export default function ReportPage() {
   const { currentUser } = useCrmAuth();
   
   // Feature launch date: November 11, 2025
-  const FEATURE_LAUNCH_DATE = new Date("2025-11-11");
+  const FEATURE_LAUNCH_DATE = new Date(2025, 10, 11); // Month is 0-indexed, so 10 = November
   FEATURE_LAUNCH_DATE.setHours(0, 0, 0, 0);
   
   // Get today's date
