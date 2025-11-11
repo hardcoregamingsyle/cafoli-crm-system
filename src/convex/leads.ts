@@ -1166,6 +1166,7 @@ export const getNotRelevantLeads = query({
 });
 
 // New query to get report data for a user within a date range
+// Optimized to avoid reading too many documents
 export const getReportData = query({
   args: {
     currentUserId: v.id("users"),
@@ -1178,11 +1179,15 @@ export const getReportData = query({
       throw new Error("Unauthorized");
     }
 
-    // Get all leads assigned to this user
+    // Get leads assigned to this user using indexed query
     let myLeads: any[] = [];
     if (currentUser.role === ROLES.ADMIN) {
-      // Admin sees all leads
-      myLeads = await ctx.db.query("leads").collect();
+      // Admin sees all leads - use pagination to avoid hitting limits
+      // For reports, we'll limit to a reasonable number
+      myLeads = await ctx.db
+        .query("leads")
+        .order("desc")
+        .take(10000); // Reasonable limit for reporting
     } else {
       // Manager/Staff see only their assigned leads
       try {
@@ -1191,8 +1196,12 @@ export const getReportData = query({
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
       } catch {
-        const all = await ctx.db.query("leads").collect();
-        myLeads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+        // Fallback if index fails
+        myLeads = await ctx.db
+          .query("leads")
+          .order("desc")
+          .take(5000)
+          .then(leads => leads.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id)));
       }
     }
 
@@ -1201,19 +1210,7 @@ export const getReportData = query({
       (l) => l._creationTime >= args.fromDate && l._creationTime <= args.toDate
     );
 
-    // Get audit logs for followup overdue tracking
-    const auditLogs = await ctx.db
-      .query("auditLogs")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("userId"), currentUser._id),
-          q.gte(q.field("timestamp"), args.fromDate),
-          q.lte(q.field("timestamp"), args.toDate)
-        )
-      )
-      .collect();
-
-    // Calculate metrics
+    // Calculate metrics directly without fetching audit logs
     const totalAssigned = leadsInRange.length;
 
     // Count overdue followups (leads where nextFollowup is in the past)
