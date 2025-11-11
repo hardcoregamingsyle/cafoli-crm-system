@@ -649,6 +649,12 @@ export function Layout({ children }: LayoutProps) {
       icon: FileText,
       roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
     },
+    {
+      label: "Report",
+      path: "/report",
+      icon: FileText,
+      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
+    },
   ];
 
   const filteredNavItems = navigationItems.filter(item => 
