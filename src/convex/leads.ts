@@ -362,7 +362,15 @@ export const assignLead = mutation({
       throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(args.leadId, { assignedTo: args.assignedTo });
+    // Update assignedTo and assignedDate
+    const patch: Record<string, any> = { assignedTo: args.assignedTo };
+    if (args.assignedTo) {
+      patch.assignedDate = Date.now();
+    } else {
+      patch.assignedDate = undefined;
+    }
+    
+    await ctx.db.patch(args.leadId, patch);
 
     // Create notification if assigning to someone (skip unassign)
     if (args.assignedTo) {
@@ -631,6 +639,7 @@ export const bulkCreateLeads = mutation({
         let assignedJustNow = false;
         if (args.assignedTo && !existing.assignedTo) {
           patch.assignedTo = args.assignedTo;
+          patch.assignedDate = Date.now();
           assignedJustNow = true;
         }
         // If existing is already assigned, we keep it as-is (no reassignment)
@@ -686,6 +695,7 @@ export const bulkCreateLeads = mutation({
           district: finalDistrict,
           status: LEAD_STATUS.YET_TO_DECIDE,
           assignedTo: args.assignedTo,
+          assignedDate: args.assignedTo ? Date.now() : undefined,
         });
 
         // NEW: Send welcome email immediately on creation if email is valid
@@ -1180,33 +1190,51 @@ export const getReportData = query({
       throw new Error("Unauthorized");
     }
 
-    // Get all currently assigned leads for this user
+    // Get leads assigned within the date range
     let myLeads: any[] = [];
     if (currentUser.role === ROLES.ADMIN) {
       // Admin sees all leads - limit to avoid hitting document limits
-      myLeads = await ctx.db
+      const allLeads = await ctx.db
         .query("leads")
         .order("desc")
         .take(10000);
+      
+      // Filter by assignedDate within range
+      myLeads = allLeads.filter((l) => 
+        l.assignedDate && 
+        l.assignedDate >= args.fromDate && 
+        l.assignedDate <= args.toDate
+      );
     } else {
-      // Manager/Staff see only their assigned leads
+      // Manager/Staff see only their assigned leads within date range
       try {
-        myLeads = await ctx.db
+        const allMyLeads = await ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
+        
+        // Filter by assignedDate within range
+        myLeads = allMyLeads.filter((l) => 
+          l.assignedDate && 
+          l.assignedDate >= args.fromDate && 
+          l.assignedDate <= args.toDate
+        );
       } catch {
         // Fallback if index fails
-        myLeads = await ctx.db
+        const allLeads = await ctx.db
           .query("leads")
           .order("desc")
-          .take(5000)
-          .then(leads => leads.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id)));
+          .take(5000);
+        
+        myLeads = allLeads.filter((l) => 
+          String(l.assignedTo ?? "") === String(currentUser._id) &&
+          l.assignedDate && 
+          l.assignedDate >= args.fromDate && 
+          l.assignedDate <= args.toDate
+        );
       }
     }
 
-    // Report shows ALL currently assigned leads (not filtered by creation date)
-    // This way, when you assign yourself leads, they show up immediately
     const leadsInRange = myLeads;
 
     // Calculate metrics directly

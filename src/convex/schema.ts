@@ -94,6 +94,7 @@ export default defineSchema({
     altEmail: v.optional(v.string()),
     source: v.optional(v.string()),
     assignedTo: v.optional(v.id("users")),
+    assignedDate: v.optional(v.number()),
     nextFollowup: v.optional(v.number()),
     station: v.optional(v.string()),
     district: v.optional(v.string()),
@@ -104,7 +105,8 @@ export default defineSchema({
     .index("email", ["email"])
     .index("by_status", ["status"])
     .index("mobileNo", ["mobileNo"])
-    .index("assignedTo", ["assignedTo"]),
+    .index("assignedTo", ["assignedTo"])
+    .index("by_assignedTo_and_assignedDate", ["assignedTo", "assignedDate"]),
 
   whatsappMessages: defineTable({
     leadId: v.optional(v.id("leads")),
