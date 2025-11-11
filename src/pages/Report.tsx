@@ -1,10 +1,9 @@
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -14,14 +13,83 @@ import { BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Flame, Snowfl
 export default function ReportPage() {
   const { currentUser } = useCrmAuth();
   
-  // Set default dates to today
+  // Feature launch date: November 11, 2025
+  const FEATURE_LAUNCH_DATE = new Date("2025-11-11");
+  FEATURE_LAUNCH_DATE.setHours(0, 0, 0, 0);
+  
+  // Get today's date
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
+  
+  // Determine minimum date: user creation date or feature launch date (whichever is later)
+  const userCreationDate = currentUser?._creationTime ? new Date(currentUser._creationTime) : FEATURE_LAUNCH_DATE;
+  userCreationDate.setHours(0, 0, 0, 0);
+  const minDate = userCreationDate > FEATURE_LAUNCH_DATE ? userCreationDate : FEATURE_LAUNCH_DATE;
+  
+  // Set default dates to today
   const [fromDate, setFromDate] = useState(today.toISOString().split("T")[0]);
-  const [toDate, setToDate] = useState(todayEnd.toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
+
+  // Validate and adjust dates
+  const validateAndSetFromDate = (dateStr: string) => {
+    const selectedDate = new Date(dateStr);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Cannot go into the future
+    if (selectedDate > today) {
+      setFromDate(today.toISOString().split("T")[0]);
+      toast.error("Cannot select a future date");
+      return;
+    }
+    
+    // Cannot go before minimum date
+    if (selectedDate < minDate) {
+      setFromDate(minDate.toISOString().split("T")[0]);
+      toast.error("Cannot select a date before " + minDate.toLocaleDateString());
+      return;
+    }
+    
+    // From date cannot be after To date
+    const currentToDate = new Date(toDate);
+    currentToDate.setHours(0, 0, 0, 0);
+    if (selectedDate > currentToDate) {
+      setFromDate(toDate);
+      toast.error("'From' date cannot be after 'To' date");
+      return;
+    }
+    
+    setFromDate(dateStr);
+  };
+
+  const validateAndSetToDate = (dateStr: string) => {
+    const selectedDate = new Date(dateStr);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Cannot go into the future
+    if (selectedDate > today) {
+      setToDate(today.toISOString().split("T")[0]);
+      toast.error("Cannot select a future date");
+      return;
+    }
+    
+    // Cannot go before minimum date
+    if (selectedDate < minDate) {
+      setToDate(minDate.toISOString().split("T")[0]);
+      toast.error("Cannot select a date before " + minDate.toLocaleDateString());
+      return;
+    }
+    
+    // To date cannot be before From date
+    const currentFromDate = new Date(fromDate);
+    currentFromDate.setHours(0, 0, 0, 0);
+    if (selectedDate < currentFromDate) {
+      setToDate(fromDate);
+      toast.error("'To' date cannot be before 'From' date");
+      return;
+    }
+    
+    setToDate(dateStr);
+  };
 
   // Convert dates to timestamps
   const fromTimestamp = new Date(fromDate).setHours(0, 0, 0, 0);
@@ -37,14 +105,6 @@ export default function ReportPage() {
         }
       : "skip"
   );
-
-  const handleGenerateReport = () => {
-    if (new Date(fromDate) > new Date(toDate)) {
-      toast.error("'From' date cannot be after 'To' date");
-      return;
-    }
-    toast.success("Report generated");
-  };
 
   return (
     <Layout>
@@ -67,17 +127,19 @@ export default function ReportPage() {
         <Card>
           <CardHeader>
             <CardTitle>Date Range</CardTitle>
-            <CardDescription>Select the date range for your report</CardDescription>
+            <CardDescription>Select the date range for your report (automatically updates)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fromDate">From</Label>
                 <Input
                   id="fromDate"
                   type="date"
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  max={today.toISOString().split("T")[0]}
+                  min={minDate.toISOString().split("T")[0]}
+                  onChange={(e) => validateAndSetFromDate(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -86,12 +148,11 @@ export default function ReportPage() {
                   id="toDate"
                   type="date"
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  max={today.toISOString().split("T")[0]}
+                  min={minDate.toISOString().split("T")[0]}
+                  onChange={(e) => validateAndSetToDate(e.target.value)}
                 />
               </div>
-              <Button onClick={handleGenerateReport} className="w-full md:w-auto">
-                Generate Report
-              </Button>
             </div>
           </CardContent>
         </Card>
