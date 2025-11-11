@@ -1205,10 +1205,9 @@ export const getReportData = query({
       }
     }
 
-    // Filter leads by date range (using _creationTime for assignment date approximation)
-    const leadsInRange = myLeads.filter(
-      (l) => l._creationTime >= args.fromDate && l._creationTime <= args.toDate
-    );
+    // For the report, show ALL currently assigned leads (don't filter by creation date)
+    // This way, when you assign yourself leads, they show up immediately
+    const leadsInRange = myLeads;
 
     // Calculate metrics directly without fetching audit logs
     const totalAssigned = leadsInRange.length;
