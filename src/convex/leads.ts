@@ -1165,6 +1165,96 @@ export const getNotRelevantLeads = query({
   },
 });
 
+// New query to get report data for a user within a date range
+export const getReportData = query({
+  args: {
+    currentUserId: v.id("users"),
+    fromDate: v.number(),
+    toDate: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser) {
+      throw new Error("Unauthorized");
+    }
+
+    // Get all leads assigned to this user
+    let myLeads: any[] = [];
+    if (currentUser.role === ROLES.ADMIN) {
+      // Admin sees all leads
+      myLeads = await ctx.db.query("leads").collect();
+    } else {
+      // Manager/Staff see only their assigned leads
+      try {
+        myLeads = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
+          .collect();
+      } catch {
+        const all = await ctx.db.query("leads").collect();
+        myLeads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+      }
+    }
+
+    // Filter leads by date range (using _creationTime for assignment date approximation)
+    const leadsInRange = myLeads.filter(
+      (l) => l._creationTime >= args.fromDate && l._creationTime <= args.toDate
+    );
+
+    // Get audit logs for followup overdue tracking
+    const auditLogs = await ctx.db
+      .query("auditLogs")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("userId"), currentUser._id),
+          q.gte(q.field("timestamp"), args.fromDate),
+          q.lte(q.field("timestamp"), args.toDate)
+        )
+      )
+      .collect();
+
+    // Calculate metrics
+    const totalAssigned = leadsInRange.length;
+
+    // Count overdue followups (leads where nextFollowup is in the past)
+    const now = Date.now();
+    const overdueFollowups = leadsInRange.filter(
+      (l) => l.nextFollowup && l.nextFollowup < now
+    ).length;
+
+    // Count by heat
+    const hotLeads = leadsInRange.filter((l) => l.heat === "hot").length;
+    const coldLeads = leadsInRange.filter((l) => l.heat === "cold").length;
+    const maturedLeads = leadsInRange.filter((l) => l.heat === "matured").length;
+
+    // Count by status
+    const irrelevantLeads = leadsInRange.filter(
+      (l) => l.status === LEAD_STATUS.NOT_RELEVANT
+    ).length;
+    const relevantLeads = leadsInRange.filter(
+      (l) => l.status === LEAD_STATUS.RELEVANT
+    ).length;
+
+    // Count by source
+    const sourceBreakdown: Record<string, number> = {};
+    for (const lead of leadsInRange) {
+      const source = lead.source || "unknown";
+      sourceBreakdown[source] = (sourceBreakdown[source] || 0) + 1;
+    }
+
+    return {
+      totalAssigned,
+      overdueFollowups,
+      hotLeads,
+      coldLeads,
+      maturedLeads,
+      irrelevantLeads,
+      relevantLeads,
+      sourceBreakdown,
+    };
+  },
+});
+
 // New mutation to update lead heat (Hot / Cold / Matured)
 export const updateLeadHeat = mutation({
   args: {
