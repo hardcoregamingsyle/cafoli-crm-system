@@ -853,32 +853,65 @@ http.route({
       const altEmail = payload.SENDER_EMAIL_ALT || payload.altEmail || "";
       const state = payload.SENDER_STATE || payload.state || payload.STATE || "Unknown";
 
-      // Validate required fields
-      if (!mobileNo && email === "unknown@example.com") {
-        return corsJson({ 
-          ok: false, 
-          error: "Missing required fields: mobile number or email" 
-        }, 400);
+      // More lenient validation - just log if both are missing but still try to create
+      const hasValidContact = mobileNo || (email && email !== "unknown@example.com");
+      
+      if (!hasValidContact) {
+        // Log the issue but don't reject - let the mutation handle it
+        await ctx.runMutation((internal as any).webhook.insertLog, {
+          payload: {
+            type: "INDIAMART_WARNING",
+            message: "Lead received with no valid mobile or email",
+            data: payload,
+            timestamp: new Date().toISOString(),
+          },
+        });
       }
 
-      // Create lead using existing mutation
-      const created = await ctx.runMutation((internal as any).webhook.createLeadFromSource, {
-        name,
-        subject,
-        message,
-        mobileNo,
-        email,
-        altMobileNo: altMobileNo || undefined,
-        altEmail: altEmail || undefined,
-        state,
-        source: "indiamart",
-      });
+      // Create lead using existing mutation - wrap in try/catch for better error handling
+      try {
+        const created = await ctx.runMutation((internal as any).webhook.createLeadFromSource, {
+          name,
+          subject,
+          message,
+          mobileNo,
+          email,
+          altMobileNo: altMobileNo || undefined,
+          altEmail: altEmail || undefined,
+          state,
+          source: "indiamart",
+        });
 
-      return corsJson({ 
-        ok: true, 
-        created,
-        message: created ? "Lead created successfully" : "Lead clubbed with existing lead"
-      }, 200);
+        return corsJson({ 
+          ok: true, 
+          created,
+          message: created ? "Lead created successfully" : "Lead clubbed with existing lead",
+          receivedFields: {
+            name,
+            subject,
+            mobileNo,
+            email,
+            state,
+          }
+        }, 200);
+      } catch (leadError: any) {
+        // Log the specific error from lead creation
+        await ctx.runMutation((internal as any).webhook.insertLog, {
+          payload: {
+            type: "INDIAMART_LEAD_ERROR",
+            error: leadError.message || "Unknown error",
+            originalPayload: payload,
+            extractedFields: { name, subject, message, mobileNo, email, state },
+            timestamp: new Date().toISOString(),
+          },
+        });
+        
+        return corsJson({ 
+          ok: false, 
+          error: "Failed to create lead",
+          details: leadError.message || "Unknown error"
+        }, 500);
+      }
     } catch (e: any) {
       // Log error but don't expose internal details
       await ctx.runMutation((internal as any).webhook.insertLog, {
