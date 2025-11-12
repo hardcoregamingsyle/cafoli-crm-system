@@ -818,4 +818,83 @@ http.route({
   }),
 });
 
+// Add: Indiamart webhook endpoint
+http.route({
+  path: "/indiamart",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/indiamart",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const payload = await parseRequestPayload(req);
+
+      // Log the incoming Indiamart webhook for debugging
+      await ctx.runMutation((internal as any).webhook.insertLog, {
+        payload: {
+          type: "INDIAMART_WEBHOOK",
+          data: payload,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Extract Indiamart fields (common field names from Indiamart API)
+      const name = payload.SENDER_NAME || payload.name || payload.NAME || "Unknown";
+      const subject = payload.SUBJECT || payload.subject || payload.QUERY_SUBJECT || "Lead from Indiamart";
+      const message = payload.QUERY_MESSAGE || payload.message || payload.MESSAGE || "";
+      const mobileNo = payload.SENDER_MOBILE || payload.mobile || payload.MOBILE || payload.SENDER_PHONE || "";
+      const email = payload.SENDER_EMAIL || payload.email || payload.EMAIL || "unknown@example.com";
+      const altMobileNo = payload.SENDER_MOBILE_ALT || payload.altMobile || "";
+      const altEmail = payload.SENDER_EMAIL_ALT || payload.altEmail || "";
+      const state = payload.SENDER_STATE || payload.state || payload.STATE || "Unknown";
+
+      // Validate required fields
+      if (!mobileNo && email === "unknown@example.com") {
+        return corsJson({ 
+          ok: false, 
+          error: "Missing required fields: mobile number or email" 
+        }, 400);
+      }
+
+      // Create lead using existing mutation
+      const created = await ctx.runMutation((internal as any).webhook.createLeadFromSource, {
+        name,
+        subject,
+        message,
+        mobileNo,
+        email,
+        altMobileNo: altMobileNo || undefined,
+        altEmail: altEmail || undefined,
+        state,
+        source: "indiamart",
+      });
+
+      return corsJson({ 
+        ok: true, 
+        created,
+        message: created ? "Lead created successfully" : "Lead clubbed with existing lead"
+      }, 200);
+    } catch (e: any) {
+      // Log error but don't expose internal details
+      await ctx.runMutation((internal as any).webhook.insertLog, {
+        payload: {
+          type: "INDIAMART_ERROR",
+          error: e.message || "Unknown error",
+          timestamp: new Date().toISOString(),
+        },
+      });
+      
+      return corsJson({ 
+        ok: false, 
+        error: "Failed to process Indiamart lead" 
+      }, 500);
+    }
+  }),
+});
+
 export default http;
