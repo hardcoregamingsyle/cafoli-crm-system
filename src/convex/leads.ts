@@ -1176,8 +1176,6 @@ export const getNotRelevantLeads = query({
 });
 
 // New query to get report data for a user within a date range
-// Shows all currently assigned leads (not filtered by creation date)
-// This ensures that when you assign leads to yourself, they appear immediately in the report
 export const getReportData = query({
   args: {
     currentUserId: v.id("users"),
@@ -1185,29 +1183,50 @@ export const getReportData = query({
     toDate: v.number(),
   },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.currentUserId);
+    // Validate user exists
+    let currentUser: any = null;
+    try {
+      currentUser = await ctx.db.get(args.currentUserId);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      throw new Error("Invalid user ID or user not found");
+    }
+
     if (!currentUser) {
-      throw new Error("Unauthorized");
+      throw new Error("User not found");
+    }
+
+    // Validate date range
+    if (args.fromDate > args.toDate) {
+      throw new Error("From date must be before or equal to To date");
     }
 
     // Get leads assigned within the date range
     let myLeads: any[] = [];
+    
     if (currentUser.role === ROLES.ADMIN) {
-      // Admin sees all leads - limit to avoid hitting document limits
-      const allLeads = await ctx.db
-        .query("leads")
-        .order("desc")
-        .take(10000);
-      
-      // Filter by assignedDate within range
-      myLeads = allLeads.filter((l) => 
-        l.assignedDate && 
-        l.assignedDate >= args.fromDate && 
-        l.assignedDate <= args.toDate
-      );
+      // Admin sees all leads assigned within date range
+      // Use the composite index for efficient querying
+      try {
+        // Query all leads and filter by assignedDate
+        const allLeads = await ctx.db
+          .query("leads")
+          .order("desc")
+          .take(10000);
+        
+        myLeads = allLeads.filter((l) => 
+          l.assignedDate && 
+          l.assignedDate >= args.fromDate && 
+          l.assignedDate <= args.toDate
+        );
+      } catch (error) {
+        console.error("Error querying leads for admin:", error);
+        throw new Error("Failed to fetch leads");
+      }
     } else {
       // Manager/Staff see only their assigned leads within date range
       try {
+        // Use the assignedTo index first, then filter by date
         const allMyLeads = await ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
@@ -1219,19 +1238,25 @@ export const getReportData = query({
           l.assignedDate >= args.fromDate && 
           l.assignedDate <= args.toDate
         );
-      } catch {
-        // Fallback if index fails
-        const allLeads = await ctx.db
-          .query("leads")
-          .order("desc")
-          .take(5000);
-        
-        myLeads = allLeads.filter((l) => 
-          String(l.assignedTo ?? "") === String(currentUser._id) &&
-          l.assignedDate && 
-          l.assignedDate >= args.fromDate && 
-          l.assignedDate <= args.toDate
-        );
+      } catch (error) {
+        console.error("Error querying leads for user:", error);
+        // Fallback to full scan if index fails
+        try {
+          const allLeads = await ctx.db
+            .query("leads")
+            .order("desc")
+            .take(5000);
+          
+          myLeads = allLeads.filter((l) => 
+            String(l.assignedTo ?? "") === String(currentUser._id) &&
+            l.assignedDate && 
+            l.assignedDate >= args.fromDate && 
+            l.assignedDate <= args.toDate
+          );
+        } catch (fallbackError) {
+          console.error("Fallback query failed:", fallbackError);
+          throw new Error("Failed to fetch leads");
+        }
       }
     }
 
