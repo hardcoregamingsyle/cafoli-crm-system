@@ -843,15 +843,16 @@ http.route({
         },
       });
 
-      // Extract Indiamart fields (common field names from Indiamart API)
-      const name = payload.SENDER_NAME || payload.name || payload.NAME || "Unknown";
-      const subject = payload.SUBJECT || payload.subject || payload.QUERY_SUBJECT || "Lead from Indiamart";
-      const message = payload.QUERY_MESSAGE || payload.message || payload.MESSAGE || "";
-      const mobileNo = payload.SENDER_MOBILE || payload.mobile || payload.MOBILE || payload.SENDER_PHONE || "";
-      const email = payload.SENDER_EMAIL || payload.email || payload.EMAIL || "unknown@example.com";
-      const altMobileNo = payload.SENDER_MOBILE_ALT || payload.altMobile || "";
-      const altEmail = payload.SENDER_EMAIL_ALT || payload.altEmail || "";
-      const state = payload.SENDER_STATE || payload.state || payload.STATE || "Unknown";
+      // Extract Indiamart fields - handle nested RESPONSE object
+      const response = payload.RESPONSE || payload;
+      const name = response.SENDER_NAME || payload.SENDER_NAME || payload.name || payload.NAME || "Unknown";
+      const subject = response.SUBJECT || payload.SUBJECT || payload.subject || payload.QUERY_SUBJECT || "Lead from Indiamart";
+      const message = response.QUERY_MESSAGE || payload.QUERY_MESSAGE || payload.message || payload.MESSAGE || "";
+      const mobileNo = response.SENDER_MOBILE || payload.SENDER_MOBILE || payload.mobile || payload.MOBILE || payload.SENDER_PHONE || "";
+      const email = response.SENDER_EMAIL || payload.SENDER_EMAIL || payload.email || payload.EMAIL || "unknown@example.com";
+      const altMobileNo = response.SENDER_MOBILE_ALT || payload.SENDER_MOBILE_ALT || payload.altMobile || "";
+      const altEmail = response.SENDER_EMAIL_ALT || payload.SENDER_EMAIL_ALT || payload.altEmail || "";
+      const state = response.SENDER_STATE || payload.SENDER_STATE || payload.state || payload.STATE || "Unknown";
 
       // More lenient validation - just log if both are missing but still try to create
       const hasValidContact = mobileNo || (email && email !== "unknown@example.com");
