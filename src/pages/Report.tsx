@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -13,37 +13,29 @@ import { BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Flame, Snowfl
 export default function ReportPage() {
   const { currentUser } = useCrmAuth();
   
-  // Helper function to get IST date (GMT+5:30)
-  const getISTDate = (date?: Date) => {
-    const d = date || new Date();
-    // Convert to IST by adding 5 hours 30 minutes offset
-    const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
-    const utcTime = d.getTime() + (d.getTimezoneOffset() * 60 * 1000);
-    const istTime = new Date(utcTime + istOffset);
-    istTime.setHours(0, 0, 0, 0);
-    return istTime;
-  };
+  // Feature launch date: November 11, 2025 (UTC)
+  const FEATURE_LAUNCH_DATE = new Date(Date.UTC(2025, 10, 11, 0, 0, 0, 0));
   
-  // Feature launch date: November 11, 2025 (IST)
-  const FEATURE_LAUNCH_DATE = getISTDate(new Date(2025, 10, 11)); // Month is 0-indexed, so 10 = November
-  
-  // Get today's date in IST + 1 day (allow 1 day in the future)
-  const today = getISTDate();
+  // Get today's date (start of day UTC) + 1 day (allow 1 day in the future)
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + 1);
+  maxDate.setUTCDate(maxDate.getUTCDate() + 1);
   
   // Determine minimum date: user creation date or feature launch date (whichever is later)
-  const userCreationDate = currentUser?._creationTime ? getISTDate(new Date(currentUser._creationTime)) : FEATURE_LAUNCH_DATE;
+  const userCreationDate = currentUser?._creationTime 
+    ? new Date(currentUser._creationTime) 
+    : FEATURE_LAUNCH_DATE;
+  userCreationDate.setUTCHours(0, 0, 0, 0);
   const minDate = userCreationDate > FEATURE_LAUNCH_DATE ? userCreationDate : FEATURE_LAUNCH_DATE;
   
-  // Set default dates to today
+  // Set default dates to today (in YYYY-MM-DD format)
   const [fromDate, setFromDate] = useState(today.toISOString().split("T")[0]);
   const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
 
   // Validate and adjust dates
   const validateAndSetFromDate = (dateStr: string) => {
-    const selectedDate = new Date(dateStr);
-    selectedDate.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(dateStr + "T00:00:00Z");
     
     // Cannot go more than 1 day into the future
     if (selectedDate > maxDate) {
@@ -60,8 +52,7 @@ export default function ReportPage() {
     }
     
     // From date cannot be after To date
-    const currentToDate = new Date(toDate);
-    currentToDate.setHours(0, 0, 0, 0);
+    const currentToDate = new Date(toDate + "T00:00:00Z");
     if (selectedDate > currentToDate) {
       setFromDate(toDate);
       toast.error("'From' date cannot be after 'To' date");
@@ -72,8 +63,7 @@ export default function ReportPage() {
   };
 
   const validateAndSetToDate = (dateStr: string) => {
-    const selectedDate = new Date(dateStr);
-    selectedDate.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(dateStr + "T00:00:00Z");
     
     // Cannot go more than 1 day into the future
     if (selectedDate > maxDate) {
@@ -90,8 +80,7 @@ export default function ReportPage() {
     }
     
     // To date cannot be before From date
-    const currentFromDate = new Date(fromDate);
-    currentFromDate.setHours(0, 0, 0, 0);
+    const currentFromDate = new Date(fromDate + "T00:00:00Z");
     if (selectedDate < currentFromDate) {
       setToDate(fromDate);
       toast.error("'To' date cannot be before 'From' date");
@@ -101,18 +90,9 @@ export default function ReportPage() {
     setToDate(dateStr);
   };
 
-  // Convert dates to timestamps (IST)
-  // Parse the date string and create IST timestamps
-  const fromDateParts = fromDate.split('-').map(Number);
-  const toDateParts = toDate.split('-').map(Number);
-  
-  // Create dates in IST (subtract 5.5 hours to get the UTC equivalent of IST midnight)
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const fromDateUTC = new Date(Date.UTC(fromDateParts[0], fromDateParts[1] - 1, fromDateParts[2], 0, 0, 0));
-  const toDateUTC = new Date(Date.UTC(toDateParts[0], toDateParts[1] - 1, toDateParts[2], 23, 59, 59, 999));
-  
-  const fromTimestamp = fromDateUTC.getTime() - istOffset;
-  const toTimestamp = toDateUTC.getTime() - istOffset;
+  // Convert date strings to UTC timestamps (start of day and end of day)
+  const fromTimestamp = new Date(fromDate + "T00:00:00Z").getTime();
+  const toTimestamp = new Date(toDate + "T23:59:59.999Z").getTime();
 
   const reportData = useQuery(
     api.leads.getReportData,
