@@ -76,7 +76,7 @@ function corsNoContent(status = 204, extraHeaders: Record<string, string> = {}) 
 // Add: helper to ensure an admin user id for server-initiated actions (mirrors webhook.ts)
 async function ensureAdminUserId(ctx: any) {
   // Resolve or create an admin user via internal mutation (httpAction cannot use ctx.db)
-  const ownerId = await ctx.runMutation(internal.webhook.ensureLoggingUser, {});
+  const ownerId = await ctx.runMutation((internal as any).webhook.ensureLoggingUser, {});
   return ownerId;
 }
 
@@ -153,7 +153,7 @@ http.route({
       const url = new URL(req.url);
       const paramsObj: Record<string, string> = {};
       url.searchParams.forEach((value, key) => (paramsObj[key] = value));
-      await ctx.runMutation(internal.webhook.insertLog, { payload: paramsObj });
+      await ctx.runMutation((internal as any).webhook.insertLog, { payload: paramsObj });
       return corsJson({ ok: true }, 200);
     } catch (e: any) {
       return corsJson({ ok: false, error: e.message || "error" }, 500);
@@ -182,7 +182,7 @@ http.route({
       const challenge = url.searchParams.get("hub.challenge");
 
       // Log the verification attempt
-      await ctx.runMutation(internal.webhook.insertLog, {
+      await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           type: "WHATSAPP_VERIFICATION",
           mode,
@@ -220,7 +220,7 @@ http.route({
       const payload = await parseRequestPayload(req);
 
       // Log the incoming WhatsApp webhook
-      await ctx.runMutation(internal.webhook.insertLog, {
+      await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           type: "WHATSAPP_WEBHOOK",
           data: payload,
@@ -302,7 +302,7 @@ http.route({
                 }
 
                 // Store the incoming message
-                await ctx.runMutation(internal.webhook.storeWhatsAppMessage, {
+                await ctx.runMutation((internal as any).webhook.storeWhatsAppMessage, {
                   phoneNumber,
                   message: messageText,
                   messageId,
@@ -349,8 +349,9 @@ http.route({
 
       // Ensure we act as an admin to fetch logs (admin-restricted query)
       const currentUserId = await ensureAdminUserId(ctx);
-      const { items, isDone, continueCursor } = await ctx.runQuery(
-        api.audit.getWebhookLogs,
+      // Use internal query to avoid type instantiation issues
+      const result: any = await ctx.runQuery(
+        (api as any).audit.getWebhookLogs,
         {
           currentUserId,
           paginationOpts: {
@@ -359,6 +360,7 @@ http.route({
           },
         }
       );
+      const { items, isDone, continueCursor } = result;
 
       const logs = items.map((l: any) => ({
         _id: l._id,
@@ -392,7 +394,7 @@ http.route({
       const limit = limitParam ? Number(limitParam) : 500;
 
       const currentUserId = await ensureAdminUserId(ctx);
-      const result = await ctx.runMutation(api.webhook.importFromWebhookLogs, {
+      const result = await ctx.runMutation((api as any).webhook.importFromWebhookLogs, {
         currentUserId,
         limit,
       });
@@ -423,7 +425,7 @@ http.route({
       const limit = Math.max(1, Math.min(limitParam, 50));
 
       const currentUserId = await ensureAdminUserId(ctx);
-      const all: any[] = (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
+      const all: any[] = (await ctx.runQuery((api as any).leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
 
       // Sort by creation time asc (as our query returns), take latest
       const latest = all.slice(-limit).map((l: any) => ({
@@ -458,7 +460,7 @@ http.route({
     try {
       const currentUserId = await ensureAdminUserId(ctx);
       const all: any[] =
-        (await ctx.runQuery(api.leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
+        (await ctx.runQuery((api as any).leads.getAllLeads, { filter: "all", currentUserId })) ?? [];
 
       const count = all.length;
       const latest = count > 0 ? all[all.length - 1] : null;
@@ -553,7 +555,7 @@ http.route({
 
       // Store in auditLogs (full raw provider payloads included)
       const systemUserId = await ensureAdminUserId(ctx);
-      await ctx.runMutation(internal.webhook.insertLog, {
+      await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           type: "LOGIN_IP_LOG",
           username,
@@ -625,7 +627,7 @@ http.route({
       let isDone = true;
       let continueCursor: string | null = null;
       try {
-        const page = await ctx.runQuery(api.audit.getWebhookLogs, {
+        const page = await ctx.runQuery((api as any).audit.getWebhookLogs, {
           currentUserId: adminUserId,
           paginationOpts: {
             numItems: limit,
@@ -745,7 +747,7 @@ http.route({
       const includeFileStorage = body.includeFileStorage !== false;
 
       // Call the internal action to export data
-      const result = await ctx.runAction(internal.migrate.exportData, {
+      const result = await ctx.runAction((internal as any).migrate.exportData, {
         deployment,
         includeFileStorage,
       });
@@ -798,7 +800,7 @@ http.route({
       const base64Data = buffer.toString("base64");
 
       // Call the internal action to import data
-      const result = await ctx.runAction(internal.migrate.importData, {
+      const result = await ctx.runAction((internal as any).migrate.importData, {
         deployment,
         fileData: base64Data,
         filename: file.name,

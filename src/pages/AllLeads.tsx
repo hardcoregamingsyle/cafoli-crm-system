@@ -81,7 +81,7 @@ export default function AllLeadsPage() {
   
   try {
     leads = useQuery(
-      api.leads.getAllLeads,
+      (api as any).leads.getAllLeads,
       currentUser && authReady
         ? {
             filter,
@@ -97,22 +97,22 @@ export default function AllLeadsPage() {
     );
     
     users = useQuery(
-      api.users.getAllUsers,
+      (api as any).users.getAllUsers,
       currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
     );
     
     assignable = useQuery(
-      api.users.getAssignableUsers,
+      (api as any).users.getAssignableUsers,
       currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
     );
     
     myLeads = useQuery(
-      api.leads.getMyLeads,
+      (api as any).leads.getMyLeads,
       currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
     );
     
     notRelevantLeads = useQuery(
-      api.leads.getNotRelevantLeads,
+      (api as any).leads.getNotRelevantLeads,
       currentUser && authReady && showNotRelevant && currentUser.role === ROLES.ADMIN
         ? { currentUserId: currentUser._id }
         : "skip"
@@ -128,13 +128,13 @@ export default function AllLeadsPage() {
     throw error;
   }
 
-  const assignLead = useMutation(api.leads.assignLead);
-  const setNextFollowup = useMutation(api.leads.setNextFollowup);
-  const cancelFollowup = useMutation(api.leads.cancelFollowup);
-  const deleteLeadAdmin = useMutation(api.leads.deleteLeadAdmin);
-  const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
-  const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
-  const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
+  const assignLead = useMutation((api as any).leads.assignLead);
+  const setNextFollowup = useMutation((api as any).leads.setNextFollowup);
+  const cancelFollowup = useMutation((api as any).leads.cancelFollowup);
+  const deleteLeadAdmin = useMutation((api as any).leads.deleteLeadAdmin);
+  const updateLeadStatus = useMutation((api as any).leads.updateLeadStatus);
+  const updateLeadDetails = useMutation((api as any).leads.updateLeadDetails);
+  const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
 
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
@@ -1254,8 +1254,8 @@ export default function AllLeadsPage() {
 }
 
 function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
-  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
-  const addComment = useMutation(api.comments.addComment);
+  const comments = useQuery((api as any).comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
+  const addComment = useMutation((api as any).comments.addComment);
   const [content, setContent] = useState("");
 
   return (

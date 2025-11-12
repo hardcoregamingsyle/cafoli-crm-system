@@ -38,7 +38,7 @@ export default function Report() {
   const shouldQuery = fromDate && toDate && isValidUserId;
 
   const data = useQuery(
-    api.leads.getReportData,
+    (api as any).leads.getReportData,
     shouldQuery
       ? {
           currentUserId: currentUser._id as any,

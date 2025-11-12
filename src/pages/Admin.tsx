@@ -29,16 +29,16 @@ export default function AdminPage() {
     }
   }, [currentUser, navigate]);
 
-  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id }) ?? [];
-  const createUser = useMutation(api.users.createUser);
-  const updateUserRole = useMutation(api.users.updateUserRole);
-  const deleteUser = useMutation(api.users.deleteUser);
-  const sendNotification = useMutation(api.notifications.sendNotification);
-  const initializeDefaultUsers = useMutation(api.users.initializeDefaultUsers);
-  const deleteAllUsersMutation = useMutation(api.users.deleteAllUsers);
-  const deleteAllLeadsMutation = useMutation(api.leads.deleteAllLeads);
-  const adminChangePassword = useMutation(api.users.adminChangeUserPassword);
-  const loginAsUserMutation = useMutation(api.users.loginAsUser);
+  const users = useQuery((api as any).users.getAllUsers, { currentUserId: currentUser?._id }) ?? [];
+  const createUser = useMutation((api as any).users.createUser);
+  const updateUserRole = useMutation((api as any).users.updateUserRole);
+  const deleteUser = useMutation((api as any).users.deleteUser);
+  const sendNotification = useMutation((api as any).notifications.sendNotification);
+  const initializeDefaultUsers = useMutation((api as any).users.initializeDefaultUsers);
+  const deleteAllUsersMutation = useMutation((api as any).users.deleteAllUsers);
+  const deleteAllLeadsMutation = useMutation((api as any).leads.deleteAllLeads);
+  const adminChangePassword = useMutation((api as any).users.adminChangeUserPassword);
+  const loginAsUserMutation = useMutation((api as any).users.loginAsUser);
 
   const [adminPasswordDialogOpen, setAdminPasswordDialogOpen] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
@@ -46,15 +46,15 @@ export default function AdminPage() {
 
   // Email key manager hooks
   const emailKeys = useQuery(
-    api.emailKeys.listEmailApiKeys,
+    (api as any).emailKeys.listEmailApiKeys,
     currentUser?._id && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   ) ?? [];
-  const saveEmailKey = useMutation(api.emailKeys.saveEmailApiKey);
-  const toggleEmailKey = useMutation(api.emailKeys.setEmailKeyActive);
-  const resetEmailKey = useMutation(api.emailKeys.resetEmailKeyCount);
-  const deleteEmailKey = useMutation(api.emailKeys.deleteEmailKey);
+  const saveEmailKey = useMutation((api as any).emailKeys.saveEmailApiKey);
+  const toggleEmailKey = useMutation((api as any).emailKeys.setEmailKeyActive);
+  const resetEmailKey = useMutation((api as any).emailKeys.resetEmailKeyCount);
+  const deleteEmailKey = useMutation((api as any).emailKeys.deleteEmailKey);
 
   if (!currentUser) return <Layout><div /></Layout>;
   if (currentUser.role !== ROLES.ADMIN) {

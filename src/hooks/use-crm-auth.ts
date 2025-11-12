@@ -51,7 +51,7 @@ export function useCrmAuth() {
     }
   });
   
-  const loginMutation = useMutation(api.users.loginWithCredentials);
+  const loginMutation = useMutation((api as any).users.loginWithCredentials);
   
   const login = async (username: string, password: string) => {
     setIsLoading(true);

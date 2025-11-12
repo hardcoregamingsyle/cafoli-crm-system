@@ -170,12 +170,33 @@ export const saveEmailApiKey = mutation({
     const user = await ctx.db.get(currentUserId);
     if (!user || user.role !== ROLES.ADMIN) throw new Error("Unauthorized");
 
-    await ctx.runMutation(internal.emailKeys.upsertEmailApiKey, {
-      name,
-      apiKey,
-      dailyLimit,
-      active,
-    });
+    // Directly perform the upsert logic here to avoid circular type issues
+    const trimmedName = name.trim();
+    const existing = await ctx.db
+      .query("emailApiKeys")
+      .withIndex("by_name", (q: any) => q.eq("name", trimmedName))
+      .collect();
+    
+    const patch = {
+      apiKey: apiKey,
+      dailyLimit: dailyLimit ?? 295,
+      active: active ?? true,
+    } as any;
+
+    if (existing[0]) {
+      await ctx.db.patch(existing[0]._id, patch);
+    } else {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      await ctx.db.insert("emailApiKeys", {
+        name: trimmedName,
+        apiKey: apiKey,
+        dailyLimit: dailyLimit ?? 295,
+        sentToday: 0,
+        lastResetAt: startOfToday.getTime(),
+        active: active ?? true,
+      } as any);
+    }
     return true;
   },
 });

@@ -44,10 +44,10 @@ export default function WebhookLogsPage() {
   const [lastGetOutput, setLastGetOutput] = useState<string>("");
 
   // Add bulk import mutation
-  const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
+  const bulkCreateLeads = useMutation((api as any).leads.bulkCreateLeads);
 
   // Also fetch users so we can resolve assignees from Column J
-  const users = useQuery(api.users.getAllUsers, { currentUserId: currentUser?._id as any }) ?? [];
+  const users = useQuery((api as any).users.getAllUsers, { currentUserId: currentUser?._id as any }) ?? [];
 
   async function loadLogs() {
     if (!isWebhookUrlConfigured) return;

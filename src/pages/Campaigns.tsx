@@ -38,19 +38,19 @@ export default function CampaignsPage() {
   }, []);
 
   const campaigns = useQuery(
-    api.campaigns.getCampaigns,
+    (api as any).campaigns.getCampaigns,
     authReady && currentUser && currentUser._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   const availableLeads = useQuery(
-    api.campaigns.getLeadsForCampaign,
+    (api as any).campaigns.getLeadsForCampaign,
     authReady && currentUser && currentUser._id ? { currentUserId: currentUser._id } : "skip"
   );
 
-  const createCampaign = useMutation(api.campaigns.createCampaign);
-  const updateCampaign = useMutation(api.campaigns.updateCampaign);
-  const deleteCampaign = useMutation(api.campaigns.deleteCampaign);
-  const startCampaign = useMutation(api.campaigns.startCampaign);
+  const createCampaign = useMutation((api as any).campaigns.createCampaign);
+  const updateCampaign = useMutation((api as any).campaigns.updateCampaign);
+  const deleteCampaign = useMutation((api as any).campaigns.deleteCampaign);
+  const startCampaign = useMutation((api as any).campaigns.startCampaign);
 
   if (!authReady || !currentUser) {
     return <Layout><div>Loading...</div></Layout>;

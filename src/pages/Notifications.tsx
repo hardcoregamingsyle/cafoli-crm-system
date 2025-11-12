@@ -24,10 +24,10 @@ export default function NotificationsPage() {
   }, [currentUser, navigate]);
 
   const notifications = useQuery(
-    api.notifications.getMyNotifications,
+    (api as any).notifications.getMyNotifications,
     currentUser ? { currentUserId: currentUser._id } : "skip"
   ) ?? [];
-  const markAsRead = useMutation(api.notifications.markAsRead);
+  const markAsRead = useMutation((api as any).notifications.markAsRead);
 
   if (!currentUser) return <Layout><div /></Layout>;
 

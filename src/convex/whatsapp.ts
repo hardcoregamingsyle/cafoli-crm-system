@@ -64,7 +64,7 @@ export const sendMessage = action({
 
       // Log the sent message
       if (args.leadId) {
-        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
           message: args.message,
@@ -158,7 +158,7 @@ export const sendInteractiveMessage = action({
 
       // Log the sent message
       if (args.leadId) {
-        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
           message: `[Interactive] ${args.messageText}`,

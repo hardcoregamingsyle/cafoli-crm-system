@@ -35,22 +35,22 @@ export function Layout({ children }: LayoutProps) {
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(
-    api.leads.getAllLeads,
+    (api as any).leads.getAllLeads,
     authReady && currentUser ? { filter: "all", currentUserId: currentUser._id } : "skip"
   ) ?? []
   const assignableUsers =
     useQuery(
-      api.users.getAssignableUsers,
+      (api as any).users.getAssignableUsers,
       authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
-  const bulkCreateLeads = useMutation(api.leads.bulkCreateLeads);
-  const runDeduplication = useMutation(api.leads.runDeduplication);
-  const importPincodeMappings = useMutation(api.leads.bulkImportPincodeMappings);
+  const bulkCreateLeads = useMutation((api as any).leads.bulkCreateLeads);
+  const runDeduplication = useMutation((api as any).leads.runDeduplication);
+  const importPincodeMappings = useMutation((api as any).leads.bulkImportPincodeMappings);
 
   // Add: subscribe to my leads to detect assignment increases (for sound)
   const myLeadsForAssignSound =
     useQuery(
-      api.leads.getMyLeads,
+      (api as any).leads.getMyLeads,
       authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
 
@@ -91,7 +91,7 @@ export function Layout({ children }: LayoutProps) {
     newPassword: "",
     confirmPassword: "",
   });
-  const changePasswordMutation = useMutation(api.users.changePassword);
+  const changePasswordMutation = useMutation((api as any).users.changePassword);
 
   const importMasterdataInputRef = useRef<HTMLInputElement | null>(null);
   const [requestLeadsDialogOpen, setRequestLeadsDialogOpen] = useState(false);
@@ -100,23 +100,23 @@ export function Layout({ children }: LayoutProps) {
   const [pendingRequestDialogOpen, setPendingRequestDialogOpen] = useState(false);
   const [requestStatusDialogOpen, setRequestStatusDialogOpen] = useState(false);
 
-  const uploadMasterdata = useMutation(api.masterdata.uploadMasterdata);
-  const requestLeadsMutation = useMutation(api.masterdata.requestLeads);
-  const processLeadRequest = useMutation(api.masterdata.processLeadRequest);
+  const uploadMasterdata = useMutation((api as any).masterdata.uploadMasterdata);
+  const requestLeadsMutation = useMutation((api as any).masterdata.requestLeads);
+  const processLeadRequest = useMutation((api as any).masterdata.processLeadRequest);
   const pendingRequests = useQuery(
-    api.masterdata.getPendingRequests,
+    (api as any).masterdata.getPendingRequests,
     authReady && currentUser?._id && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   );
   const myRequestStatus = useQuery(
-    api.masterdata.getMyRequestStatus,
+    (api as any).masterdata.getMyRequestStatus,
     authReady && currentUser?._id && currentUser.role !== ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
   ) ?? null;
   const availableMasterdataCount = useQuery(
-    api.masterdata.getAvailableMasterdataCount,
+    (api as any).masterdata.getAvailableMasterdataCount,
     authReady && currentUser?._id && currentUser.role === ROLES.ADMIN
       ? { currentUserId: currentUser._id }
       : "skip"
@@ -1335,7 +1335,7 @@ export function Layout({ children }: LayoutProps) {
               <DialogTitle>Pending Lead Requests</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {pendingRequests.map((request) => (
+              {pendingRequests.map((request: any) => (
                 <div key={request._id} className="border rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>

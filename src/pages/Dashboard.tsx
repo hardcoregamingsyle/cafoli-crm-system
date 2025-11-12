@@ -45,7 +45,7 @@ export default function Dashboard() {
 
   // Add: Fetch all users for admin selector
   const allUsers = useQuery(
-    api.users.getAllUsers,
+    (api as any).users.getAllUsers,
     currentUser?.role === ROLES.ADMIN ? { currentUserId: currentUser._id } : "skip"
   );
 
@@ -55,13 +55,13 @@ export default function Dashboard() {
     : currentUser?._id;
 
   const myLeads = useQuery(
-    api.leads.getMyLeads,
+    (api as any).leads.getMyLeads,
     displayUserId ? { currentUserId: displayUserId as any } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
-    api.comments.getAllCommentsForUser,
+    (api as any).comments.getAllCommentsForUser,
     displayUserId ? { currentUserId: displayUserId as any } : "skip"
   );
 

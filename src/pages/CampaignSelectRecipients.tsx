@@ -34,16 +34,16 @@ export default function CampaignSelectRecipientsPage() {
   }, []);
 
   const availableLeads = useQuery(
-    api.campaigns.getLeadsForCampaign,
+    (api as any).campaigns.getLeadsForCampaign,
     authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
   const campaign = useQuery(
-    api.campaigns.getCampaignById,
+    (api as any).campaigns.getCampaignById,
     authReady && currentUser && campaignId ? { currentUserId: currentUser._id, campaignId: campaignId as any } : "skip"
   );
 
-  const updateCampaign = useMutation(api.campaigns.updateCampaign);
+  const updateCampaign = useMutation((api as any).campaigns.updateCampaign);
 
   useEffect(() => {
     if (campaign?.recipientIds) {

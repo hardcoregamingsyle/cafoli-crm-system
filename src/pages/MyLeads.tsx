@@ -43,14 +43,14 @@ export default function MyLeadsPage() {
   }, [currentUser, navigate]);
 
   const leads = useQuery(
-    api.leads.getMyLeads,
+    (api as any).leads.getMyLeads,
     currentUser ? { currentUserId: currentUser._id } : "skip"
   );
-  const updateLeadStatus = useMutation(api.leads.updateLeadStatus);
-  const setNextFollowup = useMutation(api.leads.setNextFollowup);
-  const assignLead = useMutation(api.leads.assignLead);
-  const updateLeadDetails = useMutation(api.leads.updateLeadDetails);
-  const updateLeadHeat = useMutation(api.leads.updateLeadHeat);
+  const updateLeadStatus = useMutation((api as any).leads.updateLeadStatus);
+  const setNextFollowup = useMutation((api as any).leads.setNextFollowup);
+  const assignLead = useMutation((api as any).leads.assignLead);
+  const updateLeadDetails = useMutation((api as any).leads.updateLeadDetails);
+  const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
 
   // Add search state
   const [search, setSearch] = useState("");
@@ -932,8 +932,8 @@ export default function MyLeadsPage() {
 }
 
 function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
-  const comments = useQuery(api.comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
-  const addComment = useMutation(api.comments.addComment);
+  const comments = useQuery((api as any).comments.getLeadComments, { leadId: leadId as any, currentUserId: currentUserId as any }) ?? [];
+  const addComment = useMutation((api as any).comments.addComment);
   const [content, setContent] = useState("");
 
   return (
@@ -975,7 +975,7 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
 
 function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
   // Use Convex action to send SMS via backend with SMS_API_KEY
-  const sendSms = useAction(api.sms.send);
+  const sendSms = useAction((api as any).sms.send);
   const [sending, setSending] = useState(false);
 
   const buildMessage = () => {

@@ -52,7 +52,7 @@ export const fetchGoogleScriptLeads = internalAction({
         parsed = JSON.parse(text);
       } catch {
         // Log error if not valid JSON
-        await ctx.runMutation(internal.webhook.insertLog, {
+        await ctx.runMutation((internal as any).webhook.insertLog, {
           payload: {
             source: "google_script",
             url,
@@ -65,7 +65,7 @@ export const fetchGoogleScriptLeads = internalAction({
       }
 
       // Log the successful fetch
-      await ctx.runMutation(internal.webhook.insertLog, {
+      await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           source: "google_script",
           url,
@@ -92,7 +92,7 @@ export const fetchGoogleScriptLeads = internalAction({
             }
 
             // Create or club the lead
-            const wasCreated = await ctx.runMutation(internal.webhook.createLeadFromGoogleScript, {
+            const wasCreated = await ctx.runMutation((internal as any).webhook.createLeadFromGoogleScript, {
               ...leadData,
             });
 
@@ -104,7 +104,7 @@ export const fetchGoogleScriptLeads = internalAction({
           } catch (error) {
             skipped++;
             // Log individual lead processing errors
-            await ctx.runMutation(internal.webhook.insertLog, {
+            await ctx.runMutation((internal as any).webhook.insertLog, {
               payload: {
                 source: "google_script",
                 error: `Lead processing error: ${error}`,
@@ -116,7 +116,7 @@ export const fetchGoogleScriptLeads = internalAction({
         }
 
         // Log summary
-        await ctx.runMutation(internal.webhook.insertLog, {
+        await ctx.runMutation((internal as any).webhook.insertLog, {
           payload: {
             source: "google_script",
             summary: `Processed ${parsed.length} leads: ${created} created, ${clubbed} clubbed, ${skipped} skipped`,
@@ -126,7 +126,7 @@ export const fetchGoogleScriptLeads = internalAction({
       }
     } catch (e: any) {
       // Log fetch error
-      await ctx.runMutation(internal.webhook.insertLog, {
+      await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           source: "google_script",
           url,
@@ -144,7 +144,7 @@ const crons = cronJobs();
 crons.cron(
   "reset email daily counts",
   "0 0 * * *",
-  internal.emailKeys.resetDailyCounts,
+  (internal as any).emailKeys.resetDailyCounts,
   {}
 );
 
@@ -168,7 +168,7 @@ crons.cron(
 crons.interval(
   "Fetch Google Script leads every 5 minutes",
   { minutes: 5 },
-  internal.crons.fetchGoogleScriptLeads,
+  (internal as any).crons.fetchGoogleScriptLeads,
   {}
 );
 
