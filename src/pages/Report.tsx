@@ -267,9 +267,9 @@ export default function Report() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    {showAssigned && <Line type="monotone" dataKey="assigned" stroke="#8884d8" name="Assigned" />}
-                    {showRelevant && <Line type="monotone" dataKey="relevant" stroke="#22c55e" name="Relevant" />}
-                    {showNotRelevant && <Line type="monotone" dataKey="notRelevant" stroke="#ef4444" name="Not Relevant" />}
+                    {showAssigned && <Line type="monotone" dataKey="assigned" stroke="#8884d8" strokeWidth={2} name="Assigned" dot={false} />}
+                    {showRelevant && <Line type="monotone" dataKey="relevant" stroke="#22c55e" strokeWidth={2} name="Relevant" dot={false} />}
+                    {showNotRelevant && <Line type="monotone" dataKey="notRelevant" stroke="#ef4444" strokeWidth={2} name="Not Relevant" dot={false} />}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -327,9 +327,9 @@ export default function Report() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    {showHot && <Line type="monotone" dataKey="hot" stroke="#ef4444" name="Hot" />}
-                    {showCold && <Line type="monotone" dataKey="cold" stroke="#3b82f6" name="Cold" />}
-                    {showMatured && <Line type="monotone" dataKey="matured" stroke="#22c55e" name="Matured" />}
+                    {showHot && <Line type="monotone" dataKey="hot" stroke="#ef4444" strokeWidth={2} name="Hot" dot={false} />}
+                    {showCold && <Line type="monotone" dataKey="cold" stroke="#3b82f6" strokeWidth={2} name="Cold" dot={false} />}
+                    {showMatured && <Line type="monotone" dataKey="matured" stroke="#22c55e" strokeWidth={2} name="Matured" dot={false} />}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -384,9 +384,9 @@ export default function Report() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    {showFollowupsSet && <Line type="monotone" dataKey="followupsSet" stroke="#8b5cf6" name="Followups Set" />}
-                    {showTimelyFollowups && <Line type="monotone" dataKey="timelyFollowups" stroke="#22c55e" name="Timely Followups" />}
-                    {showOverdueFollowups && <Line type="monotone" dataKey="overdueFollowups" stroke="#ef4444" name="Overdue Followups" />}
+                    {showFollowupsSet && <Line type="monotone" dataKey="followupsSet" stroke="#8b5cf6" strokeWidth={2} name="Followups Set" dot={false} />}
+                    {showTimelyFollowups && <Line type="monotone" dataKey="timelyFollowups" stroke="#22c55e" strokeWidth={2} name="Timely Followups" dot={false} />}
+                    {showOverdueFollowups && <Line type="monotone" dataKey="overdueFollowups" stroke="#ef4444" strokeWidth={2} name="Overdue Followups" dot={false} />}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -433,7 +433,9 @@ export default function Report() {
                           type="monotone" 
                           dataKey={`sources.${source}`}
                           stroke={colors[idx % colors.length]}
+                          strokeWidth={2}
                           name={source}
+                          dot={false}
                         />
                       );
                     })}
