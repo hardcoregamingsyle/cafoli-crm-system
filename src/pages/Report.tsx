@@ -42,7 +42,7 @@ export default function Report() {
     shouldQuery
       ? {
           currentUserId: currentUser._id as any,
-          fromDate: new Date(fromDate.toISOString().split('T')[0] + 'T00:00:00.000Z').getTime(),
+          fromDate: new Date(fromDate.toISOString().split('T')[0] + 'T00:01:00.000Z').getTime(),
           toDate: new Date(toDate.toISOString().split('T')[0] + 'T23:59:59.999Z').getTime(),
         }
       : "skip"
