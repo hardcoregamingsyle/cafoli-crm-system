@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -11,6 +12,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export default function Report() {
   const { currentUser } = useCrmAuth();
@@ -26,6 +28,24 @@ export default function Report() {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [reportData, setReportData] = useState<any>(null);
+
+  // Checkbox states for Leads section
+  const [showAssigned, setShowAssigned] = useState(true);
+  const [showRelevant, setShowRelevant] = useState(true);
+  const [showNotRelevant, setShowNotRelevant] = useState(true);
+
+  // Checkbox states for Types section
+  const [showHot, setShowHot] = useState(true);
+  const [showCold, setShowCold] = useState(true);
+  const [showMatured, setShowMatured] = useState(true);
+
+  // Checkbox states for Followups section
+  const [showFollowupsSet, setShowFollowupsSet] = useState(true);
+  const [showTimelyFollowups, setShowTimelyFollowups] = useState(true);
+  const [showOverdueFollowups, setShowOverdueFollowups] = useState(true);
+
+  // Checkbox states for Sources section (dynamic)
+  const [selectedSources, setSelectedSources] = useState<Record<string, boolean>>({});
 
   // Validate user ID before making query
   const isValidUserId = currentUser?._id && 
@@ -52,6 +72,14 @@ export default function Report() {
   useEffect(() => {
     if (data) {
       setReportData(data);
+      // Initialize source checkboxes
+      if (data.allSources) {
+        const sourcesState: Record<string, boolean> = {};
+        data.allSources.forEach((source: string) => {
+          sourcesState[source] = true;
+        });
+        setSelectedSources(sourcesState);
+      }
     }
   }, [data]);
 
@@ -70,7 +98,7 @@ export default function Report() {
     // Validate date range
     const now = new Date();
     const maxDate = new Date(now);
-    maxDate.setDate(maxDate.getDate() + 1); // Allow up to 1 day in future
+    maxDate.setDate(maxDate.getDate() + 1);
 
     if (fromDate > maxDate) {
       toast.error("From date cannot be more than 1 day in the future");
@@ -87,7 +115,6 @@ export default function Report() {
       return;
     }
 
-    // Minimum date validation (Nov 11, 2025 or user creation date)
     const minDate = new Date('2025-11-11');
     const userCreationDate = currentUser?._creationTime ? new Date(currentUser._creationTime) : minDate;
     const effectiveMinDate = userCreationDate < minDate ? userCreationDate : minDate;
@@ -98,7 +125,6 @@ export default function Report() {
     }
 
     toast.success("Generating report...");
-    // The query will automatically run due to the useEffect watching fromDate/toDate
   };
 
   if (!currentUser) {
@@ -110,7 +136,7 @@ export default function Report() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-2">Reports</h1>
         <p className="text-muted-foreground">
-          Generate reports for leads assigned within a specific date range
+          Generate detailed reports with interactive charts for leads assigned within a specific date range
         </p>
       </div>
 
@@ -188,99 +214,229 @@ export default function Report() {
       </Card>
 
       {/* Report Results */}
-      {reportData && (
+      {reportData && reportData.timeSeriesData && (
         <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Assigned</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.totalAssigned}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Overdue Follow-ups</CardTitle>
-                <AlertCircle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-500">{reportData.overdueFollowups}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Relevant Leads</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-500">{reportData.relevantLeads}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Not Relevant</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.irrelevantLeads}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Heat Breakdown */}
+          {/* Section 1: Leads (Assigned, Relevant, Not Relevant) */}
           <Card>
             <CardHeader>
-              <CardTitle>Lead Heat Distribution</CardTitle>
-              <CardDescription>Breakdown of leads by temperature</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Leads Overview
+              </CardTitle>
+              <CardDescription>Track assigned, relevant, and not relevant leads over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex items-center gap-3 p-4 border rounded-lg">
-                  <Flame className="h-8 w-8 text-red-500" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Hot Leads</p>
-                    <p className="text-2xl font-bold">{reportData.hotLeads}</p>
-                  </div>
+              <div className="flex gap-4 mb-4 flex-wrap">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="assigned" 
+                    checked={showAssigned}
+                    onCheckedChange={(checked) => setShowAssigned(!!checked)}
+                  />
+                  <label htmlFor="assigned" className="text-sm font-medium cursor-pointer">
+                    Assigned ({reportData.totals.assigned})
+                  </label>
                 </div>
-                <div className="flex items-center gap-3 p-4 border rounded-lg">
-                  <Snowflake className="h-8 w-8 text-blue-500" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Cold Leads</p>
-                    <p className="text-2xl font-bold">{reportData.coldLeads}</p>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="relevant" 
+                    checked={showRelevant}
+                    onCheckedChange={(checked) => setShowRelevant(!!checked)}
+                  />
+                  <label htmlFor="relevant" className="text-sm font-medium cursor-pointer">
+                    Relevant ({reportData.totals.relevant})
+                  </label>
                 </div>
-                <div className="flex items-center gap-3 p-4 border rounded-lg">
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Matured Leads</p>
-                    <p className="text-2xl font-bold">{reportData.maturedLeads}</p>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="notRelevant" 
+                    checked={showNotRelevant}
+                    onCheckedChange={(checked) => setShowNotRelevant(!!checked)}
+                  />
+                  <label htmlFor="notRelevant" className="text-sm font-medium cursor-pointer">
+                    Not Relevant ({reportData.totals.notRelevant})
+                  </label>
                 </div>
               </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData.timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {showAssigned && <Line type="monotone" dataKey="assigned" stroke="#8884d8" name="Assigned" />}
+                  {showRelevant && <Line type="monotone" dataKey="relevant" stroke="#22c55e" name="Relevant" />}
+                  {showNotRelevant && <Line type="monotone" dataKey="notRelevant" stroke="#ef4444" name="Not Relevant" />}
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Source Breakdown */}
+          {/* Section 2: Types (Hot, Cold, Matured) */}
           <Card>
             <CardHeader>
-              <CardTitle>Source Breakdown</CardTitle>
-              <CardDescription>Distribution of leads by source</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Lead Types
+              </CardTitle>
+              <CardDescription>Monitor lead temperature distribution over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {Object.entries(reportData.sourceBreakdown).map(([source, count]: [string, any]) => (
-                  <div key={source} className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="font-medium capitalize">{source}</span>
-                    <span className="text-2xl font-bold">{count}</span>
+              <div className="flex gap-4 mb-4 flex-wrap">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="hot" 
+                    checked={showHot}
+                    onCheckedChange={(checked) => setShowHot(!!checked)}
+                  />
+                  <label htmlFor="hot" className="text-sm font-medium cursor-pointer flex items-center gap-1">
+                    <Flame className="h-4 w-4 text-red-500" />
+                    Hot ({reportData.totals.hot})
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="cold" 
+                    checked={showCold}
+                    onCheckedChange={(checked) => setShowCold(!!checked)}
+                  />
+                  <label htmlFor="cold" className="text-sm font-medium cursor-pointer flex items-center gap-1">
+                    <Snowflake className="h-4 w-4 text-blue-500" />
+                    Cold ({reportData.totals.cold})
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="matured" 
+                    checked={showMatured}
+                    onCheckedChange={(checked) => setShowMatured(!!checked)}
+                  />
+                  <label htmlFor="matured" className="text-sm font-medium cursor-pointer flex items-center gap-1">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Matured ({reportData.totals.matured})
+                  </label>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData.timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {showHot && <Line type="monotone" dataKey="hot" stroke="#ef4444" name="Hot" />}
+                  {showCold && <Line type="monotone" dataKey="cold" stroke="#3b82f6" name="Cold" />}
+                  {showMatured && <Line type="monotone" dataKey="matured" stroke="#22c55e" name="Matured" />}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Section 3: Followups */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Followups
+              </CardTitle>
+              <CardDescription>Track followup activities and their status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-4 flex-wrap">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="followupsSet" 
+                    checked={showFollowupsSet}
+                    onCheckedChange={(checked) => setShowFollowupsSet(!!checked)}
+                  />
+                  <label htmlFor="followupsSet" className="text-sm font-medium cursor-pointer">
+                    Followups Set ({reportData.totals.followupsSet})
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="timelyFollowups" 
+                    checked={showTimelyFollowups}
+                    onCheckedChange={(checked) => setShowTimelyFollowups(!!checked)}
+                  />
+                  <label htmlFor="timelyFollowups" className="text-sm font-medium cursor-pointer">
+                    Timely Followups ({reportData.totals.timelyFollowups})
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="overdueFollowups" 
+                    checked={showOverdueFollowups}
+                    onCheckedChange={(checked) => setShowOverdueFollowups(!!checked)}
+                  />
+                  <label htmlFor="overdueFollowups" className="text-sm font-medium cursor-pointer">
+                    Overdue Followups ({reportData.totals.overdueFollowups})
+                  </label>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData.timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {showFollowupsSet && <Line type="monotone" dataKey="followupsSet" stroke="#8b5cf6" name="Followups Set" />}
+                  {showTimelyFollowups && <Line type="monotone" dataKey="timelyFollowups" stroke="#22c55e" name="Timely Followups" />}
+                  {showOverdueFollowups && <Line type="monotone" dataKey="overdueFollowups" stroke="#ef4444" name="Overdue Followups" />}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Section 4: Sources */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Lead Sources
+              </CardTitle>
+              <CardDescription>Analyze lead distribution by source over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-4 flex-wrap">
+                {reportData.allSources && reportData.allSources.map((source: string) => (
+                  <div key={source} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`source-${source}`}
+                      checked={selectedSources[source] ?? true}
+                      onCheckedChange={(checked) => 
+                        setSelectedSources(prev => ({ ...prev, [source]: !!checked }))
+                      }
+                    />
+                    <label htmlFor={`source-${source}`} className="text-sm font-medium cursor-pointer capitalize">
+                      {source} ({reportData.sourceBreakdown[source] || 0})
+                    </label>
                   </div>
                 ))}
               </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData.timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {reportData.allSources && reportData.allSources.map((source: string, idx: number) => {
+                    const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff7c7c", "#8dd1e1", "#d084d0", "#a4de6c"];
+                    return selectedSources[source] && (
+                      <Line 
+                        key={source}
+                        type="monotone" 
+                        dataKey={`sources.${source}`}
+                        stroke={colors[idx % colors.length]}
+                        name={source}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>

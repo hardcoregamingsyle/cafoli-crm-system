@@ -1175,7 +1175,7 @@ export const getNotRelevantLeads = query({
   },
 });
 
-// New query to get report data for a user within a date range
+// New query to get detailed report data for line charts
 export const getReportData = query({
   args: {
     currentUserId: v.id("users"),
@@ -1205,10 +1205,7 @@ export const getReportData = query({
     let myLeads: any[] = [];
     
     if (currentUser.role === ROLES.ADMIN) {
-      // Admin sees all leads assigned within date range
-      // Use the composite index for efficient querying
       try {
-        // Query all leads and filter by assignedDate
         const allLeads = await ctx.db
           .query("leads")
           .order("desc")
@@ -1224,15 +1221,12 @@ export const getReportData = query({
         throw new Error("Failed to fetch leads");
       }
     } else {
-      // Manager/Staff see only their assigned leads within date range
       try {
-        // Use the assignedTo index first, then filter by date
         const allMyLeads = await ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
         
-        // Filter by assignedDate within range
         myLeads = allMyLeads.filter((l) => 
           l.assignedDate && 
           l.assignedDate >= args.fromDate && 
@@ -1240,7 +1234,6 @@ export const getReportData = query({
         );
       } catch (error) {
         console.error("Error querying leads for user:", error);
-        // Fallback to full scan if index fails
         try {
           const allLeads = await ctx.db
             .query("leads")
@@ -1261,45 +1254,110 @@ export const getReportData = query({
     }
 
     const leadsInRange = myLeads;
-
-    // Calculate metrics directly
-    const totalAssigned = leadsInRange.length;
-
-    // Count overdue followups (leads where nextFollowup is in the past)
     const now = Date.now();
-    const overdueFollowups = leadsInRange.filter(
-      (l) => l.nextFollowup && l.nextFollowup < now
-    ).length;
 
-    // Count by heat
+    // Group leads by day for time series data
+    const dayMap: Record<string, any> = {};
+    
+    for (const lead of leadsInRange) {
+      const date = new Date(lead.assignedDate!);
+      const dayKey = date.toISOString().split('T')[0];
+      
+      if (!dayMap[dayKey]) {
+        dayMap[dayKey] = {
+          date: dayKey,
+          assigned: 0,
+          relevant: 0,
+          notRelevant: 0,
+          hot: 0,
+          cold: 0,
+          matured: 0,
+          followupsSet: 0,
+          timelyFollowups: 0,
+          overdueFollowups: 0,
+          sources: {} as Record<string, number>,
+        };
+      }
+      
+      const day = dayMap[dayKey];
+      day.assigned++;
+      
+      // Status counts
+      if (lead.status === LEAD_STATUS.RELEVANT) day.relevant++;
+      if (lead.status === LEAD_STATUS.NOT_RELEVANT) day.notRelevant++;
+      
+      // Heat counts
+      if (lead.heat === "hot") day.hot++;
+      if (lead.heat === "cold") day.cold++;
+      if (lead.heat === "matured") day.matured++;
+      
+      // Followup counts
+      if (lead.nextFollowup) {
+        day.followupsSet++;
+        
+        // Check if followup was due in this timeframe
+        if (lead.nextFollowup >= args.fromDate && lead.nextFollowup <= args.toDate) {
+          if (lead.nextFollowup < now) {
+            day.overdueFollowups++;
+          } else {
+            day.timelyFollowups++;
+          }
+        }
+      }
+      
+      // Source counts
+      const source = lead.source || "unknown";
+      day.sources[source] = (day.sources[source] || 0) + 1;
+    }
+
+    // Convert to sorted array
+    const timeSeriesData = Object.values(dayMap).sort((a, b) => 
+      a.date.localeCompare(b.date)
+    );
+
+    // Calculate totals
+    const totalAssigned = leadsInRange.length;
+    const relevantLeads = leadsInRange.filter((l) => l.status === LEAD_STATUS.RELEVANT).length;
+    const notRelevantLeads = leadsInRange.filter((l) => l.status === LEAD_STATUS.NOT_RELEVANT).length;
     const hotLeads = leadsInRange.filter((l) => l.heat === "hot").length;
     const coldLeads = leadsInRange.filter((l) => l.heat === "cold").length;
     const maturedLeads = leadsInRange.filter((l) => l.heat === "matured").length;
-
-    // Count by status
-    const irrelevantLeads = leadsInRange.filter(
-      (l) => l.status === LEAD_STATUS.NOT_RELEVANT
+    
+    const followupsSet = leadsInRange.filter((l) => l.nextFollowup).length;
+    const timelyFollowups = leadsInRange.filter((l) => 
+      l.nextFollowup && 
+      l.nextFollowup >= args.fromDate && 
+      l.nextFollowup <= args.toDate &&
+      l.nextFollowup >= now
     ).length;
-    const relevantLeads = leadsInRange.filter(
-      (l) => l.status === LEAD_STATUS.RELEVANT
+    const overdueFollowups = leadsInRange.filter((l) => 
+      l.nextFollowup && l.nextFollowup < now
     ).length;
 
-    // Count by source
+    // Source breakdown
     const sourceBreakdown: Record<string, number> = {};
+    const allSources = new Set<string>();
     for (const lead of leadsInRange) {
       const source = lead.source || "unknown";
       sourceBreakdown[source] = (sourceBreakdown[source] || 0) + 1;
+      allSources.add(source);
     }
 
     return {
-      totalAssigned,
-      overdueFollowups,
-      hotLeads,
-      coldLeads,
-      maturedLeads,
-      irrelevantLeads,
-      relevantLeads,
+      timeSeriesData,
+      totals: {
+        assigned: totalAssigned,
+        relevant: relevantLeads,
+        notRelevant: notRelevantLeads,
+        hot: hotLeads,
+        cold: coldLeads,
+        matured: maturedLeads,
+        followupsSet,
+        timelyFollowups,
+        overdueFollowups,
+      },
       sourceBreakdown,
+      allSources: Array.from(allSources),
     };
   },
 });
