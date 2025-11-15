@@ -764,19 +764,18 @@ export const runDeduplication = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Load only unassigned leads for deduplication
+    // Load ALL leads for deduplication (not just unassigned)
     const all = await ctx.db.query("leads").collect();
-    const unassignedLeads = all.filter(lead => !lead.assignedTo);
     
-    if (unassignedLeads.length === 0) {
+    if (all.length === 0) {
       return { groupsProcessed: 0, mergedCount: 0, deletedCount: 0, notificationsSent: 0 };
     }
 
-    // Build groups by mobileNo and email (only for unassigned leads)
-    type Group = { key: string; members: typeof unassignedLeads };
-    const byKey: Record<string, Array<typeof unassignedLeads[number]>> = {};
+    // Build groups by mobileNo and email (for all leads)
+    type Group = { key: string; members: typeof all };
+    const byKey: Record<string, Array<typeof all[number]>> = {};
 
-    for (const l of unassignedLeads) {
+    for (const l of all) {
       const keys: Array<string> = [];
       if (l.mobileNo) keys.push(`m:${l.mobileNo}`);
       if (l.email) keys.push(`e:${l.email}`);
@@ -795,7 +794,7 @@ export const runDeduplication = mutation({
     let notificationsSent = 0;
 
     // Helper to club members into a single canonical doc (oldest by _creationTime)
-    const clubGroup = async (members: Array<typeof unassignedLeads[number]>) => {
+    const clubGroup = async (members: Array<typeof all[number]>) => {
       // Filter out already processed docs
       const fresh = members.filter(m => !visitedDocIds.has(String(m._id)));
       if (fresh.length <= 1) {
@@ -812,7 +811,24 @@ export const runDeduplication = mutation({
       const patch: Record<string, any> = {};
       let hasChanges = false;
       
+      // Track all previous assignees to add to comment
+      const previousAssignees = new Set<string>();
+      if (primary.assignedTo) {
+        try {
+          const user = await ctx.db.get(primary.assignedTo);
+          if (user) previousAssignees.add(user.name || user.username || "Unknown");
+        } catch {}
+      }
+      
       for (const r of rest) {
+        // Track assignees from duplicate leads
+        if (r.assignedTo) {
+          try {
+            const user = await ctx.db.get(r.assignedTo);
+            if (user) previousAssignees.add(user.name || user.username || "Unknown");
+          } catch {}
+        }
+        
         // Concatenate name if different
         if (r.name && primary.name !== r.name) {
           patch.name = primary.name ? `${primary.name} & ${r.name}` : r.name;
@@ -838,18 +854,9 @@ export const runDeduplication = mutation({
         if (!primary.source && r.source) patch.source = r.source;
       }
 
-      // Assignment rule:
-      // - If primary has assignedTo, keep it
-      // - Else, if any member has assignedTo, set that on primary (use the first one encountered)
-      if (!primary.assignedTo) {
-        const assignedFromOthers = rest.find(r => !!r.assignedTo)?.assignedTo;
-        if (assignedFromOthers) {
-          patch.assignedTo = assignedFromOthers;
-        }
-      }
-
-      // Preserve the original nextFollowup on the primary lead by not overriding it here.
-      // We intentionally do NOT copy nextFollowup from duplicates to keep the old one.
+      // NEW: Unassign the lead when clubbing
+      patch.assignedTo = undefined;
+      patch.assignedDate = undefined;
 
       // Move comments from duplicate leads to the primary lead before deletion
       for (const r of rest) {
@@ -867,28 +874,32 @@ export const runDeduplication = mutation({
         mergedCount++;
       }
       
-      // Add "Duplicate leads, Clubbed" comment if fields were concatenated
-      if (hasChanges) {
-        await ctx.db.insert("comments", {
-          leadId: primary._id,
-          userId: currentUser._id,
-          content: "Duplicate leads, Clubbed",
-          timestamp: Date.now(),
-        });
-      }
+      // Add comment showing duplicate leads were clubbed and previous assignees
+      const assigneeList = Array.from(previousAssignees);
+      const assigneeText = assigneeList.length > 0 
+        ? ` Previously assigned to: ${assigneeList.join(", ")}`
+        : "";
+      
+      await ctx.db.insert("comments", {
+        leadId: primary._id,
+        userId: currentUser._id,
+        content: `Duplicate leads clubbed.${assigneeText}`,
+        timestamp: Date.now(),
+      });
 
-      // Notify the assignee if there is one
-      const assignee = (patch.assignedTo ?? primary.assignedTo) as any;
-      if (assignee) {
-        await ctx.db.insert("notifications", {
-          userId: assignee,
-          title: "Duplicate Leads Clubbed",
-          message: "Some duplicate leads were clubbed into one of your assigned leads.",
-          read: false,
-          type: "lead_assigned",
-          relatedLeadId: primary._id,
-        });
-        notificationsSent++;
+      // Notify previous assignees that their lead was clubbed and unassigned
+      for (const r of [primary, ...rest]) {
+        if (r.assignedTo) {
+          await ctx.db.insert("notifications", {
+            userId: r.assignedTo,
+            title: "Lead Unassigned - Duplicates Clubbed",
+            message: "A lead assigned to you was clubbed with duplicates and is now unassigned.",
+            read: false,
+            type: "lead_assigned",
+            relatedLeadId: primary._id,
+          });
+          notificationsSent++;
+        }
       }
 
       // Delete the rest after merging
@@ -901,7 +912,7 @@ export const runDeduplication = mutation({
       await ctx.db.insert("auditLogs", {
         userId: currentUser._id,
         action: "RUN_DEDUPLICATION",
-        details: `Clubbed ${rest.length} duplicate(s) into lead ${primary._id}`,
+        details: `Clubbed ${rest.length} duplicate(s) into lead ${primary._id}${assigneeText}`,
         timestamp: Date.now(),
         relatedLeadId: primary._id,
       });
