@@ -772,9 +772,6 @@ export const runDeduplication = mutation({
     }
 
     // Build groups by mobileNo and email (for all leads)
-    // Group type definition (currently unused but may be needed for future features)
-// Type definition for grouping (currently unused)
-type _Group = { key: string; members: typeof all };
     const byKey: Record<string, Array<typeof all[number]>> = {};
 
     for (const l of all) {
@@ -811,7 +808,6 @@ type _Group = { key: string; members: typeof all };
 
       // Build patch by concatenating name/subject/message and filling missing fields
       const patch: Record<string, any> = {};
-      let hasChanges = false;
       
       // Track all previous assignees to add to comment
       const previousAssignees = new Set<string>();
@@ -834,19 +830,16 @@ type _Group = { key: string; members: typeof all };
         // Concatenate name if different
         if (r.name && primary.name !== r.name) {
           patch.name = primary.name ? `${primary.name} & ${r.name}` : r.name;
-          hasChanges = true;
         }
         
         // Concatenate subject if different
         if (r.subject && primary.subject !== r.subject) {
           patch.subject = primary.subject ? `${primary.subject} & ${r.subject}` : r.subject;
-          hasChanges = true;
         }
         
         // Concatenate message if different
         if (r.message && primary.message !== r.message) {
           patch.message = primary.message ? `${primary.message} & ${r.message}` : r.message;
-          hasChanges = true;
         }
         
         // Fill missing fields only

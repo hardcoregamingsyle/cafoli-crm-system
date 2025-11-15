@@ -242,7 +242,7 @@ http.route({
 http.route({
   path: "/api/webhook/whatsapp",
   method: "GET",
-    handler: httpAction(async (ctx, req) => {
+    handler: httpAction(async (_ctx, req) => {
       const url = new URL(req.url);
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
@@ -456,7 +456,7 @@ http.route({
 http.route({
   path: "/api/webhook/leads_count",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (ctx, _req) => {
     try {
       const currentUserId = await ensureAdminUserId(ctx);
       const all: any[] =

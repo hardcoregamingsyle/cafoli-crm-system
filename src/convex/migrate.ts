@@ -2,7 +2,6 @@
 
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";

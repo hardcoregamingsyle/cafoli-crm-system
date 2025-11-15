@@ -2,7 +2,6 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { ROLES } from "./schema";
-import { internal } from "./_generated/api";
 
 // Upsert or create an email API key record
 export const upsertEmailApiKey = internalMutation({

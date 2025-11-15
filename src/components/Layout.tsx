@@ -1,13 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu, User, KeyRound, Send } from "lucide-react";
+import { LogOut, FileText, Settings, Upload, UserPlus, Download, PlusCircle, Menu, User, KeyRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate, useLocation } from "react-router";
 import { ROLES } from "@/convex/schema";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,7 +31,6 @@ export function Layout({ children }: LayoutProps) {
   //   api.notifications.getUnreadCount,
   //   authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
   // );
-  const unreadCount = 0; // Disabled
 
   // Add data and mutations early so hooks order is stable even when currentUser is null
   const allLeadsForExport = useQuery(

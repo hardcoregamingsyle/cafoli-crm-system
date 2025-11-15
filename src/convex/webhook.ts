@@ -362,7 +362,7 @@ export const createLeadFromSource = internalMutation({
     }
 
     // Insert new lead (store placeholder email as-is or leave empty if you prefer)
-    const leadId = await ctx.db.insert("leads", {
+    await ctx.db.insert("leads", {
       name: args.name,
       subject: args.subject,
       message: args.message,
