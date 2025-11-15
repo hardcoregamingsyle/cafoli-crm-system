@@ -147,7 +147,7 @@ http.route({
 http.route({
   path: "/api/webhook/logs",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+    handler: httpAction(async (ctx, req) => {
     try {
       // For GET we support query params as payload
       const url = new URL(req.url);
@@ -242,8 +242,8 @@ http.route({
 http.route({
   path: "/api/webhook/whatsapp",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
-    const url = new URL(req.url);
+    handler: httpAction(async (ctx, req) => {
+      const url = new URL(req.url);
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
@@ -554,7 +554,6 @@ http.route({
       const details = lines.join("\n");
 
       // Store in auditLogs (full raw provider payloads included)
-      const systemUserId = await ensureAdminUserId(ctx);
       await ctx.runMutation((internal as any).webhook.insertLog, {
         payload: {
           type: "LOGIN_IP_LOG",

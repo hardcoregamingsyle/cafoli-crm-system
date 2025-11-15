@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { PlusCircle, Send, Trash2, Edit } from "lucide-react";
+import { PlusCircle, Send, Trash2 } from "lucide-react";
 import { ROLES } from "@/convex/schema";
 
 export default function CampaignsPage() {

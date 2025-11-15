@@ -44,7 +44,7 @@ export function Layout({ children }: LayoutProps) {
       authReady && currentUser ? { currentUserId: currentUser._id } : "skip"
     ) ?? [];
   const bulkCreateLeads = useMutation((api as any).leads.bulkCreateLeads);
-  const runDeduplication = useMutation((api as any).leads.runDeduplication);
+  // Deduplication mutation available if needed
   const importPincodeMappings = useMutation((api as any).leads.bulkImportPincodeMappings);
 
   // Add: subscribe to my leads to detect assignment increases (for sound)
@@ -96,7 +96,7 @@ export function Layout({ children }: LayoutProps) {
   const importMasterdataInputRef = useRef<HTMLInputElement | null>(null);
   const [requestLeadsDialogOpen, setRequestLeadsDialogOpen] = useState(false);
   const [requestedLeadsCount, setRequestedLeadsCount] = useState("");
-  const [masterdataDialogOpen, setMasterdataDialogOpen] = useState(false);
+  // Masterdata dialog state removed as not currently used
   const [pendingRequestDialogOpen, setPendingRequestDialogOpen] = useState(false);
   const [requestStatusDialogOpen, setRequestStatusDialogOpen] = useState(false);
 

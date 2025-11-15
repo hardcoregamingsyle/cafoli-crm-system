@@ -31,7 +31,7 @@ export const send = action({
     to: v.string(),
     message: v.string(), // kept for compatibility, but ignored
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     // Removed dependency on SMS_API_KEY; using hardcoded credentials per request
 
     const phoneRaw = String(args.to ?? "").trim();

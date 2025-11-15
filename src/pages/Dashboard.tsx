@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/Layout";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, FileText, Clock, TrendingUp, Bell, Target } from "lucide-react";
+import { Users, FileText, Clock, TrendingUp, Target } from "lucide-react";
 import { ROLES } from "@/convex/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 

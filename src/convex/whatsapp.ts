@@ -3,7 +3,6 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
 
 // Send a text message via WhatsApp
 export const sendMessage = action({

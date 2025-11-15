@@ -95,7 +95,6 @@ export default function MyLeadsPage() {
             if (!notifiedKeysRef.current.has(key)) {
               notifiedKeysRef.current.add(key);
               const leadName = String(lead?.name || "Lead");
-              const title = `Your Followup is in ${minutesRemaining} Minutes`;
               const content = `Your Followup with ${leadName} is in ${minutesRemaining} Minutes. Remember to Followup.`;
               toast.info(content);
               // New: play follow-up sound
@@ -973,7 +972,7 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
   );
 }
 
-function SendSmsButtons({ primary, secondary, contactPhoneLabel }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
+function SendSmsButtons({ primary, secondary }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
   // Use Convex action to send SMS via backend with SMS_API_KEY
   const sendSms = useAction((api as any).sms.send);
   const [sending, setSending] = useState(false);

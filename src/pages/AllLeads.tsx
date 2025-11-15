@@ -10,11 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Filter } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
-import * as React from "react";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router";
 import { toast } from "sonner";
@@ -351,12 +350,6 @@ export default function AllLeadsPage() {
   })();
 
   // Sort by heat for consistent ordering (Hot -> Mature/Matured -> Cold -> Unset)
-  const normalizeHeat = (s: any) =>
-    String(s ?? "")
-      .toLowerCase()
-      .trim()
-      .replace(/[\s_-]+/g, "");
-
   const heatOrder = (h: any) => {
     const n = String(h ?? "").toLowerCase().trim();
     if (n === "hot") return 0;

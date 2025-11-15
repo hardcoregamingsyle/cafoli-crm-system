@@ -772,7 +772,9 @@ export const runDeduplication = mutation({
     }
 
     // Build groups by mobileNo and email (for all leads)
-    type Group = { key: string; members: typeof all };
+    // Group type definition (currently unused but may be needed for future features)
+// Type definition for grouping (currently unused)
+type _Group = { key: string; members: typeof all };
     const byKey: Record<string, Array<typeof all[number]>> = {};
 
     for (const l of all) {

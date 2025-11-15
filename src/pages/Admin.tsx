@@ -419,7 +419,7 @@ function CreateUserForm({ onCreate }: { onCreate: (data: { name: string; usernam
   );
 }
 
-function SendNotification({ userId, onSend }: { userId: string; onSend: (message: string) => Promise<void>; }) {
+function SendNotification({ userId: _userId, onSend }: { userId: string; onSend: (message: string) => Promise<void>; }) {
   const [message, setMessage] = useState("");
   return (
     <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -497,7 +497,7 @@ function EmailKeyForm({
 
 function EmailKeyRow({
   k,
-  currentUserId,
+  currentUserId: _currentUserId,
   onToggle,
   onReset,
   onDelete,
