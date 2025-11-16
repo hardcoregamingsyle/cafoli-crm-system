@@ -654,6 +654,12 @@ export function Layout({ children }: LayoutProps) {
       icon: FileText,
       roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
     },
+    {
+      label: "WhatsApp",
+      path: "/whatsapp",
+      icon: FileText,
+      roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]
+    },
   ];
 
   const filteredNavItems = navigationItems.filter(item => 
