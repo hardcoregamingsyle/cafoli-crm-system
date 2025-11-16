@@ -62,6 +62,19 @@ export const insertLog = internalMutation({
   },
 });
 
+// Add phone normalization helper at the top after imports
+function normalizePhoneNumber(phone: string): string {
+  if (!phone) return "";
+  // Remove all non-digit characters
+  let digits = phone.replace(/\D/g, "");
+  // Remove country code (91 for India) if present
+  if (digits.startsWith("91") && digits.length > 10) {
+    digits = digits.slice(2);
+  }
+  // Return last 10 digits to handle any remaining prefixes
+  return digits.slice(-10);
+}
+
 // Create a lead from Google Script data with new column structure
 export const createLeadFromGoogleScript = internalMutation({
   args: {
@@ -74,7 +87,6 @@ export const createLeadFromGoogleScript = internalMutation({
     message: v.string(),
     altEmail: v.optional(v.string()),
     altMobileNo: v.optional(v.string()),
-    // NEW: incoming optional assignee name (Column J)
     assigneeName: v.optional(v.string()),
     state: v.string(),
     station: v.optional(v.string()),
@@ -83,12 +95,15 @@ export const createLeadFromGoogleScript = internalMutation({
     agencyName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Normalize phone numbers
+    const mobile = normalizePhoneNumber(args.mobileNo || "");
+    const altMobile = args.altMobileNo ? normalizePhoneNumber(args.altMobileNo) : undefined;
+
     // Resolve incoming assigneeId if provided
     let incomingAssigneeId: any = null;
     const targetName = (args.assigneeName ?? "").trim().toLowerCase();
     if (targetName) {
       try {
-        // Try username via index first
         const byUsername = await ctx.db
           .query("users")
           .withIndex("username", (q: any) => q.eq("username", args.assigneeName))
@@ -96,7 +111,6 @@ export const createLeadFromGoogleScript = internalMutation({
         if (byUsername?._id) {
           incomingAssigneeId = byUsername._id;
         } else {
-          // Fallback scan by name/username (case-insensitive)
           const allUsers = await ctx.db.query("users").collect();
           const found = allUsers.find((u: any) => {
             const nm = String(u.name ?? "").trim().toLowerCase();
@@ -111,7 +125,6 @@ export const createLeadFromGoogleScript = internalMutation({
     }
 
     // Normalize and ignore placeholder email for dedup
-    const mobile = (args.mobileNo || "").trim();
     const rawEmail = (args.email || "").trim().toLowerCase();
     const emailForDedup = rawEmail && rawEmail !== "unknown@example.com" ? rawEmail : "";
 
@@ -140,24 +153,21 @@ export const createLeadFromGoogleScript = internalMutation({
     if (existing) {
       // Club fields into existing with concatenation
       const patch: Record<string, any> = {};
-      let hasChanges = false;
       
       if (!existing.name && args.name) patch.name = args.name;
       
       // Concatenate subject if different
       if (args.subject && existing.subject !== args.subject) {
         patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
-        hasChanges = true;
       }
       
       // Concatenate message if different
       if (args.message && existing.message !== args.message) {
         patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
-        hasChanges = true;
       }
       
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
-      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.altMobileNo && altMobile) patch.altMobileNo = altMobile;
       if (!existing.state && args.state) patch.state = args.state;
       if (!existing.source && args.source) patch.source = args.source;
       if (!existing.station && args.station) patch.station = args.station;
@@ -166,20 +176,17 @@ export const createLeadFromGoogleScript = internalMutation({
       if (!existing.agencyName && args.agencyName) patch.agencyName = args.agencyName;
       if (args.serialNo && !existing.serialNo) patch.serialNo = args.serialNo;
 
-      // Assignment rule:
-      // - If existing lead already has an assignee, preserve it (do not reassign)
-      // - If existing lead is unassigned and incoming has assignee, assign it
+      // Assignment rule
       if (incomingAssigneeId && !existing.assignedTo) {
         patch.assignedTo = incomingAssigneeId;
       }
-      // If existing is already assigned, we keep it as-is (no reassignment)
 
       if (Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, patch);
       }
 
       // Add comment about duplicate lead posting
-      if (hasChanges) {
+      if (Object.keys(patch).length > 0) {
         const loggingUserId = await ensureLoggingUserId(ctx);
         await ctx.db.insert("comments", {
           leadId: existing._id,
@@ -189,7 +196,7 @@ export const createLeadFromGoogleScript = internalMutation({
         });
       }
 
-      // If it had an assignee before, notify them about clubbing
+      // Notify assignees
       if (existing.assignedTo) {
         await ctx.db.insert("notifications", {
           userId: existing.assignedTo,
@@ -200,7 +207,6 @@ export const createLeadFromGoogleScript = internalMutation({
           relatedLeadId: existing._id,
         });
       }
-      // Only notify new assignee if we just assigned (not if already assigned)
       if (incomingAssigneeId && !existing.assignedTo && patch.assignedTo) {
         await ctx.db.insert("notifications", {
           userId: incomingAssigneeId,
@@ -219,12 +225,11 @@ export const createLeadFromGoogleScript = internalMutation({
         timestamp: Date.now(),
         relatedLeadId: existing._id,
       });
-      // Return explicit result for caller
       return false;
     }
 
-    // Insert new lead with optional assignment
-      await ctx.db.insert("leads", {
+    // Insert new lead with normalized phone
+    await ctx.db.insert("leads", {
       serialNo: args.serialNo,
       source: args.source || "google_script",
       name: args.name,
@@ -233,7 +238,7 @@ export const createLeadFromGoogleScript = internalMutation({
       mobileNo: mobile,
       message: args.message,
       altEmail: args.altEmail,
-      altMobileNo: args.altMobileNo,
+      altMobileNo: altMobile,
       state: args.state,
       station: args.station,
       district: args.district,
@@ -253,12 +258,11 @@ export const createLeadFromGoogleScript = internalMutation({
       // Do not block lead creation on email errors
     }
 
-    // Return explicit creation result
     return true;
   },
 });
 
-// Create a lead from a webhook source (IndiaMART etc.) - keeping for backward compatibility
+// Create a lead from a webhook source (IndiaMART etc.)
 export const createLeadFromSource = internalMutation({
   args: {
     name: v.string(),
@@ -272,8 +276,11 @@ export const createLeadFromSource = internalMutation({
     source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Normalize phone numbers
+    const mobile = normalizePhoneNumber(args.mobileNo || "");
+    const altMobile = args.altMobileNo ? normalizePhoneNumber(args.altMobileNo) : undefined;
+
     // Normalize and ignore placeholder email for dedup
-    const mobile = (args.mobileNo || "").trim();
     const rawEmail = (args.email || "").trim().toLowerCase();
     const emailForDedup = rawEmail && rawEmail !== "unknown@example.com" ? rawEmail : "";
 
@@ -302,23 +309,20 @@ export const createLeadFromSource = internalMutation({
     if (existing) {
       // Club fields into existing with concatenation
       const patch: Record<string, any> = {};
-      let hasChanges = false;
       
       if (!existing.name && args.name) patch.name = args.name;
       
       // Concatenate subject if different
       if (args.subject && existing.subject !== args.subject) {
         patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
-        hasChanges = true;
       }
       
       // Concatenate message if different
       if (args.message && existing.message !== args.message) {
         patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
-        hasChanges = true;
       }
       
-      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.altMobileNo && altMobile) patch.altMobileNo = altMobile;
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.state && args.state) patch.state = args.state;
       if (!existing.source && args.source) patch.source = args.source;
@@ -328,7 +332,7 @@ export const createLeadFromSource = internalMutation({
       }
 
       // Add comment about duplicate lead posting
-      if (hasChanges) {
+      if (Object.keys(patch).length > 0) {
         const loggingUserId = await ensureLoggingUserId(ctx);
         await ctx.db.insert("comments", {
           leadId: existing._id,
@@ -357,18 +361,17 @@ export const createLeadFromSource = internalMutation({
         timestamp: Date.now(),
         relatedLeadId: existing._id,
       });
-      // Return explicit result for caller
       return false;
     }
 
-    // Insert new lead (store placeholder email as-is or leave empty if you prefer)
+    // Insert new lead with normalized phone
     await ctx.db.insert("leads", {
       name: args.name,
       subject: args.subject,
       message: args.message,
       mobileNo: mobile,
       email: rawEmail,
-      altMobileNo: args.altMobileNo,
+      altMobileNo: altMobile,
       altEmail: args.altEmail,
       state: args.state,
       status: "yet_to_decide",
@@ -385,7 +388,6 @@ export const createLeadFromSource = internalMutation({
       // Do not block lead creation on email errors
     }
 
-    // Return explicit creation result
     return true;
   },
 });

@@ -4,6 +4,19 @@ import { getCurrentUser } from "./users";
 import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
 import { internal } from "./_generated/api";
 
+// Add phone normalization helper at the top after imports
+function normalizePhoneNumber(phone: string): string {
+  if (!phone) return "";
+  // Remove all non-digit characters
+  let digits = phone.replace(/\D/g, "");
+  // Remove country code (91 for India) if present
+  if (digits.startsWith("91") && digits.length > 10) {
+    digits = digits.slice(2);
+  }
+  // Return last 10 digits to handle any remaining prefixes
+  return digits.slice(-10);
+}
+
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
@@ -170,11 +183,14 @@ export const getMyLeads = query({
 });
 
 async function findDuplicateLead(ctx: any, mobileNo: string, email: string) {
+  // Normalize phone before lookup
+  const normalizedMobile = normalizePhoneNumber(mobileNo);
+  
   // Prefer exact mobile match, then email
-  const byMobile = mobileNo
+  const byMobile = normalizedMobile
     ? await ctx.db
         .query("leads")
-        .withIndex("mobileNo", (q: any) => q.eq("mobileNo", mobileNo))
+        .withIndex("mobileNo", (q: any) => q.eq("mobileNo", normalizedMobile))
         .unique()
     : null;
 
@@ -210,34 +226,34 @@ export const createLead = mutation({
     source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Normalize phone numbers
+    const normalizedMobile = normalizePhoneNumber(args.mobileNo);
+    const normalizedAltMobile = args.altMobileNo ? normalizePhoneNumber(args.altMobileNo) : undefined;
+
     // Check if this lead was previously marked as not relevant
-    if (await wasMarkedNotRelevant(ctx, args.mobileNo, args.email)) {
-      // Silently skip creating this lead
+    if (await wasMarkedNotRelevant(ctx, normalizedMobile, args.email)) {
       return null;
     }
 
-    const existing = await findDuplicateLead(ctx, args.mobileNo, args.email);
+    const existing = await findDuplicateLead(ctx, normalizedMobile, args.email);
 
     if (existing) {
       // Club records: concatenate different info and patch missing fields
       const patch: Record<string, any> = {};
-      let hasChanges = false;
       
       if (!existing.name && args.name) patch.name = args.name;
       
       // Concatenate subject if different
       if (args.subject && existing.subject !== args.subject) {
         patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
-        hasChanges = true;
       }
       
       // Concatenate message if different
       if (args.message && existing.message !== args.message) {
         patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
-        hasChanges = true;
       }
       
-      if (!existing.altMobileNo && args.altMobileNo) patch.altMobileNo = args.altMobileNo;
+      if (!existing.altMobileNo && normalizedAltMobile) patch.altMobileNo = normalizedAltMobile;
       if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
       if (!existing.state && args.state) patch.state = args.state;
       if (!existing.source && args.source) patch.source = args.source;
@@ -247,7 +263,7 @@ export const createLead = mutation({
       }
 
       // Add comment about duplicate lead posting
-      if (hasChanges) {
+      if (Object.keys(patch).length > 0) {
         let anyUserId: any = null;
         const anyUsers = await ctx.db.query("users").collect();
         if (anyUsers.length > 0) {
@@ -286,9 +302,11 @@ export const createLead = mutation({
       return existing._id;
     }
 
-    // No duplicate: create new lead
+    // No duplicate: create new lead with normalized phone
     const leadId = await ctx.db.insert("leads", {
       ...args,
+      mobileNo: normalizedMobile,
+      altMobileNo: normalizedAltMobile,
       status: LEAD_STATUS.YET_TO_DECIDE,
     });
 
@@ -568,9 +586,12 @@ export const bulkCreateLeads = mutation({
     let importedCount = 0;
 
     for (const incoming of args.leads) {
+      // Normalize phone numbers
+      const normalizedMobile = normalizePhoneNumber(incoming.mobileNo);
+      const normalizedAltMobile = incoming.altMobileNo ? normalizePhoneNumber(incoming.altMobileNo) : undefined;
+
       // Check if this lead was previously marked as not relevant
-      if (await wasMarkedNotRelevant(ctx, incoming.mobileNo, incoming.email)) {
-        // Skip this lead silently
+      if (await wasMarkedNotRelevant(ctx, normalizedMobile, incoming.email)) {
         continue;
       }
 
@@ -595,61 +616,53 @@ export const bulkCreateLeads = mutation({
             mapping = all[0] || null;
           }
           if (mapping) {
-            // Override CSV values with pincode mapping
             finalState = mapping.state;
             finalDistrict = mapping.district;
           }
         }
       }
 
-      const existing = await findDuplicateLead(ctx, incoming.mobileNo, incoming.email);
+      const existing = await findDuplicateLead(ctx, normalizedMobile, incoming.email);
 
       if (existing) {
         // Club records: concatenate different info and fill missing fields
         const patch: Record<string, any> = {};
-        let hasChanges = false;
         
         if (!existing.name && incoming.name) patch.name = incoming.name;
         
         // Concatenate subject if different
         if (incoming.subject && existing.subject !== incoming.subject) {
           patch.subject = existing.subject ? `${existing.subject} & ${incoming.subject}` : incoming.subject;
-          hasChanges = true;
         }
         
         // Concatenate message if different
         if (incoming.message && existing.message !== incoming.message) {
           patch.message = existing.message ? `${existing.message} & ${incoming.message}` : incoming.message;
-          hasChanges = true;
         }
         
-        if (!existing.altMobileNo && incoming.altMobileNo) patch.altMobileNo = incoming.altMobileNo;
+        if (!existing.altMobileNo && normalizedAltMobile) patch.altMobileNo = normalizedAltMobile;
         if (!existing.altEmail && incoming.altEmail) patch.altEmail = incoming.altEmail;
         if (!existing.state && finalState) patch.state = finalState;
         if (!existing.source && incoming.source) patch.source = incoming.source;
-        // Add extended fields when missing
         if (!existing.station && incoming.station) patch.station = incoming.station;
         if (!existing.district && finalDistrict) patch.district = finalDistrict;
         if (!existing.pincode && incoming.pincode) patch.pincode = incoming.pincode;
         if (!existing.agencyName && incoming.agencyName) patch.agencyName = incoming.agencyName;
 
         // Assignment logic (updated):
-        // - If existing lead already has an assignee, preserve it (do not reassign)
-        // - If existing lead is unassigned and args.assignedTo is provided, assign it
         let assignedJustNow = false;
         if (args.assignedTo && !existing.assignedTo) {
           patch.assignedTo = args.assignedTo;
           patch.assignedDate = Date.now();
           assignedJustNow = true;
         }
-        // If existing is already assigned, we keep it as-is (no reassignment)
 
         if (Object.keys(patch).length > 0) {
           await ctx.db.patch(existing._id, patch);
         }
 
         // Add comment about duplicate lead posting
-        if (hasChanges) {
+        if (Object.keys(patch).length > 0) {
           await ctx.db.insert("comments", {
             leadId: existing._id,
             userId: currentUser._id,
@@ -668,7 +681,6 @@ export const bulkCreateLeads = mutation({
             relatedLeadId: existing._id,
           });
         }
-        // Notify new assignee only if we just assigned (not reassigned)
         if (assignedJustNow && args.assignedTo) {
           await ctx.db.insert("notifications", {
             userId: args.assignedTo,
@@ -688,9 +700,11 @@ export const bulkCreateLeads = mutation({
           relatedLeadId: existing._id,
         });
       } else {
-        // Create fresh lead including extended fields with pincode-mapped state/district
+        // Create fresh lead with normalized phone
         const leadId = await ctx.db.insert("leads", {
           ...incoming,
+          mobileNo: normalizedMobile,
+          altMobileNo: normalizedAltMobile,
           state: finalState,
           district: finalDistrict,
           status: LEAD_STATUS.YET_TO_DECIDE,
