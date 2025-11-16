@@ -1,6 +1,1 @@
-const myRequestStatus = useQuery(
-  api.masterdata.getMyRequestStatus,
-  authReady && currentUser?._id && currentUser.role !== ROLES.ADMIN
-    ? { currentUserId: currentUser._id }
-    : "skip"
-);
+const verifyToken = process.env.WEBHOOK_VERIFICATION_TOKEN;
