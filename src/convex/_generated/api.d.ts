@@ -25,6 +25,7 @@ import type * as sms from "../sms.js";
 import type * as users from "../users.js";
 import type * as webhook from "../webhook.js";
 import type * as whatsapp from "../whatsapp.js";
+import type * as whatsappPortal from "../whatsappPortal.js";
 import type * as whatsappQueries from "../whatsappQueries.js";
 
 import type {
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   users: typeof users;
   webhook: typeof webhook;
   whatsapp: typeof whatsapp;
+  whatsappPortal: typeof whatsappPortal;
   whatsappQueries: typeof whatsappQueries;
 }>;
 
