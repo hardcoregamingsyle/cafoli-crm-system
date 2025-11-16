@@ -262,7 +262,6 @@ export const createLead = mutation({
         await ctx.db.patch(existing._id, patch);
       }
 
-      // Add comment about duplicate lead posting
       if (Object.keys(patch).length > 0) {
         let anyUserId: any = null;
         const anyUsers = await ctx.db.query("users").collect();
@@ -277,7 +276,6 @@ export const createLead = mutation({
           timestamp: Date.now(),
         });
 
-        // If existing is already assigned, notify assignee about the clubbed lead
         if (existing.assignedTo) {
           await ctx.db.insert("notifications", {
             userId: existing.assignedTo,
@@ -289,7 +287,6 @@ export const createLead = mutation({
           });
         }
 
-        // Audit log the clubbing
         await ctx.db.insert("auditLogs", {
           userId: anyUserId,
           action: "CLUB_DUPLICATE_LEAD",
@@ -310,7 +307,7 @@ export const createLead = mutation({
       status: LEAD_STATUS.YET_TO_DECIDE,
     });
 
-    // NEW: Send welcome email immediately on creation if email is valid
+    // Send welcome email immediately on creation if email is valid
     try {
       const email = (args.email || "").trim().toLowerCase();
       if (email && email !== "unknown@example.com") {
@@ -318,6 +315,20 @@ export const createLead = mutation({
       }
     } catch {
       // Do not block creation on email errors
+    }
+
+    // NEW: Send WhatsApp welcome template message
+    try {
+      if (normalizedMobile && normalizedMobile.length === 10) {
+        await ctx.scheduler.runAfter(0, (internal as any).whatsapp.sendTemplateMessage, {
+          phoneNumber: normalizedMobile,
+          templateName: "cafoliwelcomemessageindia_9518447302",
+          languageCode: "en",
+          leadId: leadId,
+        });
+      }
+    } catch {
+      // Do not block creation on WhatsApp errors
     }
 
     // Notify Admins and Managers about the new lead

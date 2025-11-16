@@ -173,3 +173,82 @@ export const sendInteractiveMessage = action({
     }
   },
 });
+
+// Send a template message via WhatsApp
+export const sendTemplateMessage = action({
+  args: {
+    phoneNumber: v.string(),
+    templateName: v.string(),
+    languageCode: v.optional(v.string()),
+    leadId: v.optional(v.id("leads")),
+  },
+  handler: async (ctx, args) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_NUMBER_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    if (!token || !phoneId) {
+      throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
+    }
+
+    // Normalize phone number (ensure it has country code)
+    let normalizedPhone = args.phoneNumber.replace(/[^\d+]/g, "");
+    if (!normalizedPhone.startsWith("+")) {
+      // Assume Indian number if no country code
+      if (normalizedPhone.startsWith("91")) {
+        normalizedPhone = "+" + normalizedPhone;
+      } else if (normalizedPhone.length === 10) {
+        normalizedPhone = "+91" + normalizedPhone;
+      } else {
+        normalizedPhone = "+" + normalizedPhone;
+      }
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: normalizedPhone,
+            type: "template",
+            template: {
+              name: args.templateName,
+              language: {
+                code: args.languageCode || "en",
+              },
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
+      }
+
+      // Log the sent message
+      if (args.leadId) {
+        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
+          leadId: args.leadId,
+          phoneNumber: normalizedPhone,
+          message: `[Template: ${args.templateName}]`,
+          direction: "outbound",
+          messageId: data.messages?.[0]?.id || null,
+          status: "sent",
+        });
+      }
+
+      return { success: true, messageId: data.messages?.[0]?.id, data };
+    } catch (error: any) {
+      throw new Error(`Failed to send WhatsApp template message: ${error.message}`);
+    }
+  },
+});
