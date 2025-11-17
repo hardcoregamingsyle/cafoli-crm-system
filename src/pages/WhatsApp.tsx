@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useAction } from "convex/react";
+import { useQuery as useConvexQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { Layout } from "@/components/Layout";
@@ -11,6 +11,11 @@ import { Send, Search, MessageCircle, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
 
+// @ts-ignore - TS2589: Known Convex type inference limitation
+const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
+// @ts-ignore - TS2589: Known Convex type inference limitation
+const getLeadMessagesQuery: any = (() => api.whatsappQueries.getLeadMessages)();
+
 export default function WhatsAppPage() {
   const { currentUser } = useCrmAuth();
   const [selectedLeadId, setSelectedLeadId] = useState<Id<"leads"> | null>(null);
@@ -18,15 +23,17 @@ export default function WhatsAppPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const leadsWithMessages = useQuery(
-    api.whatsappPortal.getLeadsWithMessages,
-    currentUser?._id ? { currentUserId: currentUser._id } : "skip"
-  );
+  // @ts-ignore - TS2589: Known Convex type inference limitation
+  const leadsWithMessages: any = useConvexQuery(
+    getLeadsWithMessagesQuery,
+    currentUser?._id ? { currentUserId: currentUser._id } : ("skip" as any)
+  ) as any;
 
-  const messages = useQuery(
-    api.whatsappQueries.getLeadMessages,
-    selectedLeadId ? { leadId: selectedLeadId } : "skip"
-  );
+  // @ts-ignore - TS2589: Known Convex type inference limitation
+  const messages: any = useConvexQuery(
+    getLeadMessagesQuery,
+    selectedLeadId ? { leadId: selectedLeadId } : ("skip" as any)
+  ) as any;
 
   const sendMessage = useAction(api.whatsapp.sendMessage);
 
