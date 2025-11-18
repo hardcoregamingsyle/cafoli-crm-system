@@ -1,15 +1,24 @@
 [build]
-  command = "npx convex dev"
+  command = "pnpm install && pnpm run build"
   publish = "dist"
 
-# SPA redirect: send all non-file routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Optional: prevent aggressive caching of the SPA shell
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
+
 [[headers]]
-  for = "/index.html"
+  for = "/*"
   [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
