@@ -70,7 +70,7 @@ export default function AllLeadsPage() {
     if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
       setFilter("unassigned");
     }
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute, filter]);
+  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
   
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
