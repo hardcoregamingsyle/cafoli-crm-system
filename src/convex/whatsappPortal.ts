@@ -15,10 +15,12 @@ export const getLeadsWithMessages = query({
 
     let leads: any[] = [];
 
-    // Admin sees all leads, Manager sees only assigned leads
+    // Admin sees all leads, Manager/Staff sees only assigned leads
     if (currentUser.role === ROLES.ADMIN) {
+      // Fetch ALL leads for admin - no filters
       leads = await ctx.db.query("leads").collect();
     } else if (currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.STAFF) {
+      // Fetch ALL leads assigned to this user
       leads = await ctx.db
         .query("leads")
         .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
