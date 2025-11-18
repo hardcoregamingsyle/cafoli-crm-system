@@ -9,6 +9,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
+import Landing from "./pages/Landing.tsx";
 import "./types/global.d.ts";
 import AllLeadsPage from "@/pages/AllLeads.tsx";
 import MyLeadsPage from "@/pages/MyLeads.tsx";
@@ -59,7 +60,8 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <RouteSyncer />
         <Routes>
-          <Route path="/" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
+          <Route path="/" element={<ConvexProviderWrapper><Landing /></ConvexProviderWrapper>} />
+          <Route path="/login" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
           <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
           <Route path="/dashboard/assigned" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
           <Route path="/dashboard/followup" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
