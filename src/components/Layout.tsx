@@ -1027,7 +1027,13 @@ export function Layout({ children }: LayoutProps) {
                       <User className="w-5 h-5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-48">
+                    {(isAdmin || isManager) && (
+                      <DropdownMenuItem onClick={() => setAddDialogOpen(true)}>
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                        Add Lead
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
                       <KeyRound className="w-4 h-4 mr-2" />
                       Change Password
