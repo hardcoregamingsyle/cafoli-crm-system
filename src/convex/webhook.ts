@@ -65,15 +65,23 @@ export const insertLog = internalMutation({
 // Add phone normalization helper at the top after imports
 function normalizePhoneNumber(phone: string): string {
   if (!phone) return "";
-  // Remove all non-digit characters (including +, -, spaces, etc.)
-  let digits = phone.replace(/\D/g, "");
-  // Remove any country code prefix (1-3 digits) if the number is longer than 10 digits
-  // This handles +91-, +1-, +44-, etc.
-  if (digits.length > 10) {
-    // Take only the last 10 digits (standard mobile number length)
-    digits = digits.slice(-10);
+  // Remove all non-digit characters except the leading + for country code
+  let normalized = phone.trim();
+  // Extract country code if present (starts with +)
+  const hasCountryCode = normalized.startsWith("+");
+  // Remove all non-digits
+  let digits = normalized.replace(/\D/g, "");
+  // Preserve country code format: +[digits]
+  if (hasCountryCode && digits.length > 10) {
+    return "+" + digits;
+  } else if (digits.length > 10) {
+    // If no + but has country code digits, add +
+    return "+" + digits;
+  } else if (digits.length === 10) {
+    // Assume Indian number, add +91
+    return "+91" + digits;
   }
-  return digits;
+  return digits.length > 0 ? "+" + digits : "";
 }
 
 // Create a lead from Google Script data with new column structure
