@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare } from "lucide-react";
+import { Send, MessageSquare, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
 
@@ -85,6 +85,21 @@ export default function WhatsAppPage() {
 
   if (!currentUser) return <Layout><div /></Layout>;
 
+  // Helper function to render read receipt icons
+  const renderReadReceipt = (status: string | undefined) => {
+    if (!status || status === "sent") {
+      // Single tick - sent but not delivered
+      return <Check className="h-3 w-3 inline ml-1" />;
+    } else if (status === "delivered") {
+      // Double tick - delivered but not read
+      return <CheckCheck className="h-3 w-3 inline ml-1" />;
+    } else if (status === "read") {
+      // Blue double tick - read
+      return <CheckCheck className="h-3 w-3 inline ml-1 text-blue-400" />;
+    }
+    return null;
+  };
+
   return (
     <Layout>
       <div className="h-[calc(100vh-4rem)] flex flex-col max-w-7xl mx-auto">
@@ -152,10 +167,10 @@ export default function WhatsAppPage() {
           </Card>
 
           {/* Right side - Chat area */}
-          <Card className="md:col-span-2 flex flex-col overflow-hidden">
+          <Card className="md:col-span-2 flex flex-col overflow-hidden bg-gray-50">
             {selectedLeadId ? (
               <>
-                <CardHeader className="pb-3 border-b">
+                <CardHeader className="pb-3 border-b bg-white">
                   <CardTitle className="text-lg">
                     {filteredLeads.find((l: any) => l._id === selectedLeadId)?.name || "Chat"}
                   </CardTitle>
@@ -163,8 +178,8 @@ export default function WhatsAppPage() {
                     {filteredLeads.find((l: any) => l._id === selectedLeadId)?.mobileNo}
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto p-4">
-                  <div className="space-y-3">
+                <CardContent className="flex-1 overflow-y-auto p-4 bg-[#e5ddd5]">
+                  <div className="space-y-2">
                     {!messages || messages.length === 0 ? (
                       <div className="text-center text-gray-500 py-8">
                         No messages yet. Start the conversation!
@@ -176,19 +191,25 @@ export default function WhatsAppPage() {
                           className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
+                            className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm ${
                               msg.direction === "outbound"
-                                ? "bg-blue-500 text-white"
-                                : "bg-gray-100 text-gray-900"
+                                ? "bg-[#dcf8c6]"
+                                : "bg-white"
                             }`}
                           >
-                            <div className="text-sm break-words">{msg.body}</div>
-                            <div
-                              className={`text-xs mt-1 ${
-                                msg.direction === "outbound" ? "text-blue-100" : "text-gray-500"
-                              }`}
-                            >
-                              {new Date(msg.timestamp).toLocaleString()}
+                            <div className="text-sm break-words text-gray-900">{msg.message}</div>
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] text-gray-500">
+                                {new Date(msg.timestamp).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                              {msg.direction === "outbound" && (
+                                <span className="text-gray-500">
+                                  {renderReadReceipt(msg.status)}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -197,7 +218,7 @@ export default function WhatsAppPage() {
                     <div ref={messagesEndRef} />
                   </div>
                 </CardContent>
-                <div className="p-4 border-t">
+                <div className="p-4 border-t bg-white">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Type a message..."
@@ -209,15 +230,16 @@ export default function WhatsAppPage() {
                           handleSendMessage();
                         }
                       }}
+                      className="bg-white"
                     />
-                    <Button onClick={handleSendMessage} disabled={!messageInput.trim()}>
+                    <Button onClick={handleSendMessage} disabled={!messageInput.trim()} className="bg-[#25d366] hover:bg-[#20bd5a]">
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </>
             ) : (
-              <CardContent className="flex-1 flex items-center justify-center">
+              <CardContent className="flex-1 flex items-center justify-center bg-gray-50">
                 <div className="text-center text-gray-500">
                   <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p>Select a lead to start chatting</p>
