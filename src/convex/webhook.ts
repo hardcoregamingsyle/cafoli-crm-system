@@ -67,21 +67,22 @@ function normalizePhoneNumber(phone: string): string {
   if (!phone) return "";
   // Remove all non-digit characters except the leading + for country code
   let normalized = phone.trim();
-  // Extract country code if present (starts with +)
-  const hasCountryCode = normalized.startsWith("+");
+  // Check if it starts with +
+  const hasPlus = normalized.startsWith("+");
   // Remove all non-digits
   let digits = normalized.replace(/\D/g, "");
-  // Preserve country code format: +[digits]
-  if (hasCountryCode && digits.length > 10) {
-    return "+" + digits;
-  } else if (digits.length > 10) {
-    // If no + but has country code digits, add +
+  
+  // If original had + or digits > 10, preserve as international with +
+  if (hasPlus || digits.length > 10) {
     return "+" + digits;
   } else if (digits.length === 10) {
-    // Assume Indian number, add +91
+    // 10-digit number without country code: add +91
+    return "+91" + digits;
+  } else if (digits.length > 0) {
+    // Any other number: default to +91 prefix
     return "+91" + digits;
   }
-  return digits.length > 0 ? "+" + digits : "";
+  return "";
 }
 
 // Create a lead from Google Script data with new column structure

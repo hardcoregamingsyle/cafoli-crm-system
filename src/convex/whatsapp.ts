@@ -30,8 +30,10 @@ export const sendMessage = action({
       normalizedPhone = "+" + digits;
     } else if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
+    } else if (digits.length > 0) {
+      normalizedPhone = "+91" + digits;
     } else {
-      normalizedPhone = "+" + digits;
+      normalizedPhone = "";
     }
 
     try {
@@ -111,8 +113,10 @@ export const sendInteractiveMessage = action({
       normalizedPhone = "+" + digits;
     } else if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
+    } else if (digits.length > 0) {
+      normalizedPhone = "+91" + digits;
     } else {
-      normalizedPhone = "+" + digits;
+      normalizedPhone = "";
     }
 
     const buttonPayload = args.buttons.slice(0, 3).map((btn) => ({
@@ -200,8 +204,10 @@ export const sendTemplateMessage = action({
       normalizedPhone = "+" + digits;
     } else if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
+    } else if (digits.length > 0) {
+      normalizedPhone = "+91" + digits;
     } else {
-      normalizedPhone = "+" + digits;
+      normalizedPhone = "";
     }
 
     try {
