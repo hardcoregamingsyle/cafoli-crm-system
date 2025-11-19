@@ -1,1 +1,1 @@
-const verifyToken = process.env.WEBHOOK_VERIFICATION_TOKEN;
+if (mobile && mobile.length === 10) {

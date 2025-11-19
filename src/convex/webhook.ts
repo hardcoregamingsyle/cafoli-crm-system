@@ -270,7 +270,7 @@ export const createLeadFromGoogleScript = internalMutation({
 
     // NEW: Send WhatsApp welcome template message if mobile number is valid
     try {
-      if (mobile && mobile.length === 10) {
+      if (mobile && mobile.length >= 10) {
         await ctx.scheduler.runAfter(0, (internal as any).whatsapp.sendTemplateMessageInternal, {
           phoneNumber: mobile,
           templateName: "cafoliwelcomemessage",
@@ -414,7 +414,7 @@ export const createLeadFromSource = internalMutation({
 
     // NEW: Send WhatsApp welcome template message if mobile number is valid
     try {
-      if (mobile && mobile.length === 10) {
+      if (mobile && mobile.length >= 10) {
         await ctx.scheduler.runAfter(0, (internal as any).whatsapp.sendTemplateMessageInternal, {
           phoneNumber: mobile,
           templateName: "cafoliwelcomemessage",
