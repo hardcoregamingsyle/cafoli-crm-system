@@ -26,9 +26,9 @@ export const getLeadMessages = query({
         return [];
       }
 
-      // Check if lead exists
+      // Check if lead exists - if deleted, return empty array
       if (!lead) {
-        console.warn("[getLeadMessages] Lead not found:", args.leadId);
+        console.warn("[getLeadMessages] Lead not found (possibly deleted):", args.leadId);
         return [];
       }
 

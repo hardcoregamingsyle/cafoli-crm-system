@@ -973,12 +973,33 @@ export const deleteLeadAdmin = mutation({
       throw new Error("Lead not found");
     }
 
+    // Delete associated WhatsApp messages
+    const whatsappMessages = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .collect();
+    
+    for (const message of whatsappMessages) {
+      await ctx.db.delete(message._id);
+    }
+
+    // Delete associated comments
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
+      .collect();
+    
+    for (const comment of comments) {
+      await ctx.db.delete(comment._id);
+    }
+
+    // Delete the lead
     await ctx.db.delete(args.leadId);
 
     await ctx.db.insert("auditLogs", {
       userId: currentUser._id,
       action: "DELETE_LEAD_ADMIN",
-      details: `Admin deleted lead "${lead.name}" (${String(args.leadId)})`,
+      details: `Admin deleted lead "${lead.name}" (${String(args.leadId)}) and ${whatsappMessages.length} WhatsApp messages, ${comments.length} comments`,
       timestamp: Date.now(),
       relatedLeadId: args.leadId,
     });
