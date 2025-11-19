@@ -1019,7 +1019,10 @@ export function Layout({ children }: LayoutProps) {
               <div className="hidden sm:flex items-center space-x-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 hover:bg-gray-100">
+                    <Button 
+                      variant="ghost" 
+                      className="flex items-center gap-2 hover:bg-gray-100 cursor-pointer relative z-10"
+                    >
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
                         <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
@@ -1027,7 +1030,7 @@ export function Layout({ children }: LayoutProps) {
                       <User className="w-5 h-5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-48 z-50">
                     {(isAdmin || isManager) && (
                       <DropdownMenuItem onClick={() => setAddDialogOpen(true)}>
                         <PlusCircle className="w-4 h-4 mr-2" />
