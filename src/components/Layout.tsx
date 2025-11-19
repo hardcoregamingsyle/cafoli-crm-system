@@ -1022,6 +1022,7 @@ export function Layout({ children }: LayoutProps) {
                     <Button 
                       variant="ghost" 
                       className="flex items-center gap-2 hover:bg-gray-100 cursor-pointer relative z-10"
+                      type="button"
                     >
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
