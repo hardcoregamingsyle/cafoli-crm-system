@@ -258,6 +258,20 @@ export const createLeadFromGoogleScript = internalMutation({
       // Do not block lead creation on email errors
     }
 
+    // NEW: Send WhatsApp welcome template message if mobile number is valid
+    try {
+      if (mobile && mobile.length === 10) {
+        await ctx.scheduler.runAfter(0, (internal as any).whatsapp.sendTemplateMessage, {
+          phoneNumber: mobile,
+          templateName: "cafoliwelcomemessage",
+          languageCode: "en",
+          leadId: undefined,
+        });
+      }
+    } catch {
+      // Do not block lead creation on WhatsApp errors
+    }
+
     return true;
   },
 });
@@ -386,6 +400,20 @@ export const createLeadFromSource = internalMutation({
       }
     } catch {
       // Do not block lead creation on email errors
+    }
+
+    // NEW: Send WhatsApp welcome template message if mobile number is valid
+    try {
+      if (mobile && mobile.length === 10) {
+        await ctx.scheduler.runAfter(0, (internal as any).whatsapp.sendTemplateMessage, {
+          phoneNumber: mobile,
+          templateName: "cafoliwelcomemessage",
+          languageCode: "en",
+          leadId: undefined,
+        });
+      }
+    } catch {
+      // Do not block lead creation on WhatsApp errors
     }
 
     return true;
