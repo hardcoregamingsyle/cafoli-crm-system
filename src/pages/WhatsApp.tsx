@@ -42,6 +42,22 @@ export default function WhatsAppPage() {
 
   const sendMessage = useAction(api.whatsapp.sendMessage);
 
+  // Check if messaging is allowed (lead sent message within 24 hours)
+  const isMessagingAllowed = useMemo(() => {
+    if (!messages || messages.length === 0) return false;
+    
+    // Find the last inbound message from the lead
+    const inboundMessages = messages.filter((msg: any) => msg.direction === "inbound");
+    if (inboundMessages.length === 0) return false;
+    
+    const lastInboundMessage = inboundMessages[inboundMessages.length - 1];
+    const lastInboundTime = lastInboundMessage.timestamp;
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    
+    return (now - lastInboundTime) <= twentyFourHours;
+  }, [messages]);
+
   // Auto-scroll to bottom when messages change
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -219,20 +235,30 @@ export default function WhatsAppPage() {
                   </div>
                 </CardContent>
                 <div className="p-4 border-t bg-white">
+                  {!isMessagingAllowed && (
+                    <div className="mb-2 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                      ⚠️ Messaging disabled: Lead hasn't sent a message in the last 24 hours
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Type a message..."
+                      placeholder={isMessagingAllowed ? "Type a message..." : "Messaging disabled"}
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed) {
                           e.preventDefault();
                           handleSendMessage();
                         }
                       }}
                       className="bg-white"
+                      disabled={!isMessagingAllowed}
                     />
-                    <Button onClick={handleSendMessage} disabled={!messageInput.trim()} className="bg-[#25d366] hover:bg-[#20bd5a]">
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!messageInput.trim() || !isMessagingAllowed} 
+                      className="bg-[#25d366] hover:bg-[#20bd5a] disabled:opacity-50"
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
