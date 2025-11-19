@@ -35,8 +35,8 @@ export default function WhatsAppPage() {
   // @ts-ignore - Convex type inference limitation
   const messages = useConvexQuery(
     getLeadMessagesQuery,
-    selectedLeadId && currentUser && authReady
-      ? { leadId: selectedLeadId as any, currentUserId: currentUser._id }
+    selectedLeadId && authReady
+      ? { leadId: selectedLeadId as any }
       : "skip"
   );
 
