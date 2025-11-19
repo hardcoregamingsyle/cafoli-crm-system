@@ -29,41 +29,21 @@ export const getAllLeads = query({
       // Hardened: resolve currentUser safely without unique()
       let currentUser: any = null;
 
-      // Helper to resolve Owner admin without assuming the username index exists
-      const resolveOwner = async () => {
-        try {
-          const byIndex = await ctx.db
-            .query("users")
-            .withIndex("username", (q: any) => q.eq("username", "Owner"))
-            .collect();
-          if (byIndex[0]) return byIndex[0];
-        } catch {
-          // Index may be missing; fall back to full scan
-        }
-        const allUsers = await ctx.db.query("users").collect();
-        const owner = allUsers.find((u: any) => u.username === "Owner");
-        if (owner) return owner;
-        // Fallback: any admin, else any user
-        const anyAdmin = allUsers.find((u: any) => u.role === ROLES.ADMIN);
-        return anyAdmin ?? allUsers[0] ?? null;
-      };
+      // Validate currentUserId before any database operations
+      if (!args.currentUserId) {
+        return [];
+      }
 
-      if (args.currentUserId) {
-        try {
-          if (typeof args.currentUserId === "string" && args.currentUserId.length > 20) {
-            // Try direct get; catch any invalid id shape
-            currentUser = await ctx.db.get(args.currentUserId as any);
-          } else {
-            // Fallback directly to Owner without unique()
-            currentUser = await resolveOwner();
-          }
-        } catch {
-          // If anything fails, fallback to Owner via collect()
-          currentUser = await resolveOwner();
-        }
-      } else {
-        // No currentUserId passed; fallback to Owner
-        currentUser = await resolveOwner();
+      // Only proceed if we have a valid-looking ID
+      if (typeof args.currentUserId === "string" && args.currentUserId.length < 20) {
+        return [];
+      }
+
+      try {
+        currentUser = await ctx.db.get(args.currentUserId as any);
+      } catch {
+        // Invalid ID format or not found
+        return [];
       }
 
       if (!currentUser || (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER)) {

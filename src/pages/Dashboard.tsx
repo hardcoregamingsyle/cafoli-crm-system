@@ -43,10 +43,10 @@ export default function Dashboard() {
     if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
 
-  // Add: Fetch all users for admin selector
+  // Add: Fetch all users for admin selector - only if we have a valid user ID
   const allUsers = useQuery(
     (api as any).users.getAllUsers,
-    currentUser?.role === ROLES.ADMIN ? { currentUserId: currentUser._id } : "skip"
+    currentUser?.role === ROLES.ADMIN && currentUser._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   // Determine which user's data to display
@@ -56,13 +56,13 @@ export default function Dashboard() {
 
   const myLeads = useQuery(
     (api as any).leads.getMyLeads,
-    displayUserId ? { currentUserId: displayUserId as any } : "skip"
+    displayUserId && String(displayUserId).length > 10 ? { currentUserId: displayUserId as any } : "skip"
   );
 
   // Get comments for all my leads to check followup completion
   const allComments = useQuery(
     (api as any).comments.getAllCommentsForUser,
-    displayUserId ? { currentUserId: displayUserId as any } : "skip"
+    displayUserId && String(displayUserId).length > 10 ? { currentUserId: displayUserId as any } : "skip"
   );
 
   if (!currentUser) return null;
