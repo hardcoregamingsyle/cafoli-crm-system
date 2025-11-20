@@ -20,20 +20,19 @@ export const sendMessage = action({
       throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
     }
 
-    // Normalize phone number - consistent format
+    // Normalize phone number - strip all non-digits, preserve/add country code
     let digits = args.phoneNumber.replace(/\D/g, "");
-    // Remove leading 91 if present and length > 10
-    if (digits.startsWith("91") && digits.length > 10) {
-      digits = digits.slice(2);
-    }
-    // Take last 10 digits
-    digits = digits.slice(-10);
-    // Add +91 country code
+    
     let normalizedPhone = "";
-    if (digits.length === 10) {
-      normalizedPhone = "+91" + digits;
+    if (digits.length > 10) {
+      // Already has country code, use as-is
+      normalizedPhone = digits;
+    } else if (digits.length === 10) {
+      // Add default country code 91
+      normalizedPhone = "91" + digits;
     } else if (digits.length > 0) {
-      normalizedPhone = "+91" + digits;
+      // Short number, still add 91
+      normalizedPhone = "91" + digits;
     }
 
     try {
@@ -105,17 +104,19 @@ export const sendInteractiveMessage = action({
       throw new Error("WhatsApp credentials not configured.");
     }
 
-    // Normalize phone number - consistent format
+    // Normalize phone number - strip all non-digits, preserve/add country code
     let digits = args.phoneNumber.replace(/\D/g, "");
-    if (digits.startsWith("91") && digits.length > 10) {
-      digits = digits.slice(2);
-    }
-    digits = digits.slice(-10);
+    
     let normalizedPhone = "";
-    if (digits.length === 10) {
-      normalizedPhone = "+91" + digits;
+    if (digits.length > 10) {
+      // Already has country code, use as-is
+      normalizedPhone = digits;
+    } else if (digits.length === 10) {
+      // Add default country code 91
+      normalizedPhone = "91" + digits;
     } else if (digits.length > 0) {
-      normalizedPhone = "+91" + digits;
+      // Short number, still add 91
+      normalizedPhone = "91" + digits;
     }
 
     const buttonPayload = args.buttons.slice(0, 3).map((btn) => ({
@@ -195,17 +196,19 @@ export const sendTemplateMessage = action({
       throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
     }
 
-    // Normalize phone number - consistent format
+    // Normalize phone number - strip all non-digits, preserve/add country code
     let digits = args.phoneNumber.replace(/\D/g, "");
-    if (digits.startsWith("91") && digits.length > 10) {
-      digits = digits.slice(2);
-    }
-    digits = digits.slice(-10);
+    
     let normalizedPhone = "";
-    if (digits.length === 10) {
-      normalizedPhone = "+91" + digits;
+    if (digits.length > 10) {
+      // Already has country code, use as-is
+      normalizedPhone = digits;
+    } else if (digits.length === 10) {
+      // Add default country code 91
+      normalizedPhone = "91" + digits;
     } else if (digits.length > 0) {
-      normalizedPhone = "+91" + digits;
+      // Short number, still add 91
+      normalizedPhone = "91" + digits;
     }
 
     try {
@@ -275,17 +278,19 @@ export const sendTemplateMessageInternal = internalAction({
       return { success: false, error: "WhatsApp credentials not configured" };
     }
 
-    // Normalize phone number - consistent format
+    // Normalize phone number - strip all non-digits, preserve/add country code
     let digits = args.phoneNumber.replace(/\D/g, "");
-    if (digits.startsWith("91") && digits.length > 10) {
-      digits = digits.slice(2);
-    }
-    digits = digits.slice(-10);
+    
     let normalizedPhone = "";
-    if (digits.length === 10) {
-      normalizedPhone = "+91" + digits;
+    if (digits.length > 10) {
+      // Already has country code, use as-is
+      normalizedPhone = digits;
+    } else if (digits.length === 10) {
+      // Add default country code 91
+      normalizedPhone = "91" + digits;
     } else if (digits.length > 0) {
-      normalizedPhone = "+91" + digits;
+      // Short number, still add 91
+      normalizedPhone = "91" + digits;
     }
 
     try {

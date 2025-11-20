@@ -7,14 +7,25 @@ import { internal } from "./_generated/api";
 // Add phone normalization helper at the top after imports
 function normalizePhoneNumber(phone: string): string {
   if (!phone) return "";
-  // Remove all non-digit characters
+  
+  // Remove all non-digit characters (spaces, dashes, parentheses, letters, etc.)
   let digits = phone.replace(/\D/g, "");
-  // Remove country code (91 for India) if present
-  if (digits.startsWith("91") && digits.length > 10) {
-    digits = digits.slice(2);
+  
+  if (!digits) return "";
+  
+  // If number already has country code (more than 10 digits), preserve it
+  if (digits.length > 10) {
+    // Return with just digits, no + sign
+    return digits;
   }
-  // Return last 10 digits to handle any remaining prefixes
-  return digits.slice(-10);
+  
+  // If exactly 10 digits, add default country code 91
+  if (digits.length === 10) {
+    return "91" + digits;
+  }
+  
+  // For shorter numbers, still add 91 prefix
+  return "91" + digits;
 }
 
 // Get all leads (Admin and Manager only)
