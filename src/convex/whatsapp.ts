@@ -39,11 +39,17 @@ async function sendTemplateMessageHelper(
   const version = process.env.CLOUD_API_VERSION || "v21.0";
 
   if (!token || !phoneId) {
+    console.error("[WhatsApp] Missing credentials - WHATSAPP_ACCESS_TOKEN or WA_PHONE_NUMBER_ID not configured");
     return { success: false, error: "WhatsApp credentials not configured" };
   }
 
   // Normalize phone number using shared helper
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+  if (!normalizedPhone || normalizedPhone.length < 10) {
+    console.error(`[WhatsApp] Invalid phone number after normalization: ${phoneNumber} -> ${normalizedPhone}`);
+    return { success: false, error: "Invalid phone number" };
+  }
 
   console.log(`[WhatsApp] Sending template message to ${normalizedPhone}, template: ${templateName}`);
 
@@ -135,7 +141,7 @@ export const sendMessage = action({
 
       // Log the sent message
       if (args.leadId) {
-        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
           message: args.message,
@@ -220,7 +226,7 @@ export const sendInteractiveMessage = action({
 
       // Log the sent message
       if (args.leadId) {
-        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
           message: `[Interactive] ${args.messageText}`,
@@ -253,20 +259,26 @@ export const sendTemplateMessage = action({
     );
 
     if (!result.success) {
+      console.error("[WhatsApp] sendTemplateMessage failed:", result.error);
       throw new Error(result.error || "Failed to send template message");
     }
 
     // Log the sent message
     if (args.leadId) {
-      const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
-      await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
-        leadId: args.leadId,
-        phoneNumber: normalizedPhone,
-        message: `[Template: ${args.templateName}]`,
-        direction: "outbound",
-        messageId: result.messageId || null,
-        status: "sent",
-      });
+      try {
+        const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+          leadId: args.leadId,
+          phoneNumber: normalizedPhone,
+          message: `[Template: ${args.templateName}]`,
+          direction: "outbound",
+          messageId: result.messageId || null,
+          status: "sent",
+        });
+      } catch (logError) {
+        console.error("[WhatsApp] Failed to log message:", logError);
+        // Don't throw - message was sent successfully
+      }
     }
 
     return result;
@@ -290,15 +302,20 @@ export const sendTemplateMessageInternal = internalAction({
 
     // Log the sent message if successful
     if (result.success && args.leadId) {
-      const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
-      await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
-        leadId: args.leadId,
-        phoneNumber: normalizedPhone,
-        message: `[Template: ${args.templateName}]`,
-        direction: "outbound",
-        messageId: result.messageId || null,
-        status: "sent",
-      });
+      try {
+        const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+          leadId: args.leadId,
+          phoneNumber: normalizedPhone,
+          message: `[Template: ${args.templateName}]`,
+          direction: "outbound",
+          messageId: result.messageId || null,
+          status: "sent",
+        });
+      } catch (logError) {
+        console.error("[WhatsApp] Failed to log message:", logError);
+        // Don't throw - message was sent successfully
+      }
     }
 
     return result;
