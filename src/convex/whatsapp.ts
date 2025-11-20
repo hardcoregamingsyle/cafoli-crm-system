@@ -29,10 +29,16 @@ function normalizePhoneNumber(phone: string): string {
 }
 
 // Shared template message sending logic (helper function)
+// convex/whatsapp.ts
+
+// ... (keep your imports and normalizePhoneNumber function exactly as they are) ...
+
+// REPLACE your existing sendTemplateMessageHelper with this one:
 async function sendTemplateMessageHelper(
   phoneNumber: string,
   templateName: string,
-  languageCode: string
+  languageCode: string,
+  components?: any[] // <--- ADD THIS ARGUMENT
 ): Promise<{ success: boolean; messageId?: string; data?: any; error?: string }> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
@@ -65,7 +71,9 @@ async function sendTemplateMessageHelper(
 
   try {
     const url = `https://graph.facebook.com/${version}/${phoneId}/messages`;
-    const payload = {
+    
+    // Construct Payload
+    const payload: any = {
       messaging_product: "whatsapp",
       to: normalizedPhone,
       type: "template",
@@ -76,6 +84,11 @@ async function sendTemplateMessageHelper(
         },
       },
     };
+
+    // Add components (variables) if provided
+    if (components && components.length > 0) {
+      payload.template.components = components;
+    }
 
     console.log(`[WhatsApp] Request URL: ${url}`);
     console.log(`[WhatsApp] Request payload:`, JSON.stringify(payload, null, 2));
@@ -118,6 +131,60 @@ async function sendTemplateMessageHelper(
     return { success: false, error: errorMsg };
   }
 }
+
+// ... (Keep sendMessage and sendInteractiveMessage exactly as they are) ...
+
+// UPDATE your sendTemplateMessage action to accept components:
+export const sendTemplateMessage = action({
+  args: {
+    phoneNumber: v.string(),
+    templateName: v.string(),
+    languageCode: v.optional(v.string()),
+    leadId: v.optional(v.id("leads")),
+    components: v.optional(v.any()), // <--- ADD THIS ARGUMENT
+  },
+  handler: async (ctx, args) => {
+    console.log(`[WhatsApp] sendTemplateMessage called with:`, { 
+      phoneNumber: args.phoneNumber, 
+      templateName: args.templateName,
+      leadId: args.leadId 
+    });
+
+    const result = await sendTemplateMessageHelper(
+      args.phoneNumber,
+      args.templateName,
+      args.languageCode || "en",
+      args.components // <--- PASS IT HERE
+    );
+
+    if (!result.success) {
+      console.error("[WhatsApp] sendTemplateMessage failed:", result.error);
+      console.error("[WhatsApp] Full error details:", JSON.stringify(result.data || {}, null, 2));
+      throw new Error(result.error || "Failed to send template message");
+    }
+
+    // Log the sent message
+    if (args.leadId) {
+      try {
+        const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+          leadId: args.leadId,
+          phoneNumber: normalizedPhone,
+          message: `[Template: ${args.templateName}]`,
+          direction: "outbound",
+          messageId: result.messageId || null,
+          status: "sent",
+        });
+      } catch (logError) {
+        console.error("[WhatsApp] Failed to log message:", logError);
+      }
+    }
+
+    return result;
+  },
+});
+
+// ... (Keep sendTemplateMessageInternal exactly as is, or update similarly if you need internal variables)
 
 // Send a text message via WhatsApp
 export const sendMessage = action({
