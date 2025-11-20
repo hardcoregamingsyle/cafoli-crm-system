@@ -39,16 +39,18 @@ async function sendTemplateMessageHelper(
   const version = process.env.CLOUD_API_VERSION || "v21.0";
 
   if (!token || !phoneId) {
-    console.error("[WhatsApp] Missing credentials - WHATSAPP_ACCESS_TOKEN or WA_PHONE_NUMBER_ID not configured");
-    return { success: false, error: "WhatsApp credentials not configured" };
+    const errorMsg = `WhatsApp credentials not configured. Missing: ${!token ? 'WHATSAPP_ACCESS_TOKEN' : ''} ${!phoneId ? 'WA_PHONE_NUMBER_ID' : ''}`;
+    console.error(`[WhatsApp] ${errorMsg}`);
+    return { success: false, error: errorMsg };
   }
 
   // Normalize phone number using shared helper
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
 
   if (!normalizedPhone || normalizedPhone.length < 10) {
-    console.error(`[WhatsApp] Invalid phone number after normalization: ${phoneNumber} -> ${normalizedPhone}`);
-    return { success: false, error: "Invalid phone number" };
+    const errorMsg = `Invalid phone number: ${phoneNumber} (normalized: ${normalizedPhone})`;
+    console.error(`[WhatsApp] ${errorMsg}`);
+    return { success: false, error: errorMsg };
   }
 
   console.log(`[WhatsApp] Sending template message to ${normalizedPhone}, template: ${templateName}`);
@@ -80,15 +82,17 @@ async function sendTemplateMessageHelper(
     const data = await response.json();
 
     if (!response.ok) {
+      const errorMsg = `WhatsApp API error (${response.status}): ${data.error?.message || JSON.stringify(data)}`;
       console.error(`[WhatsApp] Template message failed:`, data);
-      return { success: false, error: `WhatsApp API error: ${JSON.stringify(data)}` };
+      return { success: false, error: errorMsg };
     }
 
     console.log(`[WhatsApp] Template message sent successfully:`, data);
     return { success: true, messageId: data.messages?.[0]?.id, data };
   } catch (error: any) {
+    const errorMsg = `Network error sending WhatsApp template: ${error.message}`;
     console.error(`[WhatsApp] Template message exception:`, error);
-    return { success: false, error: `Failed to send WhatsApp template message: ${error.message}` };
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -252,6 +256,12 @@ export const sendTemplateMessage = action({
     leadId: v.optional(v.id("leads")),
   },
   handler: async (ctx, args) => {
+    console.log(`[WhatsApp] sendTemplateMessage called with:`, { 
+      phoneNumber: args.phoneNumber, 
+      templateName: args.templateName,
+      leadId: args.leadId 
+    });
+
     const result = await sendTemplateMessageHelper(
       args.phoneNumber,
       args.templateName,
@@ -260,6 +270,7 @@ export const sendTemplateMessage = action({
 
     if (!result.success) {
       console.error("[WhatsApp] sendTemplateMessage failed:", result.error);
+      // Throw the actual error message so it reaches the client
       throw new Error(result.error || "Failed to send template message");
     }
 
