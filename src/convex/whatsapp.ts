@@ -96,7 +96,8 @@ async function sendTemplateMessageHelper(
     console.log(`[WhatsApp] Response data:`, JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      const errorMsg = `WhatsApp API error (${response.status}): ${data.error?.message || data.error?.error_user_msg || JSON.stringify(data)}`;
+      const errorDetails = data.error?.error_user_msg || data.error?.message || JSON.stringify(data);
+      const errorMsg = `WhatsApp API error (${response.status}): ${errorDetails}`;
       console.error(`[WhatsApp] Template message failed:`, {
         status: response.status,
         statusText: response.statusText,
@@ -293,7 +294,8 @@ export const sendTemplateMessage = action({
 
     if (!result.success) {
       console.error("[WhatsApp] sendTemplateMessage failed:", result.error);
-      // Throw the actual error message so it reaches the client
+      console.error("[WhatsApp] Full error details:", JSON.stringify(result.data || {}, null, 2));
+      // Throw a detailed error message so it reaches the client
       throw new Error(result.error || "Failed to send template message");
     }
 
