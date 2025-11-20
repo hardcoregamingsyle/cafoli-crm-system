@@ -28,6 +28,64 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
+// Shared template message sending logic (helper function)
+async function sendTemplateMessageHelper(
+  phoneNumber: string,
+  templateName: string,
+  languageCode: string
+): Promise<{ success: boolean; messageId?: string; data?: any; error?: string }> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WA_PHONE_NUMBER_ID;
+  const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+  if (!token || !phoneId) {
+    return { success: false, error: "WhatsApp credentials not configured" };
+  }
+
+  // Normalize phone number using shared helper
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+  console.log(`[WhatsApp] Sending template message to ${normalizedPhone}, template: ${templateName}`);
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${version}/${phoneId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedPhone,
+          type: "template",
+          template: {
+            name: templateName,
+            language: {
+              code: languageCode || "en",
+            },
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(`[WhatsApp] Template message failed:`, data);
+      return { success: false, error: `WhatsApp API error: ${JSON.stringify(data)}` };
+    }
+
+    console.log(`[WhatsApp] Template message sent successfully:`, data);
+    return { success: true, messageId: data.messages?.[0]?.id, data };
+  } catch (error: any) {
+    console.error(`[WhatsApp] Template message exception:`, error);
+    return { success: false, error: `Failed to send WhatsApp template message: ${error.message}` };
+  }
+}
+
 // Send a text message via WhatsApp
 export const sendMessage = action({
   args: {
@@ -178,59 +236,6 @@ export const sendInteractiveMessage = action({
     }
   },
 });
-
-// Shared template message sending logic (helper function)
-async function sendTemplateMessageHelper(
-  phoneNumber: string,
-  templateName: string,
-  languageCode: string
-): Promise<{ success: boolean; messageId?: string; data?: any; error?: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WA_PHONE_NUMBER_ID;
-  const version = process.env.CLOUD_API_VERSION || "v21.0";
-
-  if (!token || !phoneId) {
-    return { success: false, error: "WhatsApp credentials not configured" };
-  }
-
-  // Normalize phone number using shared helper
-  const normalizedPhone = normalizePhoneNumber(phoneNumber);
-
-  try {
-    const response = await fetch(
-      `https://graph.facebook.com/${version}/${phoneId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: normalizedPhone,
-          type: "template",
-          template: {
-            name: templateName,
-            language: {
-              code: languageCode || "en",
-            },
-          },
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return { success: false, error: `WhatsApp API error: ${JSON.stringify(data)}` };
-    }
-
-    return { success: true, messageId: data.messages?.[0]?.id, data };
-  } catch (error: any) {
-    return { success: false, error: `Failed to send WhatsApp template message: ${error.message}` };
-  }
-}
 
 // Public action for sending template messages (called from UI)
 export const sendTemplateMessage = action({
