@@ -337,56 +337,6 @@ export const sendInteractiveMessage = action({
   },
 });
 
-// Public action for sending template messages (called from UI)
-export const sendTemplateMessage = action({
-  args: {
-    phoneNumber: v.string(),
-    templateName: v.string(),
-    languageCode: v.optional(v.string()),
-    leadId: v.optional(v.id("leads")),
-  },
-  handler: async (ctx, args) => {
-    console.log(`[WhatsApp] sendTemplateMessage called with:`, { 
-      phoneNumber: args.phoneNumber, 
-      templateName: args.templateName,
-      leadId: args.leadId 
-    });
-
-    const result = await sendTemplateMessageHelper(
-      args.phoneNumber,
-      args.templateName,
-      args.languageCode || "en"
-    );
-
-    if (!result.success) {
-      console.error("[WhatsApp] sendTemplateMessage failed:", result.error);
-      console.error("[WhatsApp] Full error details:", JSON.stringify(result.data || {}, null, 2));
-      // Throw a detailed error message so it reaches the client
-      throw new Error(result.error || "Failed to send template message");
-    }
-
-    // Log the sent message
-    if (args.leadId) {
-      try {
-        const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
-        await ctx.runMutation(internal.whatsappQueries.logMessage, {
-          leadId: args.leadId,
-          phoneNumber: normalizedPhone,
-          message: `[Template: ${args.templateName}]`,
-          direction: "outbound",
-          messageId: result.messageId || null,
-          status: "sent",
-        });
-      } catch (logError) {
-        console.error("[WhatsApp] Failed to log message:", logError);
-        // Don't throw - message was sent successfully
-      }
-    }
-
-    return result;
-  },
-});
-
 // Internal action for scheduled WhatsApp template messages (called from webhooks/crons)
 export const sendTemplateMessageInternal = internalAction({
   args: {
