@@ -38,6 +38,14 @@ async function sendTemplateMessageHelper(
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
   const version = process.env.CLOUD_API_VERSION || "v21.0";
 
+  console.log(`[WhatsApp Debug] Environment check:`, {
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+    hasPhoneId: !!phoneId,
+    phoneId: phoneId || 'missing',
+    version,
+  });
+
   if (!token || !phoneId) {
     const errorMsg = `WhatsApp credentials not configured. Missing: ${!token ? 'WHATSAPP_ACCESS_TOKEN' : ''} ${!phoneId ? 'WA_PHONE_NUMBER_ID' : ''}`;
     console.error(`[WhatsApp] ${errorMsg}`);
@@ -56,42 +64,57 @@ async function sendTemplateMessageHelper(
   console.log(`[WhatsApp] Sending template message to ${normalizedPhone}, template: ${templateName}`);
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/${version}/${phoneId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    const url = `https://graph.facebook.com/${version}/${phoneId}/messages`;
+    const payload = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizedPhone,
+      type: "template",
+      template: {
+        name: templateName,
+        language: {
+          code: languageCode || "en",
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: normalizedPhone,
-          type: "template",
-          template: {
-            name: templateName,
-            language: {
-              code: languageCode || "en",
-            },
-          },
-        }),
-      }
-    );
+      },
+    };
+
+    console.log(`[WhatsApp] Request URL: ${url}`);
+    console.log(`[WhatsApp] Request payload:`, JSON.stringify(payload, null, 2));
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
     const data = await response.json();
 
+    console.log(`[WhatsApp] Response status: ${response.status}`);
+    console.log(`[WhatsApp] Response data:`, JSON.stringify(data, null, 2));
+
     if (!response.ok) {
-      const errorMsg = `WhatsApp API error (${response.status}): ${data.error?.message || JSON.stringify(data)}`;
-      console.error(`[WhatsApp] Template message failed:`, data);
-      return { success: false, error: errorMsg };
+      const errorMsg = `WhatsApp API error (${response.status}): ${data.error?.message || data.error?.error_user_msg || JSON.stringify(data)}`;
+      console.error(`[WhatsApp] Template message failed:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: data.error,
+        fullResponse: data,
+      });
+      return { success: false, error: errorMsg, data };
     }
 
     console.log(`[WhatsApp] Template message sent successfully:`, data);
     return { success: true, messageId: data.messages?.[0]?.id, data };
   } catch (error: any) {
     const errorMsg = `Network error sending WhatsApp template: ${error.message}`;
-    console.error(`[WhatsApp] Template message exception:`, error);
+    console.error(`[WhatsApp] Template message exception:`, {
+      message: error.message,
+      stack: error.stack,
+      error,
+    });
     return { success: false, error: errorMsg };
   }
 }
@@ -305,11 +328,22 @@ export const sendTemplateMessageInternal = internalAction({
     leadId: v.optional(v.id("leads")),
   },
   handler: async (ctx, args) => {
+    console.log(`[WhatsApp Internal] sendTemplateMessageInternal called with:`, { 
+      phoneNumber: args.phoneNumber, 
+      templateName: args.templateName,
+      leadId: args.leadId 
+    });
+
     const result = await sendTemplateMessageHelper(
       args.phoneNumber,
       args.templateName,
       args.languageCode || "en"
     );
+
+    if (!result.success) {
+      console.error("[WhatsApp Internal] Template send failed:", result.error);
+      // Don't throw - just log and return the error so webhook processing continues
+    }
 
     // Log the sent message if successful
     if (result.success && args.leadId) {
@@ -324,7 +358,7 @@ export const sendTemplateMessageInternal = internalAction({
           status: "sent",
         });
       } catch (logError) {
-        console.error("[WhatsApp] Failed to log message:", logError);
+        console.error("[WhatsApp Internal] Failed to log message:", logError);
         // Don't throw - message was sent successfully
       }
     }
