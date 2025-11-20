@@ -4,6 +4,30 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+// Shared phone normalization helper
+function normalizePhoneNumber(phone: string): string {
+  if (!phone) return "";
+  
+  // Remove all non-digit characters (spaces, dashes, parentheses, letters, etc.)
+  let digits = phone.replace(/\D/g, "");
+  
+  if (!digits) return "";
+  
+  // If number already has country code (more than 10 digits), preserve it
+  if (digits.length > 10) {
+    // Return with just digits, no + sign
+    return digits;
+  }
+  
+  // If exactly 10 digits, add default country code 91
+  if (digits.length === 10) {
+    return "91" + digits;
+  }
+  
+  // For shorter numbers, still add 91 prefix
+  return "91" + digits;
+}
+
 // Send a text message via WhatsApp
 export const sendMessage = action({
   args: {
@@ -20,20 +44,8 @@ export const sendMessage = action({
       throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
     }
 
-    // Normalize phone number - strip all non-digits, preserve/add country code
-    let digits = args.phoneNumber.replace(/\D/g, "");
-    
-    let normalizedPhone = "";
-    if (digits.length > 10) {
-      // Already has country code, use as-is
-      normalizedPhone = digits;
-    } else if (digits.length === 10) {
-      // Add default country code 91
-      normalizedPhone = "91" + digits;
-    } else if (digits.length > 0) {
-      // Short number, still add 91
-      normalizedPhone = "91" + digits;
-    }
+    // Normalize phone number using shared helper
+    const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
     try {
       const response = await fetch(
@@ -104,20 +116,8 @@ export const sendInteractiveMessage = action({
       throw new Error("WhatsApp credentials not configured.");
     }
 
-    // Normalize phone number - strip all non-digits, preserve/add country code
-    let digits = args.phoneNumber.replace(/\D/g, "");
-    
-    let normalizedPhone = "";
-    if (digits.length > 10) {
-      // Already has country code, use as-is
-      normalizedPhone = digits;
-    } else if (digits.length === 10) {
-      // Add default country code 91
-      normalizedPhone = "91" + digits;
-    } else if (digits.length > 0) {
-      // Short number, still add 91
-      normalizedPhone = "91" + digits;
-    }
+    // Normalize phone number using shared helper
+    const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
     const buttonPayload = args.buttons.slice(0, 3).map((btn) => ({
       type: "reply",
@@ -179,7 +179,60 @@ export const sendInteractiveMessage = action({
   },
 });
 
-// Send a template message via WhatsApp
+// Shared template message sending logic (helper function)
+async function sendTemplateMessageHelper(
+  phoneNumber: string,
+  templateName: string,
+  languageCode: string
+): Promise<{ success: boolean; messageId?: string; data?: any; error?: string }> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WA_PHONE_NUMBER_ID;
+  const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+  if (!token || !phoneId) {
+    return { success: false, error: "WhatsApp credentials not configured" };
+  }
+
+  // Normalize phone number using shared helper
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${version}/${phoneId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedPhone,
+          type: "template",
+          template: {
+            name: templateName,
+            language: {
+              code: languageCode || "en",
+            },
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: `WhatsApp API error: ${JSON.stringify(data)}` };
+    }
+
+    return { success: true, messageId: data.messages?.[0]?.id, data };
+  } catch (error: any) {
+    return { success: false, error: `Failed to send WhatsApp template message: ${error.message}` };
+  }
+}
+
+// Public action for sending template messages (called from UI)
 export const sendTemplateMessage = action({
   args: {
     phoneNumber: v.string(),
@@ -188,79 +241,34 @@ export const sendTemplateMessage = action({
     leadId: v.optional(v.id("leads")),
   },
   handler: async (ctx, args) => {
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneId = process.env.WA_PHONE_NUMBER_ID;
-    const version = process.env.CLOUD_API_VERSION || "v21.0";
+    const result = await sendTemplateMessageHelper(
+      args.phoneNumber,
+      args.templateName,
+      args.languageCode || "en"
+    );
 
-    if (!token || !phoneId) {
-      throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
+    if (!result.success) {
+      throw new Error(result.error || "Failed to send template message");
     }
 
-    // Normalize phone number - strip all non-digits, preserve/add country code
-    let digits = args.phoneNumber.replace(/\D/g, "");
-    
-    let normalizedPhone = "";
-    if (digits.length > 10) {
-      // Already has country code, use as-is
-      normalizedPhone = digits;
-    } else if (digits.length === 10) {
-      // Add default country code 91
-      normalizedPhone = "91" + digits;
-    } else if (digits.length > 0) {
-      // Short number, still add 91
-      normalizedPhone = "91" + digits;
+    // Log the sent message
+    if (args.leadId) {
+      const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+      await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
+        leadId: args.leadId,
+        phoneNumber: normalizedPhone,
+        message: `[Template: ${args.templateName}]`,
+        direction: "outbound",
+        messageId: result.messageId || null,
+        status: "sent",
+      });
     }
 
-    try {
-      const response = await fetch(
-        `https://graph.facebook.com/${version}/${phoneId}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: normalizedPhone,
-            type: "template",
-            template: {
-              name: args.templateName,
-              language: {
-                code: args.languageCode || "en",
-              },
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
-      }
-
-      // Log the sent message
-      if (args.leadId) {
-        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
-          leadId: args.leadId,
-          phoneNumber: normalizedPhone,
-          message: `[Template: ${args.templateName}]`,
-          direction: "outbound",
-          messageId: data.messages?.[0]?.id || null,
-          status: "sent",
-        });
-      }
-
-      return { success: true, messageId: data.messages?.[0]?.id, data };
-    } catch (error: any) {
-      throw new Error(`Failed to send WhatsApp template message: ${error.message}`);
-    }
+    return result;
   },
 });
 
-// Internal action wrapper for scheduled WhatsApp template messages
+// Internal action for scheduled WhatsApp template messages (called from webhooks/crons)
 export const sendTemplateMessageInternal = internalAction({
   args: {
     phoneNumber: v.string(),
@@ -269,75 +277,25 @@ export const sendTemplateMessageInternal = internalAction({
     leadId: v.optional(v.id("leads")),
   },
   handler: async (ctx, args) => {
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneId = process.env.WA_PHONE_NUMBER_ID;
-    const version = process.env.CLOUD_API_VERSION || "v21.0";
+    const result = await sendTemplateMessageHelper(
+      args.phoneNumber,
+      args.templateName,
+      args.languageCode || "en"
+    );
 
-    if (!token || !phoneId) {
-      // Silently fail if credentials not configured
-      return { success: false, error: "WhatsApp credentials not configured" };
+    // Log the sent message if successful
+    if (result.success && args.leadId) {
+      const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+      await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
+        leadId: args.leadId,
+        phoneNumber: normalizedPhone,
+        message: `[Template: ${args.templateName}]`,
+        direction: "outbound",
+        messageId: result.messageId || null,
+        status: "sent",
+      });
     }
 
-    // Normalize phone number - strip all non-digits, preserve/add country code
-    let digits = args.phoneNumber.replace(/\D/g, "");
-    
-    let normalizedPhone = "";
-    if (digits.length > 10) {
-      // Already has country code, use as-is
-      normalizedPhone = digits;
-    } else if (digits.length === 10) {
-      // Add default country code 91
-      normalizedPhone = "91" + digits;
-    } else if (digits.length > 0) {
-      // Short number, still add 91
-      normalizedPhone = "91" + digits;
-    }
-
-    try {
-      const response = await fetch(
-        `https://graph.facebook.com/${version}/${phoneId}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: normalizedPhone,
-            type: "template",
-            template: {
-              name: args.templateName,
-              language: {
-                code: args.languageCode || "en",
-              },
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: `WhatsApp API error: ${JSON.stringify(data)}` };
-      }
-
-      // Log the sent message
-      if (args.leadId) {
-        await ctx.runMutation((internal as any).whatsappQueries.logMessage, {
-          leadId: args.leadId,
-          phoneNumber: normalizedPhone,
-          message: `[Template: ${args.templateName}]`,
-          direction: "outbound",
-          messageId: data.messages?.[0]?.id || null,
-          status: "sent",
-        });
-      }
-
-      return { success: true, messageId: data.messages?.[0]?.id, data };
-    } catch (error: any) {
-      return { success: false, error: `Failed to send WhatsApp template message: ${error.message}` };
-    }
+    return result;
   },
 });
