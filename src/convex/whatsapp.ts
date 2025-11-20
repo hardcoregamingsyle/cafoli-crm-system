@@ -327,13 +327,11 @@ export const sendTemplateMessageInternal = internalAction({
     phoneNumber: v.string(),
     templateName: v.string(),
     languageCode: v.optional(v.string()),
-    leadId: v.optional(v.id("leads")),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     console.log(`[WhatsApp Internal] sendTemplateMessageInternal called with:`, { 
       phoneNumber: args.phoneNumber, 
-      templateName: args.templateName,
-      leadId: args.leadId 
+      templateName: args.templateName
     });
 
     const result = await sendTemplateMessageHelper(
@@ -347,23 +345,8 @@ export const sendTemplateMessageInternal = internalAction({
       // Don't throw - just log and return the error so webhook processing continues
     }
 
-    // Log the sent message if successful
-    if (result.success && args.leadId) {
-      try {
-        const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
-        await ctx.runMutation(internal.whatsappQueries.logMessage, {
-          leadId: args.leadId,
-          phoneNumber: normalizedPhone,
-          message: `[Template: ${args.templateName}]`,
-          direction: "outbound",
-          messageId: result.messageId || null,
-          status: "sent",
-        });
-      } catch (logError) {
-        console.error("[WhatsApp Internal] Failed to log message:", logError);
-        // Don't throw - message was sent successfully
-      }
-    }
+    // Note: Internal action doesn't log to database since we don't have leadId
+    // Logging happens in the public action when called from UI
 
     return result;
   },

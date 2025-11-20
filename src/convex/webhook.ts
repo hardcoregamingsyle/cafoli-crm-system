@@ -276,7 +276,6 @@ export const createLeadFromGoogleScript = internalMutation({
           phoneNumber: mobile,
           templateName: "cafoliwelcomemessage",
           languageCode: "en",
-          leadId: undefined,
         });
       }
     } catch {
@@ -420,11 +419,11 @@ export const createLeadFromSource = internalMutation({
           phoneNumber: mobile,
           templateName: "cafoliwelcomemessage",
           languageCode: "en",
-          leadId: undefined,
         });
       }
-    } catch {
-      // Do not block lead creation on WhatsApp errors
+    } catch (whatsappError: any) {
+      // Log but don't block lead creation
+      console.error("[Webhook] WhatsApp welcome message failed:", whatsappError?.message || whatsappError);
     }
 
     return true;
