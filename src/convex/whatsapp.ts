@@ -67,13 +67,12 @@ async function sendTemplateMessageHelper(
     const url = `https://graph.facebook.com/${version}/${phoneId}/messages`;
     const payload = {
       messaging_product: "whatsapp",
-      recipient_type: "individual",
       to: normalizedPhone,
       type: "template",
       template: {
         name: templateName,
         language: {
-          code: languageCode || "en",
+          code: languageCode || "en_US",
         },
       },
     };
