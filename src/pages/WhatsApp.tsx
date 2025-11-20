@@ -43,6 +43,19 @@ export default function WhatsAppPage() {
   const sendMessage = useAction(api.whatsapp.sendMessage);
   const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
 
+  // Log webhook data to console for debugging
+  useEffect(() => {
+    if (leadsWithMessages) {
+      console.log("[WhatsApp Portal] Leads with messages:", leadsWithMessages);
+    }
+  }, [leadsWithMessages]);
+
+  useEffect(() => {
+    if (messages) {
+      console.log("[WhatsApp Portal] Messages for selected lead:", messages);
+    }
+  }, [messages]);
+
   // Check if messaging is allowed (lead sent message within 24 hours)
   const isMessagingAllowed = useMemo(() => {
     if (!messages || messages.length === 0) return false;
@@ -128,14 +141,17 @@ export default function WhatsAppPage() {
     }
 
     try {
-      await sendTemplateMessage({
+      const result = await sendTemplateMessage({
         phoneNumber: lead.mobileNo,
         templateName: "cafoliwelcomemessage",
         languageCode: "en",
         leadId: selectedLeadId as any,
       });
-      toast.success("Welcome message sent");
+      
+      console.log("[WhatsApp] Welcome message sent successfully:", result);
+      toast.success("Welcome message sent successfully!");
     } catch (error: any) {
+      console.error("[WhatsApp] Failed to send welcome message:", error);
       toast.error(error?.message || "Failed to send welcome message");
     }
   };
@@ -326,14 +342,17 @@ export default function WhatsAppPage() {
     }
 
     try {
-      await sendMessage({
+      const result = await sendMessage({
         phoneNumber: lead.mobileNo,
         message: messageInput.trim(),
         leadId: selectedLeadId as any,
       });
+      
+      console.log("[WhatsApp] Message sent successfully:", result);
       setMessageInput("");
-      toast.success("Message sent");
+      toast.success("Message sent successfully!");
     } catch (error: any) {
+      console.error("[WhatsApp] Failed to send message:", error);
       toast.error(error?.message || "Failed to send message");
     }
   }
