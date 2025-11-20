@@ -1,6 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { ROLES } from "./schema";
+import { ROLES, LEAD_STATUS } from "./schema";
 
 // Get leads with WhatsApp messages for the portal
 export const getLeadsWithMessages = query({
@@ -17,14 +17,16 @@ export const getLeadsWithMessages = query({
 
     // Admin sees all leads, Manager/Staff sees only assigned leads
     if (currentUser.role === ROLES.ADMIN) {
-      // Fetch ALL leads for admin - no filters
-      leads = await ctx.db.query("leads").collect();
+      // Fetch ALL leads for admin - filter out not_relevant
+      const allLeads = await ctx.db.query("leads").collect();
+      leads = allLeads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
     } else if (currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.STAFF) {
-      // Fetch ALL leads assigned to this user
-      leads = await ctx.db
+      // Fetch ALL leads assigned to this user - filter out not_relevant
+      const assignedLeads = await ctx.db
         .query("leads")
         .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
         .collect();
+      leads = assignedLeads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
     } else {
       return [];
     }
@@ -43,6 +45,11 @@ export const getLeadsWithMessages = query({
           (m) => m.direction === "inbound" && m.status !== "read"
         ).length;
 
+        // Check if welcome message was sent (look for template message in outbound)
+        const welcomeMessageSent = messages.some(
+          (m) => m.direction === "outbound" && m.message.includes("[Template:")
+        );
+
         return {
           ...lead,
           messageCount: messages.length,
@@ -54,6 +61,7 @@ export const getLeadsWithMessages = query({
               }
             : null,
           unreadCount,
+          welcomeMessageSent,
         };
       })
     );

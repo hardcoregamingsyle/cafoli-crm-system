@@ -20,20 +20,20 @@ export const sendMessage = action({
       throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
     }
 
-    // Normalize phone number (ensure it has country code, remove spaces/signs except +)
-    let normalizedPhone = args.phoneNumber.trim();
-    const hasPlus = normalizedPhone.startsWith("+");
-    // Remove all non-digits
-    let digits = normalizedPhone.replace(/\D/g, "");
-    // Reconstruct with country code
-    if (hasPlus || digits.length > 10) {
-      normalizedPhone = "+" + digits;
-    } else if (digits.length === 10) {
+    // Normalize phone number - consistent format
+    let digits = args.phoneNumber.replace(/\D/g, "");
+    // Remove leading 91 if present and length > 10
+    if (digits.startsWith("91") && digits.length > 10) {
+      digits = digits.slice(2);
+    }
+    // Take last 10 digits
+    digits = digits.slice(-10);
+    // Add +91 country code
+    let normalizedPhone = "";
+    if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
     } else if (digits.length > 0) {
       normalizedPhone = "+91" + digits;
-    } else {
-      normalizedPhone = "";
     }
 
     try {
@@ -105,18 +105,17 @@ export const sendInteractiveMessage = action({
       throw new Error("WhatsApp credentials not configured.");
     }
 
-    // Normalize phone number (preserve country code, remove spaces/signs except +)
-    let normalizedPhone = args.phoneNumber.trim();
-    const hasPlus = normalizedPhone.startsWith("+");
-    let digits = normalizedPhone.replace(/\D/g, "");
-    if (hasPlus || digits.length > 10) {
-      normalizedPhone = "+" + digits;
-    } else if (digits.length === 10) {
+    // Normalize phone number - consistent format
+    let digits = args.phoneNumber.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length > 10) {
+      digits = digits.slice(2);
+    }
+    digits = digits.slice(-10);
+    let normalizedPhone = "";
+    if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
     } else if (digits.length > 0) {
       normalizedPhone = "+91" + digits;
-    } else {
-      normalizedPhone = "";
     }
 
     const buttonPayload = args.buttons.slice(0, 3).map((btn) => ({
@@ -196,18 +195,17 @@ export const sendTemplateMessage = action({
       throw new Error("WhatsApp credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WA_PHONE_NUMBER_ID in environment variables.");
     }
 
-    // Normalize phone number (preserve country code, remove spaces/signs except +)
-    let normalizedPhone = args.phoneNumber.trim();
-    const hasPlus = normalizedPhone.startsWith("+");
-    let digits = normalizedPhone.replace(/\D/g, "");
-    if (hasPlus || digits.length > 10) {
-      normalizedPhone = "+" + digits;
-    } else if (digits.length === 10) {
+    // Normalize phone number - consistent format
+    let digits = args.phoneNumber.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length > 10) {
+      digits = digits.slice(2);
+    }
+    digits = digits.slice(-10);
+    let normalizedPhone = "";
+    if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
     } else if (digits.length > 0) {
       normalizedPhone = "+91" + digits;
-    } else {
-      normalizedPhone = "";
     }
 
     try {
@@ -277,16 +275,17 @@ export const sendTemplateMessageInternal = internalAction({
       return { success: false, error: "WhatsApp credentials not configured" };
     }
 
-    // Normalize phone number (preserve country code, remove spaces/signs except +)
-    let normalizedPhone = args.phoneNumber.trim();
-    const hasPlus = normalizedPhone.startsWith("+");
-    let digits = normalizedPhone.replace(/\D/g, "");
-    if (hasPlus || digits.length > 10) {
-      normalizedPhone = "+" + digits;
-    } else if (digits.length === 10) {
+    // Normalize phone number - consistent format
+    let digits = args.phoneNumber.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length > 10) {
+      digits = digits.slice(2);
+    }
+    digits = digits.slice(-10);
+    let normalizedPhone = "";
+    if (digits.length === 10) {
       normalizedPhone = "+91" + digits;
-    } else {
-      normalizedPhone = "+" + digits;
+    } else if (digits.length > 0) {
+      normalizedPhone = "+91" + digits;
     }
 
     try {

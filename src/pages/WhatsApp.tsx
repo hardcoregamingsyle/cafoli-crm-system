@@ -41,6 +41,7 @@ export default function WhatsAppPage() {
   );
 
   const sendMessage = useAction(api.whatsapp.sendMessage);
+  const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
 
   // Check if messaging is allowed (lead sent message within 24 hours)
   const isMessagingAllowed = useMemo(() => {
@@ -116,6 +117,29 @@ export default function WhatsAppPage() {
     return null;
   };
 
+  // Helper function to send welcome message
+  const handleSendWelcomeMessage = async () => {
+    if (!selectedLeadId || !currentUser) return;
+
+    const lead = filteredLeads.find((l: any) => l._id === selectedLeadId);
+    if (!lead?.mobileNo) {
+      toast.error("Lead has no phone number");
+      return;
+    }
+
+    try {
+      await sendTemplateMessage({
+        phoneNumber: lead.mobileNo,
+        templateName: "cafoliwelcomemessage",
+        languageCode: "en",
+        leadId: selectedLeadId as any,
+      });
+      toast.success("Welcome message sent");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send welcome message");
+    }
+  };
+
   return (
     <Layout>
       <div className="h-[calc(100vh-4rem)] flex flex-col max-w-7xl mx-auto">
@@ -187,11 +211,25 @@ export default function WhatsAppPage() {
             {selectedLeadId ? (
               <>
                 <CardHeader className="pb-3 border-b bg-white">
-                  <CardTitle className="text-lg">
-                    {filteredLeads.find((l: any) => l._id === selectedLeadId)?.name || "Chat"}
-                  </CardTitle>
-                  <div className="text-sm text-gray-500">
-                    {filteredLeads.find((l: any) => l._id === selectedLeadId)?.mobileNo}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {filteredLeads.find((l: any) => l._id === selectedLeadId)?.name || "Chat"}
+                      </CardTitle>
+                      <div className="text-sm text-gray-500">
+                        {filteredLeads.find((l: any) => l._id === selectedLeadId)?.mobileNo}
+                      </div>
+                    </div>
+                    {selectedLeadId && !filteredLeads.find((l: any) => l._id === selectedLeadId)?.welcomeMessageSent && (
+                      <Button
+                        onClick={handleSendWelcomeMessage}
+                        variant="outline"
+                        size="sm"
+                        className="ml-2"
+                      >
+                        Send Welcome Message
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto p-4 bg-[#e5ddd5]">
