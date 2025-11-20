@@ -1,1 +1,1 @@
-npm install @convex-dev/auth --legacy-peer-deps
+npx convex run migrate:normalizeAllPhoneNumbers

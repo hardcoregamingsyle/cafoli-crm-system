@@ -1,110 +1,93 @@
-"use node";
+import { internalMutation } from "./_generated/server";
 
-import { v } from "convex/values";
-import { internalAction } from "./_generated/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import fs from "fs/promises";
-import path from "path";
+// Helper function to normalize phone numbers
+function normalizePhoneNumber(phone: string): string {
+  if (!phone) return "";
+  
+  // Remove all non-digit characters (spaces, dashes, parentheses, letters, etc.)
+  let digits = phone.replace(/\D/g, "");
+  
+  if (!digits) return "";
+  
+  // If number already has country code (more than 10 digits), preserve it
+  if (digits.length > 10) {
+    // Return with just digits, no + sign
+    return digits;
+  }
+  
+  // If exactly 10 digits, add default country code 91
+  if (digits.length === 10) {
+    return "91" + digits;
+  }
+  
+  // For shorter numbers, still add 91 prefix
+  return "91" + digits;
+}
 
-const execAsync = promisify(exec);
-
-// Export data from a deployment
-export const exportData = internalAction({
-  args: {
-    deployment: v.string(),
-    includeFileStorage: v.optional(v.boolean()),
-  },
-  handler: async (_ctx, args) => {
-    try {
-      const timestamp = Date.now();
-      const filename = `export-${args.deployment}-${timestamp}.zip`;
-      const filepath = path.join("/tmp", filename);
-
-      // Build the export command
-      let command = `npx convex export --path ${filepath}`;
-      
-      if (args.includeFileStorage) {
-        command += " --include-file-storage";
+// Migrate all existing phone numbers to normalized format
+export const normalizeAllPhoneNumbers = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all leads
+    const allLeads = await ctx.db.query("leads").collect();
+    
+    let updatedCount = 0;
+    let errorCount = 0;
+    
+    for (const lead of allLeads) {
+      try {
+        const patch: Record<string, any> = {};
+        
+        // Normalize mobileNo
+        if (lead.mobileNo) {
+          const normalized = normalizePhoneNumber(lead.mobileNo);
+          if (normalized !== lead.mobileNo) {
+            patch.mobileNo = normalized;
+          }
+        }
+        
+        // Normalize altMobileNo
+        if (lead.altMobileNo) {
+          const normalized = normalizePhoneNumber(lead.altMobileNo);
+          if (normalized !== lead.altMobileNo) {
+            patch.altMobileNo = normalized;
+          }
+        }
+        
+        // Apply patch if there are changes
+        if (Object.keys(patch).length > 0) {
+          await ctx.db.patch(lead._id, patch);
+          updatedCount++;
+        }
+      } catch (error) {
+        console.error(`Error normalizing lead ${lead._id}:`, error);
+        errorCount++;
       }
-
-      // Set the deployment via environment variable
-      const env = {
-        ...process.env,
-        CONVEX_DEPLOYMENT: `dev:${args.deployment}`,
-      };
-
-      // Execute the export command
-      const { stdout, stderr } = await execAsync(command, { env });
-
-      console.log("Export stdout:", stdout);
-      if (stderr) console.error("Export stderr:", stderr);
-
-      // Read the exported file
-      const fileBuffer = await fs.readFile(filepath);
-      
-      // Clean up the temporary file
-      await fs.unlink(filepath).catch(() => {});
-
-      // Return the file as base64
-      return {
-        success: true,
-        filename,
-        data: fileBuffer.toString("base64"),
-      };
-    } catch (error: any) {
-      console.error("Export error:", error);
-      throw new Error(`Export failed: ${error.message}`);
     }
-  },
-});
-
-// Import data to a deployment
-export const importData = internalAction({
-  args: {
-    deployment: v.string(),
-    fileData: v.string(), // base64 encoded ZIP file
-    filename: v.string(),
-    replaceAll: v.optional(v.boolean()),
-  },
-  handler: async (_ctx, args) => {
-    try {
-      const timestamp = Date.now();
-      const filepath = path.join("/tmp", `import-${timestamp}-${args.filename}`);
-
-      // Write the base64 data to a file
-      const fileBuffer = Buffer.from(args.fileData, "base64");
-      await fs.writeFile(filepath, fileBuffer);
-
-      // Build the import command
-      let command = `npx convex import --path ${filepath}`;
-      
-      if (args.replaceAll) {
-        command += " --replace-all";
+    
+    // Also normalize WhatsApp messages
+    const allMessages = await ctx.db.query("whatsappMessages").collect();
+    
+    for (const message of allMessages) {
+      try {
+        if (message.phoneNumber) {
+          const normalized = normalizePhoneNumber(message.phoneNumber);
+          if (normalized !== message.phoneNumber) {
+            await ctx.db.patch(message._id, { phoneNumber: normalized });
+            updatedCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error normalizing message ${message._id}:`, error);
+        errorCount++;
       }
-
-      // Set the deployment via environment variable
-      const env = {
-        ...process.env,
-        CONVEX_DEPLOYMENT: `dev:${args.deployment}`,
-      };
-
-      // Execute the import command
-      const { stdout, stderr } = await execAsync(command, { env });
-
-      console.log("Import stdout:", stdout);
-      if (stderr) console.error("Import stderr:", stderr);
-
-      // Clean up the temporary file
-      await fs.unlink(filepath).catch(() => {});
-
-      return {
-        success: true,
-        message: "Import completed successfully",
-      };
-    } catch (error: any) {
-      console.error("Import error:", error);
-      throw new Error(`Import failed: ${error.message}`);
     }
+    
+    return {
+      success: true,
+      updatedCount,
+      errorCount,
+      message: `Normalized ${updatedCount} phone numbers with ${errorCount} errors`,
+    };
   },
 });

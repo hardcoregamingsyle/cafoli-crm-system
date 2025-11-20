@@ -20,7 +20,7 @@ import NotificationsPage from "@/pages/Notifications.tsx";
 import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
 import IpLogsPage from "@/pages/IpLogs.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import MigratePage from "@/pages/Migrate.tsx";
+import Migrate from "./pages/Migrate.tsx";
 import ReportPage from "@/pages/Report.tsx";
 import WhatsAppPage from "@/pages/WhatsApp.tsx";
 
@@ -76,7 +76,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/notifications" element={<ConvexProviderWrapper><NotificationsPage /></ConvexProviderWrapper>} />
           <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
           <Route path="/ip-logs" element={<ConvexProviderWrapper><IpLogsPage /></ConvexProviderWrapper>} />
-          <Route path="/migrate" element={<ConvexProviderWrapper><MigratePage /></ConvexProviderWrapper>} />
+          <Route path="/migrate" element={<Migrate />} />
           <Route path="/report" element={<ConvexProviderWrapper><ReportPage /></ConvexProviderWrapper>} />
           <Route path="/whatsapp" element={<ConvexProviderWrapper><WhatsAppPage /></ConvexProviderWrapper>} />
           <Route path="*" element={<NotFound />} />
