@@ -134,6 +134,10 @@ export default function AllLeadsPage() {
   const updateLeadStatus = useMutation((api as any).leads.updateLeadStatus);
   const updateLeadDetails = useMutation((api as any).leads.updateLeadDetails);
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
+  const normalizePhoneNumbers = useMutation((api as any).migrate.normalizeAllPhoneNumbers);
+
+  // Add: state for normalization process
+  const [isNormalizing, setIsNormalizing] = useState(false);
 
   // Decide data source: Admin -> all leads; Manager/Staff -> depends on context
   const sourceLeads = useMemo(() => {
@@ -654,6 +658,29 @@ export default function AllLeadsPage() {
                 {syncing ? "Syncing..." : "Sync"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Refresh</Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={async () => {
+                  if (isNormalizing) return;
+                  const confirm = window.confirm("Normalize all phone numbers in the database? This will update all leads and WhatsApp messages.");
+                  if (!confirm) return;
+                  
+                  try {
+                    setIsNormalizing(true);
+                    const result = await normalizePhoneNumbers({});
+                    toast.success(`Normalized ${result.updatedCount} phone numbers with ${result.errorCount} errors`);
+                    window.location.reload();
+                  } catch (error: any) {
+                    toast.error(error?.message || "Failed to normalize phone numbers");
+                  } finally {
+                    setIsNormalizing(false);
+                  }
+                }}
+                disabled={isNormalizing}
+              >
+                {isNormalizing ? "Normalizing..." : "Normalize"}
+              </Button>
             </div>
           </div>
         )}
