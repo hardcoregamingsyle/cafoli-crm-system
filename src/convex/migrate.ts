@@ -1,4 +1,4 @@
-import { internalMutation } from "./_generated/server";
+import { mutation } from "./_generated/server";
 
 // Helper function to normalize phone numbers
 function normalizePhoneNumber(phone: string): string {
@@ -24,8 +24,8 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
-// Migrate all existing phone numbers to normalized format
-export const normalizeAllPhoneNumbers = internalMutation({
+// Public mutation that can be called from the client
+export const normalizeAllPhoneNumbers = mutation({
   args: {},
   handler: async (ctx) => {
     // Get all leads
