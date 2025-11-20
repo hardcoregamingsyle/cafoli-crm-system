@@ -599,23 +599,70 @@ export const storeWhatsAppMessage = internalMutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    // Normalize phone number
-    let normalizedPhone = args.phoneNumber.replace(/[^\d+]/g, "");
-    if (!normalizedPhone.startsWith("+")) {
-      if (normalizedPhone.startsWith("91")) {
-        normalizedPhone = "+" + normalizedPhone;
-      } else {
-        normalizedPhone = "+" + normalizedPhone;
-      }
-    }
+    // Normalize phone number using the shared helper
+    const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
     // Try to find matching lead by phone number
     const allLeads = await ctx.db.query("leads").collect();
-    const matchingLead = allLeads.find(
-      (lead) =>
-        lead.mobileNo?.replace(/[^\d+]/g, "").includes(args.phoneNumber.replace(/[^\d+]/g, "").slice(-10)) ||
-        lead.altMobileNo?.replace(/[^\d+]/g, "").includes(args.phoneNumber.replace(/[^\d+]/g, "").slice(-10))
+    let matchingLead = allLeads.find(
+      (lead) => {
+        const leadMobile = normalizePhoneNumber(lead.mobileNo || "");
+        const leadAltMobile = normalizePhoneNumber(lead.altMobileNo || "");
+        const incomingPhone = normalizedPhone.slice(-10); // Last 10 digits
+        
+        return leadMobile.includes(incomingPhone) || leadAltMobile.includes(incomingPhone);
+      }
     );
+
+    // If no matching lead found, create a new one
+    if (!matchingLead) {
+      console.log(`[WhatsApp] Creating new lead for phone: ${normalizedPhone}`);
+      
+      const newLeadId = await ctx.db.insert("leads", {
+        name: `WhatsApp Customer ${normalizedPhone.slice(-4)}`,
+        email: "unknown@example.com",
+        mobileNo: normalizedPhone,
+        subject: "WhatsApp Inquiry",
+        message: args.message,
+        state: "Unknown",
+        status: "new",
+        source: "whatsapp",
+      });
+
+      // Fetch the newly created lead
+      const newLead = await ctx.db.get(newLeadId);
+      if (!newLead) {
+        throw new Error("Failed to retrieve newly created lead");
+      }
+      matchingLead = newLead;
+
+      // Log the lead creation
+      const loggingUserId = await ensureLoggingUserId(ctx);
+      await ctx.db.insert("auditLogs", {
+        userId: loggingUserId,
+        action: "CREATE_LEAD_FROM_WHATSAPP",
+        details: `New lead created from WhatsApp message: ${normalizedPhone}`,
+        timestamp: Date.now(),
+        relatedLeadId: newLeadId,
+      });
+
+      // Create notification for admins
+      const adminUsers = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", ROLES.ADMIN))
+        .collect();
+
+      for (const admin of adminUsers) {
+        await ctx.db.insert("notifications", {
+          userId: admin._id,
+          title: "New WhatsApp Lead",
+          message: `A new lead was created from WhatsApp: ${normalizedPhone}`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: newLeadId,
+        });
+      }
+    }
 
     // Store the message
     await ctx.db.insert("whatsappMessages", {
@@ -629,16 +676,17 @@ export const storeWhatsAppMessage = internalMutation({
       metadata: args.metadata,
     });
 
-    // Add comment to lead if found
+    // Add comment to lead
     if (matchingLead) {
+      const loggingUserId = await ensureLoggingUserId(ctx);
       await ctx.db.insert("comments", {
         leadId: matchingLead._id,
-        userId: null as any, // System message
+        userId: loggingUserId,
         content: `WhatsApp message received: ${args.message}`,
         timestamp: Date.now(),
       });
     }
 
-    return { success: true, leadId: matchingLead?._id };
+    return { success: true, leadId: matchingLead?._id, created: !allLeads.find(l => l._id === matchingLead?._id) };
   },
 });
