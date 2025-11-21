@@ -58,29 +58,31 @@ createRoot(document.getElementById("root")!).render(
     <VlyToolbar />
     <InstrumentationProvider>
       <BrowserRouter>
-        <RouteSyncer />
-        <Routes>
-          <Route path="/" element={<ConvexProviderWrapper><Landing /></ConvexProviderWrapper>} />
-          <Route path="/login" element={<ConvexProviderWrapper><Login /></ConvexProviderWrapper>} />
-          <Route path="/dashboard" element={<ConvexProviderWrapper><Dashboard /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/assigned" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/followup" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/cold" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/hot" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/dashboard/mature" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/all_leads" element={<ConvexProviderWrapper><AllLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/leads" element={<ConvexProviderWrapper><MyLeadsPage /></ConvexProviderWrapper>} />
-          <Route path="/admin" element={<ConvexProviderWrapper><AdminPage /></ConvexProviderWrapper>} />
-          <Route path="/campaigns" element={<ConvexProviderWrapper><CampaignsPage /></ConvexProviderWrapper>} />
-          <Route path="/campaigns/select/:campaignId" element={<ConvexProviderWrapper><CampaignSelectRecipientsPage /></ConvexProviderWrapper>} />
-          <Route path="/notifications" element={<ConvexProviderWrapper><NotificationsPage /></ConvexProviderWrapper>} />
-          <Route path="/webhook/logs" element={<ConvexProviderWrapper><WebhookLogsPage /></ConvexProviderWrapper>} />
-          <Route path="/ip-logs" element={<ConvexProviderWrapper><IpLogsPage /></ConvexProviderWrapper>} />
-          <Route path="/migrate" element={<Migrate />} />
-          <Route path="/report" element={<ConvexProviderWrapper><ReportPage /></ConvexProviderWrapper>} />
-          <Route path="/whatsapp" element={<ConvexProviderWrapper><WhatsAppPage /></ConvexProviderWrapper>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ConvexProviderWrapper>
+          <RouteSyncer />
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/assigned" element={<MyLeadsPage />} />
+            <Route path="/dashboard/followup" element={<MyLeadsPage />} />
+            <Route path="/dashboard/cold" element={<AllLeadsPage />} />
+            <Route path="/dashboard/hot" element={<AllLeadsPage />} />
+            <Route path="/dashboard/mature" element={<AllLeadsPage />} />
+            <Route path="/all_leads" element={<AllLeadsPage />} />
+            <Route path="/leads" element={<MyLeadsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/campaigns/select/:campaignId" element={<CampaignSelectRecipientsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/webhook/logs" element={<WebhookLogsPage />} />
+            <Route path="/ip-logs" element={<IpLogsPage />} />
+            <Route path="/migrate" element={<Migrate />} />
+            <Route path="/report" element={<ReportPage />} />
+            <Route path="/whatsapp" element={<WhatsAppPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ConvexProviderWrapper>
       </BrowserRouter>
       <Toaster />
     </InstrumentationProvider>

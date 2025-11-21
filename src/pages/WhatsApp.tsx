@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Send, MessageSquare, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
 const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
@@ -18,7 +17,6 @@ const getLeadMessagesQuery: any = (() => api.whatsappQueries.getLeadMessages)();
 
 export default function WhatsAppPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
-  const navigate = useNavigate();
 
   // Initialize auth state
   const [authReady, setAuthReady] = useState(false);
@@ -105,13 +103,6 @@ export default function WhatsAppPage() {
     initializeAuth();
     setAuthReady(true);
   }, [initializeAuth]);
-
-  // Auth redirect
-  useEffect(() => {
-    if (authReady && !currentUser) {
-      navigate("/login");
-    }
-  }, [authReady, currentUser, navigate]);
 
   if (!currentUser) return <Layout><div /></Layout>;
 
