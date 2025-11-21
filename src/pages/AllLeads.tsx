@@ -14,8 +14,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router";
-import { useLocation } from "react-router";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 type Filter = "all" | "assigned" | "unassigned";

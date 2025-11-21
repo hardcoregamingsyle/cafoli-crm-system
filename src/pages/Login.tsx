@@ -6,7 +6,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { motion } from "framer-motion";
 import { Loader2, Lock, User } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function Login() {

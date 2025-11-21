@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Filter, ArrowLeft } from "lucide-react";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { Home, LogOut } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 export function LogoDropdown() {
   const { isAuthenticated, signOut } = useAuth();

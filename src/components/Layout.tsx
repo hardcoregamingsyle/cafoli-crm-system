@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Link, useNavigate, useLocation } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ROLES } from "@/convex/schema";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
