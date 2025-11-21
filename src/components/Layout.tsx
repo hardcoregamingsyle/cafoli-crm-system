@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useNavigate, useLocation } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { ROLES } from "@/convex/schema";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -723,13 +723,15 @@ export function Layout({ children }: LayoutProps) {
                           key={item.path}
                           variant="ghost"
                           className="w-full justify-start gap-2"
-                          onClick={() => {
-                            navigate(item.path);
-                            setMobileNavOpen(false);
-                          }}
+                          asChild
                         >
-                          <Icon className="w-4 h-4" />
-                          {item.label}
+                          <Link
+                            to={item.path}
+                            onClick={() => setMobileNavOpen(false)}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {item.label}
+                          </Link>
                         </Button>
                       );
                     })}
@@ -777,18 +779,19 @@ export function Layout({ children }: LayoutProps) {
               </Sheet>
 
               {/* Logo */}
-              <motion.div
-                className="flex items-center space-x-2 cursor-pointer"
-                onClick={() => navigate("/all_leads")}
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">C</span>
-                </div>
-                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Cafoli CRM
-                </span>
-              </motion.div>
+              <Link to="/all_leads">
+                <motion.div
+                  className="flex items-center space-x-2 cursor-pointer"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">C</span>
+                  </div>
+                  <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    Cafoli CRM
+                  </span>
+                </motion.div>
+              </Link>
             </div>
 
             {/* Navigation (desktop) */}
@@ -806,10 +809,12 @@ export function Layout({ children }: LayoutProps) {
                         ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
-                    onClick={() => navigate(item.path)}
+                    asChild
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
+                    <Link to={item.path}>
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </Link>
                   </Button>
                 );
               })}
