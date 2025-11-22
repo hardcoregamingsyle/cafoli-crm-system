@@ -73,6 +73,18 @@ export const getMessagesByPhone = query({
 });
 
 // Internal mutation to log WhatsApp messages
+// Update lead's lastActivityTime
+export const updateLeadActivity = internalMutation({
+  args: {
+    leadId: v.id("leads"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.leadId, {
+      lastActivityTime: Date.now(),
+    });
+  },
+});
+
 export const logMessage = internalMutation({
   args: {
     leadId: v.optional(v.id("leads")),

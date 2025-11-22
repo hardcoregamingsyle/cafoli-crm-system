@@ -169,14 +169,17 @@ export default function MyLeadsPage() {
       return true;
     });
 
-    // Sort: leads with nextFollowup first (ascending), then those without by oldest creation
+    // Sort: leads with nextFollowup first (ascending), then by lastActivityTime (most recent first)
     return filtered.sort((a: any, b: any) => {
       const aHas = typeof a?.nextFollowup === "number";
       const bHas = typeof b?.nextFollowup === "number";
       if (aHas && bHas) return (a.nextFollowup as number) - (b.nextFollowup as number);
       if (aHas && !bHas) return -1;
       if (!aHas && bHas) return 1;
-      return (a?._creationTime ?? 0) - (b?._creationTime ?? 0);
+      // Sort by lastActivityTime (most recent first), fallback to creation time
+      const aTime = a?.lastActivityTime ?? a?._creationTime ?? 0;
+      const bTime = b?.lastActivityTime ?? b?._creationTime ?? 0;
+      return bTime - aTime;
     });
   }, [leads, search, selectedStatuses, selectedSources, selectedHeats]);
 

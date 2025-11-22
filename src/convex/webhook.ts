@@ -676,6 +676,13 @@ export const storeWhatsAppMessage = internalMutation({
       metadata: args.metadata,
     });
 
+    // Update lastActivityTime for the lead
+    if (matchingLead) {
+      await ctx.db.patch(matchingLead._id, {
+        lastActivityTime: Date.now(),
+      });
+    }
+
     // Add comment to lead
     if (matchingLead) {
       const loggingUserId = await ensureLoggingUserId(ctx);

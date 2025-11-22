@@ -233,7 +233,7 @@ export const sendMessage = action({
         throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
       }
 
-      // Log the sent message
+      // Log the sent message and update lastActivityTime
       if (args.leadId) {
         await ctx.runMutation(internal.whatsappQueries.logMessage, {
           leadId: args.leadId,
@@ -242,6 +242,11 @@ export const sendMessage = action({
           direction: "outbound",
           messageId: data.messages?.[0]?.id || null,
           status: "sent",
+        });
+        
+        // Update lastActivityTime for outbound messages
+        await ctx.runMutation(internal.whatsappQueries.updateLeadActivity, {
+          leadId: args.leadId,
         });
       }
 
