@@ -306,6 +306,7 @@ export const createLead = mutation({
       altMobileNo: normalizedAltMobile,
       status: LEAD_STATUS.YET_TO_DECIDE,
       lastActivityTime: Date.now(),
+      unreadCount: 0,
     });
 
     // Send welcome email immediately on creation if email is valid
@@ -722,6 +723,8 @@ export const bulkCreateLeads = mutation({
           status: LEAD_STATUS.YET_TO_DECIDE,
           assignedTo: args.assignedTo,
           assignedDate: args.assignedTo ? Date.now() : undefined,
+          lastActivityTime: Date.now(),
+          unreadCount: 0,
         });
 
         // NEW: Send welcome email immediately on creation if email is valid

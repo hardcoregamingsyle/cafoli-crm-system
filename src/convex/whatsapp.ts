@@ -175,6 +175,11 @@ export const sendTemplateMessage = action({
           messageId: result.messageId || null,
           status: "sent",
         });
+
+        // Update lastActivityTime for outbound messages
+        await ctx.runMutation(internal.whatsappQueries.updateLeadActivity, {
+          leadId: args.leadId,
+        });
       } catch (logError) {
         console.error("[WhatsApp] Failed to log message:", logError);
       }
@@ -332,6 +337,11 @@ export const sendInteractiveMessage = action({
           direction: "outbound",
           messageId: data.messages?.[0]?.id || null,
           status: "sent",
+        });
+
+        // Update lastActivityTime for outbound messages
+        await ctx.runMutation(internal.whatsappQueries.updateLeadActivity, {
+          leadId: args.leadId,
         });
       }
 

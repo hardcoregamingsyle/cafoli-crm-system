@@ -257,6 +257,8 @@ export const createLeadFromGoogleScript = internalMutation({
       agencyName: args.agencyName,
       assignedTo: incomingAssigneeId || undefined,
       status: "yet_to_decide",
+      lastActivityTime: Date.now(),
+      unreadCount: 0,
     });
 
     // NEW: Send welcome email immediately if email is valid
@@ -400,6 +402,8 @@ export const createLeadFromSource = internalMutation({
       state: args.state,
       status: "yet_to_decide",
       source: args.source,
+      lastActivityTime: Date.now(),
+      unreadCount: 0,
     });
 
     // NEW: Send welcome email immediately if email is valid
@@ -571,6 +575,8 @@ export const importFromWebhookLogs = mutation({
           state,
           status: "yet_to_decide",
           source,
+          lastActivityTime: Date.now(),
+          unreadCount: 0,
         });
 
         created++;
