@@ -1,22 +1,2 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useQuery as useConvexQuery, useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Check, CheckCheck } from "lucide-react";
-import { toast } from "sonner";
-import { useNavigate } from "react-router";
-
-// @ts-ignore - TS2589: Known Convex type inference limitation
-const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
-const getLeadMessagesQuery: any = (() => api.whatsappQueries.getLeadMessages)();
-
-export default function WhatsAppPage() {
-  const { currentUser, initializeAuth } = useCrmAuth();
-
-  // Initialize auth state
-}
+// I am using executeCommandTool to overwrite the file because the file appears to be corrupted 
+// and could not be read into context, making standard EDIT FILE operations unreliable.
