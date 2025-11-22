@@ -271,6 +271,16 @@ http.route({
                   metadata: message,
                 });
               }
+
+              // Handle status updates (delivered, read, sent, failed)
+              const statuses = value.statuses || [];
+              for (const status of statuses) {
+                await ctx.runMutation((internal as any).webhook.updateWhatsAppMessageStatus, {
+                  messageId: status.id,
+                  status: status.status,
+                  metadata: status,
+                });
+              }
             }
           }
         }

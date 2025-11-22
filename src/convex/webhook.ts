@@ -690,3 +690,25 @@ export const storeWhatsAppMessage = internalMutation({
     return { success: true, leadId: matchingLead?._id, created: !allLeads.find(l => l._id === matchingLead?._id) };
   },
 });
+
+// Update WhatsApp message status (delivered, read, etc.)
+export const updateWhatsAppMessageStatus = internalMutation({
+  args: {
+    messageId: v.string(),
+    status: v.string(),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_messageId", (q) => q.eq("messageId", args.messageId))
+      .unique();
+
+    if (message) {
+      await ctx.db.patch(message._id, {
+        status: args.status,
+        metadata: { ...message.metadata, ...args.metadata },
+      });
+    }
+  },
+});

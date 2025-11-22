@@ -119,7 +119,8 @@ export default defineSchema({
     metadata: v.optional(v.any()),
   })
     .index("by_leadId", ["leadId"])
-    .index("by_phoneNumber", ["phoneNumber"]),
+    .index("by_phoneNumber", ["phoneNumber"])
+    .index("by_messageId", ["messageId"]),
 
   masterdata: defineTable({
     name: v.string(),
