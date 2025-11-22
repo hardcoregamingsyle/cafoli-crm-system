@@ -164,7 +164,12 @@ export const getMyLeads = query({
       // Filter out not relevant leads
       leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
 
-      leads.sort((a, b) => a._creationTime - b._creationTime);
+      // Sort by lastActivityTime (most recent first), fallback to _creationTime
+      leads.sort((a, b) => {
+        const aTime = a.lastActivityTime ?? a._creationTime;
+        const bTime = b.lastActivityTime ?? b._creationTime;
+        return bTime - aTime; // Descending order (newest first)
+      });
       return leads;
     } catch (err) {
       console.error("getMyLeads error:", err);
@@ -296,6 +301,7 @@ export const createLead = mutation({
       mobileNo: normalizedMobile,
       altMobileNo: normalizedAltMobile,
       status: LEAD_STATUS.YET_TO_DECIDE,
+      lastActivityTime: Date.now(),
     });
 
     // Send welcome email immediately on creation if email is valid

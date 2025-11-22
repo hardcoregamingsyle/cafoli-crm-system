@@ -62,6 +62,10 @@ export const send = action({
       if (!res.ok) {
         throw new Error(`SMS API error: HTTP ${res.status} ${res.statusText} - ${text}`);
       }
+      
+      // Note: We cannot update lastActivityTime here directly as actions don't have db access
+      // The frontend should call a mutation after successful SMS send to update lastActivityTime
+      
       return { ok: true, response: text, provider: "nimbusit", to: phone };
     } catch (err: any) {
       throw new Error(err?.message || "Failed to call SMS provider");

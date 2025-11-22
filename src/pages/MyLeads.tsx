@@ -916,7 +916,8 @@ export default function MyLeadsPage() {
                       <SendSmsButtons
                         primary={lead.mobileNo}
                         secondary={lead.altMobileNo}
-                        contactPhoneLabel={"+91-7416229015"} // Provided later in SMS body (placeholder phone to be replaced as needed)
+                        contactPhoneLabel={"+91-7416229015"}
+                        leadId={lead._id}
                       />
                     </div>
                   </AccordionContent>
@@ -972,9 +973,10 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
   );
 }
 
-function SendSmsButtons({ primary, secondary }: { primary: string; secondary?: string | null; contactPhoneLabel: string; }) {
+function SendSmsButtons({ primary, secondary, leadId }: { primary: string; secondary?: string | null; contactPhoneLabel: string; leadId: string; }) {
   // Use Convex action to send SMS via backend with SMS_API_KEY
   const sendSms = useAction((api as any).sms.send);
+  const recordSmsSent = useMutation((api as any).smsTracking.recordSmsSent);
   const [sending, setSending] = useState(false);
 
   const buildMessage = () => {
@@ -989,6 +991,13 @@ function SendSmsButtons({ primary, secondary }: { primary: string; secondary?: s
       const res: any = await sendSms({ to: phone, message: msg });
       const snippet = String(res?.response ?? "").slice(0, 140);
       toast.success(`SMS sent to ${label}. Provider response: ${snippet || "OK"}`);
+      
+      // Update lead's lastActivityTime after successful SMS send
+      try {
+        await recordSmsSent({ leadId: leadId as any });
+      } catch (e) {
+        // Ignore tracking errors
+      }
     } catch (e: any) {
       toast.error(e?.message || `Failed to send SMS to ${label}`);
     } finally {
@@ -1011,9 +1020,9 @@ function SendSmsButtons({ primary, secondary }: { primary: string; secondary?: s
         <Button
           variant="outline"
           disabled={sending}
-          onClick={async () => {
-            await handleSend(secondary, "alternate");
-          }}
+        onClick={async () => {
+          await handleSend(secondary, "alternate");
+        }}
         >
           {sending ? "Sending..." : "Send SMS (Alt.)"}
         </Button>

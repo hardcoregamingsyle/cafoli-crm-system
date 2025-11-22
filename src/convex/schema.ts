@@ -101,6 +101,7 @@ export default defineSchema({
     pincode: v.optional(v.string()),
     agencyName: v.optional(v.string()),
     heat: v.optional(v.string()),
+    lastActivityTime: v.optional(v.number()),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])

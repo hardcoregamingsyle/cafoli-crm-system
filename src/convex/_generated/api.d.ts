@@ -22,6 +22,7 @@ import type * as masterdata from "../masterdata.js";
 import type * as migrate from "../migrate.js";
 import type * as notifications from "../notifications.js";
 import type * as sms from "../sms.js";
+import type * as smsTracking from "../smsTracking.js";
 import type * as users from "../users.js";
 import type * as webhook from "../webhook.js";
 import type * as whatsapp from "../whatsapp.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   migrate: typeof migrate;
   notifications: typeof notifications;
   sms: typeof sms;
+  smsTracking: typeof smsTracking;
   users: typeof users;
   webhook: typeof webhook;
   whatsapp: typeof whatsapp;
