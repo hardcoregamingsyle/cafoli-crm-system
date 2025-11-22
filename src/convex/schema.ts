@@ -102,6 +102,7 @@ export default defineSchema({
     agencyName: v.optional(v.string()),
     heat: v.optional(v.string()),
     lastActivityTime: v.optional(v.number()),
+    unreadCount: v.optional(v.number()),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])

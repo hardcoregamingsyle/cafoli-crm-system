@@ -627,6 +627,8 @@ export const storeWhatsAppMessage = internalMutation({
         state: "Unknown",
         status: "new",
         source: "whatsapp",
+        lastActivityTime: Date.now(),
+        unreadCount: 1,
       });
 
       // Fetch the newly created lead
@@ -678,8 +680,10 @@ export const storeWhatsAppMessage = internalMutation({
 
     // Update lastActivityTime for the lead
     if (matchingLead) {
+      const currentUnread = matchingLead.unreadCount || 0;
       await ctx.db.patch(matchingLead._id, {
         lastActivityTime: Date.now(),
+        unreadCount: currentUnread + 1,
       });
     }
 

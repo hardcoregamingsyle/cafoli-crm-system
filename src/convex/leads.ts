@@ -102,8 +102,12 @@ export const getAllLeads = query({
         }
       }
 
-      // Sort by creation time and add assignedUserName for display
-      leads.sort((a, b) => a._creationTime - b._creationTime);
+      // Sort by lastActivityTime (most recent first), fallback to _creationTime
+      leads.sort((a, b) => {
+        const aTime = a.lastActivityTime ?? a._creationTime;
+        const bTime = b.lastActivityTime ?? b._creationTime;
+        return bTime - aTime; // Descending order (newest first)
+      });
 
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
