@@ -697,8 +697,15 @@ export default function AllLeadsPage() {
                     <div className="flex flex-col w-full gap-2">
                       {/* Top line: Name — Source — Assigned To (read-only) */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="text-sm font-medium">
-                          {lead.name || "-"}
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium">
+                            {lead.name || "-"}
+                          </div>
+                          {lead.unreadCount > 0 && (
+                            <Badge variant="destructive" className="rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">
+                              {lead.unreadCount >= 99 ? "99+" : lead.unreadCount}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
                           <span className="text-gray-500">
