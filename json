@@ -1,3 +1,3 @@
 {
-  "plan": "1. Verify that multiple file selection and sending works correctly.\n2. Ensure the caption logic (auto-filling from message input) functions as expected with multiple files."
+  "plan": "1. Verify the template creation page loads correctly without errors.\n2. Test the template creation flow (create a test template).\n3. Verify the template appears in the list (if list view exists) or database.\n4. Inform the user the system is integrated and ready."
 }

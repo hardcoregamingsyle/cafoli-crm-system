@@ -15,13 +15,14 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
-type ButtonType = "NONE" | "QUICK_REPLY" | "CALL_TO_ACTION";
+type ButtonType = "NONE" | "QUICK_REPLY" | "CALL_TO_ACTION" | "COPY_CODE";
 
 interface TemplateButton {
-  type: "QUICK_REPLY" | "PHONE_NUMBER" | "URL";
+  type: "QUICK_REPLY" | "PHONE_NUMBER" | "URL" | "COPY_CODE";
   text: string;
   phoneNumber?: string;
   url?: string;
+  example?: string; // For URL variables if needed
 }
 
 export default function CreateTemplatePage() {
@@ -31,7 +32,7 @@ export default function CreateTemplatePage() {
   
   const [name, setName] = useState("");
   const [category, setCategory] = useState("MARKETING");
-  const [subCategory, setSubCategory] = useState("DEFAULT");
+  const [subCategory, setSubCategory] = useState("CUSTOM"); // Changed default
   const [language, setLanguage] = useState("en");
   const [bodyText, setBodyText] = useState("");
   const [visibility, setVisibility] = useState("public");
@@ -45,10 +46,20 @@ export default function CreateTemplatePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset sub-category when category changes
+  // Reset sub-category and buttons when category changes
   const handleCategoryChange = (val: string) => {
     setCategory(val);
-    setSubCategory("DEFAULT");
+    if (val === "AUTHENTICATION") {
+      setSubCategory("ONE_TIME_PASSWORD");
+      setButtonType("COPY_CODE");
+      setButtons([{ type: "COPY_CODE", text: "Copy Code" }]);
+      setHeaderType("NONE");
+      setFooterText("");
+    } else {
+      setSubCategory("CUSTOM");
+      setButtonType("NONE");
+      setButtons([]);
+    }
   };
 
   const handleAddButton = () => {
@@ -68,6 +79,17 @@ export default function CreateTemplatePage() {
 
   const handleButtonChange = (index: number, field: keyof TemplateButton, value: string) => {
     const newButtons = [...buttons];
+    
+    // Validation for CTA types
+    if (field === "type" && value === "PHONE_NUMBER") {
+      // Check if a phone number button already exists
+      const hasPhone = newButtons.some((b, i) => i !== index && b.type === "PHONE_NUMBER");
+      if (hasPhone) {
+        toast.error("Only one Phone Number button is allowed per template.");
+        return;
+      }
+    }
+
     // Cast value to any to avoid type errors with specific field types
     newButtons[index] = { ...newButtons[index], [field]: value as any };
     setButtons(newButtons);
@@ -75,7 +97,11 @@ export default function CreateTemplatePage() {
 
   const handleButtonTypeChange = (value: string) => {
     setButtonType(value as ButtonType);
-    setButtons([]);
+    if (value === "COPY_CODE") {
+       setButtons([{ type: "COPY_CODE", text: "Copy Code" }]);
+    } else {
+       setButtons([]);
+    }
   };
 
   // Helper to format WhatsApp text for preview
@@ -106,6 +132,24 @@ export default function CreateTemplatePage() {
     if (!name || !bodyText) {
       toast.error("Name and Body text are required");
       return;
+    }
+
+    // Validation
+    if (headerType === "TEXT" && headerText.length > 60) {
+        toast.error("Header text exceeds 60 characters");
+        return;
+    }
+    if (bodyText.length > 1024) {
+        toast.error("Body text exceeds 1024 characters");
+        return;
+    }
+    if (footerText.length > 60) {
+        toast.error("Footer text exceeds 60 characters");
+        return;
+    }
+    if (buttons.some(b => b.text.length > 25)) {
+        toast.error("Button text exceeds 25 characters");
+        return;
     }
 
     setIsSubmitting(true);
@@ -150,6 +194,8 @@ export default function CreateTemplatePage() {
               return { type: "URL", text: b.text, url: b.url };
             } else if (b.type === "PHONE_NUMBER") {
               return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phoneNumber };
+            } else if (b.type === "COPY_CODE") {
+              return { type: "COPY_CODE", example: "123456" }; // WhatsApp requires example for copy code
             }
             return null;
           }).filter(Boolean)
@@ -202,7 +248,7 @@ export default function CreateTemplatePage() {
                       <Input
                         id="name"
                         value={name}
-                        onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "_"))}
+                        onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))}
                         placeholder="e.g., welcome_message"
                       />
                       <p className="text-xs text-gray-500">Lowercase, underscores only</p>
@@ -229,19 +275,28 @@ export default function CreateTemplatePage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="DEFAULT">Default</SelectItem>
                             {category === "MARKETING" && (
                               <>
+                                <SelectItem value="CUSTOM">Default (Custom)</SelectItem>
                                 <SelectItem value="CATALOGUE">Catalogue</SelectItem>
-                                <SelectItem value="FLOWS">Flows</SelectItem>
+                                <SelectItem value="FLOW">Flows</SelectItem>
                                 <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                                <SelectItem value="PRODUCT_RECOMMENDATION">Product Recommendation</SelectItem>
                               </>
                             )}
                             {category === "UTILITY" && (
                               <>
-                                <SelectItem value="FLOWS">Flows</SelectItem>
+                                <SelectItem value="CUSTOM">Default (Custom)</SelectItem>
+                                <SelectItem value="FLOW">Flows</SelectItem>
                                 <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                                <SelectItem value="ORDER_DETAILS">Order Details</SelectItem>
+                                <SelectItem value="ORDER_STATUS">Order Status</SelectItem>
+                                <SelectItem value="ACCOUNT_UPDATE">Account Update</SelectItem>
+                                <SelectItem value="ALERT_UPDATE">Alert Update</SelectItem>
                               </>
+                            )}
+                            {category === "AUTHENTICATION" && (
+                              <SelectItem value="ONE_TIME_PASSWORD">One Time Password</SelectItem>
                             )}
                           </SelectContent>
                         </Select>
@@ -278,81 +333,107 @@ export default function CreateTemplatePage() {
                   </div>
 
                   {/* Header */}
-                  <div className="space-y-3 border-t pt-4">
-                    <Label className="text-base font-semibold">Header (Optional)</Label>
-                    <div className="grid gap-2">
-                      <Label>Header Type</Label>
-                      <Select value={headerType} onValueChange={(v) => setHeaderType(v as HeaderType)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          <SelectItem value="TEXT">Text</SelectItem>
-                          <SelectItem value="IMAGE">Image</SelectItem>
-                          <SelectItem value="VIDEO">Video</SelectItem>
-                          <SelectItem value="DOCUMENT">Document</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {headerType === "TEXT" && (
+                  {category !== "AUTHENTICATION" && (
+                    <div className="space-y-3 border-t pt-4">
+                      <Label className="text-base font-semibold">Header (Optional)</Label>
                       <div className="grid gap-2">
-                        <Label>Header Text</Label>
-                        <Input 
-                          value={headerText} 
-                          onChange={(e) => setHeaderText(e.target.value)}
-                          placeholder="Enter header text"
-                          maxLength={60}
-                        />
+                        <Label>Header Type</Label>
+                        <Select value={headerType} onValueChange={(v) => setHeaderType(v as HeaderType)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            <SelectItem value="TEXT">Text</SelectItem>
+                            <SelectItem value="IMAGE">Image</SelectItem>
+                            <SelectItem value="VIDEO">Video</SelectItem>
+                            <SelectItem value="DOCUMENT">Document</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
-                  </div>
+                      {headerType === "TEXT" && (
+                        <div className="grid gap-2">
+                          <div className="flex justify-between">
+                            <Label>Header Text</Label>
+                            <span className={`text-xs ${headerText.length > 60 ? 'text-red-500' : 'text-gray-500'}`}>
+                              {headerText.length}/60
+                            </span>
+                          </div>
+                          <Input 
+                            value={headerText} 
+                            onChange={(e) => setHeaderText(e.target.value)}
+                            placeholder="Enter header text"
+                            maxLength={60}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Body */}
                   <div className="space-y-3 border-t pt-4">
-                    <Label className="text-base font-semibold">Body</Label>
+                    <div className="flex justify-between items-center">
+                      <Label className="text-base font-semibold">Body</Label>
+                      <span className={`text-xs ${bodyText.length > 1024 ? 'text-red-500' : 'text-gray-500'}`}>
+                        {bodyText.length}/1024
+                      </span>
+                    </div>
                     <div className="grid gap-2">
                       <Textarea
                         id="body"
                         value={bodyText}
                         onChange={(e) => setBodyText(e.target.value)}
-                        placeholder="Enter your message text here..."
+                        placeholder={category === "AUTHENTICATION" ? "Your verification code is {{1}}." : "Enter your message text here..."}
                         className="h-32 font-mono text-sm"
                       />
                       <div className="text-xs text-gray-500 space-y-1">
                         <p>Variables: {"{{1}}"}, {"{{2}}"}, etc.</p>
-                        <p>Formatting: *bold*, _italics_, ~strikethrough~, 
-                          <code>monospace</code> (no line breaks)</p>
+                        <p>Formatting: *bold*, _italics_, ~strikethrough~, <code>monospace</code></p>
                       </div>
                     </div>
                   </div>
 
                   {/* Footer */}
-                  <div className="space-y-3 border-t pt-4">
-                    <Label className="text-base font-semibold">Footer (Optional)</Label>
-                    <div className="grid gap-2">
-                      <Textarea
-                        value={footerText}
-                        onChange={(e) => setFooterText(e.target.value)}
-                        placeholder="Enter footer text (optional)"
-                        className="h-16 font-mono text-sm"
-                      />
+                  {category !== "AUTHENTICATION" && (
+                    <div className="space-y-3 border-t pt-4">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-base font-semibold">Footer (Optional)</Label>
+                        <span className={`text-xs ${footerText.length > 60 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {footerText.length}/60
+                        </span>
+                      </div>
+                      <div className="grid gap-2">
+                        <Textarea
+                          value={footerText}
+                          onChange={(e) => setFooterText(e.target.value)}
+                          placeholder="Enter footer text (optional)"
+                          className="h-16 font-mono text-sm"
+                          maxLength={60}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Buttons */}
                   <div className="space-y-3 border-t pt-4">
                     <Label className="text-base font-semibold">Buttons (Optional)</Label>
                     <div className="grid gap-2">
                       <Label>Button Type</Label>
-                      <Select value={buttonType} onValueChange={handleButtonTypeChange}>
+                      <Select 
+                        value={buttonType} 
+                        onValueChange={handleButtonTypeChange}
+                        disabled={category === "AUTHENTICATION"}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="NONE">None</SelectItem>
-                          <SelectItem value="QUICK_REPLY">Quick Reply</SelectItem>
-                          <SelectItem value="CALL_TO_ACTION">Call to Action</SelectItem>
+                          <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
+                          <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
+                          {category === "AUTHENTICATION" && (
+                            <SelectItem value="COPY_CODE">Copy Code</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -377,12 +458,19 @@ export default function CreateTemplatePage() {
                                 </Select>
                               )}
                               
-                              <Input
-                                value={btn.text}
-                                onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
-                                placeholder="Button Text"
-                                maxLength={25}
-                              />
+                              {buttonType === "COPY_CODE" ? (
+                                <Input value="Copy Code" disabled />
+                              ) : (
+                                <div className="grid gap-1">
+                                  <Input
+                                    value={btn.text}
+                                    onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
+                                    placeholder="Button Text"
+                                    maxLength={25}
+                                  />
+                                  <span className="text-[10px] text-gray-400 text-right">{btn.text.length}/25</span>
+                                </div>
+                              )}
 
                               {btn.type === "URL" && (
                                 <Input
@@ -400,14 +488,16 @@ export default function CreateTemplatePage() {
                                 />
                               )}
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => handleRemoveButton(idx)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {buttonType !== "COPY_CODE" && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleRemoveButton(idx)}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         ))}
                         
@@ -433,82 +523,72 @@ export default function CreateTemplatePage() {
           </Card>
 
           {/* Right Column: Preview */}
-          <Card className="flex flex-col overflow-hidden">
-            <CardHeader>
-              <CardTitle>Template Preview</CardTitle>
+          <Card className="flex flex-col overflow-hidden bg-[#E5DDD5]">
+            <CardHeader className="bg-white border-b">
+              <CardTitle>Preview</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full px-6 pb-6">
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-500">
-                    <strong>Template Name:</strong> {name || "Untitled"}
-                  </div>
-                  
-                  {headerType !== "NONE" && (
-                    <div className="border rounded p-4 bg-gray-50">
-                      {headerType === "TEXT" && (
-                        <p className="text-lg font-semibold">{headerText || "Header Text"}</p>
-                      )}
-                      {headerType === "IMAGE" && (
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-gray-300 rounded mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Image Header</p>
-                        </div>
-                      )}
-                      {headerType === "VIDEO" && (
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-gray-300 rounded mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Video Header</p>
-                        </div>
-                      )}
-                      {headerType === "DOCUMENT" && (
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-gray-300 rounded mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">Document Header</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="border rounded p-4 bg-white">
-                    <div className="text-sm text-gray-500 mb-2">
-                      <strong>Body:</strong> {bodyText || "No body text"}
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      {formatWhatsAppText(bodyText)}
-                    </div>
-                  </div>
-
-                  {footerText && (
-                    <div className="border rounded p-4 bg-gray-50">
-                      <p className="text-sm text-gray-600">Footer: {footerText}</p>
-                    </div>
-                  )}
-
-                  {buttonType !== "NONE" && buttons.length > 0 && (
-                    <div className="border rounded p-4 bg-white">
-                      <div className="text-sm text-gray-500 mb-2">
-                        <strong>Buttons:</strong> {buttons.length} {buttons.length === 1 ? "button" : "buttons"}
-                      </div>
-                      <div className="space-y-2">
-                        {buttons.map((button, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-700">{button.text || "Button Text"}</p>
-                              {button.type === "URL" && button.url && (
-                                <p className="text-xs text-blue-600">{button.url}</p>
-                              )}
-                              {button.type === "PHONE_NUMBER" && button.phoneNumber && (
-                                <p className="text-xs text-green-600">{button.phoneNumber}</p>
-                              )}
-                            </div>
+            <CardContent className="flex-1 overflow-hidden p-4 flex items-center justify-center">
+              <div className="w-full max-w-sm bg-white rounded-lg shadow-sm overflow-hidden relative">
+                {/* WhatsApp Message Bubble */}
+                <div className="p-1">
+                  <div className="bg-white p-2 rounded-lg">
+                    {/* Header */}
+                    {headerType !== "NONE" && (
+                      <div className="mb-2 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {headerType === "TEXT" && (
+                          <div className="w-full p-2 font-bold text-gray-800">{headerText || "{{Header}}"}</div>
+                        )}
+                        {headerType === "IMAGE" && (
+                          <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400">
+                            <span className="text-xs">IMAGE</span>
                           </div>
-                        ))}
+                        )}
+                        {headerType === "VIDEO" && (
+                          <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400">
+                            <span className="text-xs">VIDEO</span>
+                          </div>
+                        )}
+                        {headerType === "DOCUMENT" && (
+                          <div className="w-full h-16 bg-gray-200 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 m-2 rounded">
+                            <span className="text-xs">DOCUMENT</span>
+                          </div>
+                        )}
                       </div>
+                    )}
+
+                    {/* Body */}
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap mb-1">
+                      {bodyText ? formatWhatsAppText(bodyText) : <span className="text-gray-400 italic">Body text...</span>}
+                    </div>
+
+                    {/* Footer */}
+                    {footerText && (
+                      <div className="text-[10px] text-gray-500 mt-1">
+                        {footerText}
+                      </div>
+                    )}
+                    
+                    {/* Timestamp */}
+                    <div className="text-[10px] text-gray-400 text-right mt-1">
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  {buttonType !== "NONE" && buttons.length > 0 && (
+                    <div className="mt-1 space-y-1">
+                      {buttons.map((btn, idx) => (
+                        <div key={idx} className="bg-white rounded text-center py-2 text-[#00a884] text-sm font-medium cursor-pointer shadow-sm hover:bg-gray-50">
+                          {btn.type === "URL" && <span className="mr-1">🔗</span>}
+                          {btn.type === "PHONE_NUMBER" && <span className="mr-1">📞</span>}
+                          {btn.type === "COPY_CODE" && <span className="mr-1">📋</span>}
+                          {btn.text || "Button"}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </div>
