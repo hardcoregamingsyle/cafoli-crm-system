@@ -435,6 +435,67 @@ export const uploadMedia = action({
   },
 });
 
+// Send a reaction to a message
+export const sendReaction = action({
+  args: {
+    phoneNumber: v.string(),
+    messageId: v.string(),
+    emoji: v.string(),
+    leadId: v.optional(v.id("leads")),
+  },
+  handler: async (ctx, args) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_NUMBER_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    if (!token || !phoneId) {
+      throw new Error("WhatsApp credentials not configured");
+    }
+
+    const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: normalizedPhone,
+            type: "reaction",
+            reaction: {
+              message_id: args.messageId,
+              emoji: args.emoji,
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
+      }
+
+      // Update the message in the database
+      await ctx.runMutation(internal.webhook.handleWhatsAppReaction, {
+        messageId: args.messageId,
+        reaction: args.emoji,
+        phoneNumber: normalizedPhone,
+      });
+
+      return { success: true, data };
+    } catch (error: any) {
+      throw new Error(`Failed to send reaction: ${error.message}`);
+    }
+  },
+});
+
 // Add new action to send media messages
 export const sendMediaMessage = action({
   args: {

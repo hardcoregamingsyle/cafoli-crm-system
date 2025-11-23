@@ -42,6 +42,7 @@ export default function WhatsAppPage() {
   const sendMessage = useAction(api.whatsapp.sendMessage);
   const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
   const sendMediaMessage = useAction(api.whatsapp.sendMediaMessage);
+  const sendReaction = useAction(api.whatsapp.sendReaction);
   const markMessagesAsRead = useMutation(api.whatsappQueries.markMessagesAsRead);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
@@ -258,6 +259,25 @@ export default function WhatsAppPage() {
     }
   };
 
+  const handleSendReaction = async (messageId: string, emoji: string) => {
+    if (!selectedLeadId || !currentUser) return;
+    const lead = filteredLeads.find((l: any) => l._id === selectedLeadId);
+    if (!lead?.mobileNo) return;
+
+    try {
+      await sendReaction({
+        phoneNumber: lead.mobileNo,
+        messageId,
+        emoji,
+        leadId: selectedLeadId as any,
+      });
+      toast.success("Reaction sent");
+    } catch (error: any) {
+      console.error("[WhatsApp] Failed to send reaction:", error);
+      toast.error("Failed to send reaction");
+    }
+  };
+
   async function handleSendMessage() {
     if (!messageInput.trim() || !selectedLeadId || !currentUser) return;
 
@@ -318,6 +338,7 @@ export default function WhatsAppPage() {
             isUploading={isUploading}
             handleFileSelect={handleFileSelect}
             handleSendMedia={handleSendMedia}
+            handleSendReaction={handleSendReaction}
             fileInputRef={fileInputRef}
             messagesEndRef={messagesEndRef}
           />
