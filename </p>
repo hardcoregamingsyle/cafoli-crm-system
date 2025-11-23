@@ -1,0 +1,134 @@
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">Footer (Optional)</Label>
+              <Input 
+                value={footerText} 
+                onChange={(e) => setFooterText(e.target.value)}
+                placeholder="Enter footer text"
+                maxLength={60}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">Buttons (Optional)</Label>
+              <div className="grid gap-2">
+                <Label>Button Type</Label>
+                <Select 
+                  value={buttonType} 
+                  onValueChange={handleButtonTypeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">None</SelectItem>
+                    <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
+                    <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {buttonType !== "NONE" && (
+                <div className="space-y-3">
+                  {buttons.map((btn, idx) => (
+                    <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border">
+                      <div className="grid gap-2 flex-1">
+                        {buttonType === "CALL_TO_ACTION" && (
+                          <Select 
+                            value={btn.type} 
+                            onValueChange={(v) => handleButtonChange(idx, "type", v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="URL">Website URL</SelectItem>
+                              <SelectItem value="PHONE_NUMBER">Phone Number</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        
+                        <Input
+                          value={btn.text}
+                          onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
+                          placeholder="Button Text"
+                          maxLength={25}
+                        />
+
+                        {btn.type === "URL" && (
+                          <Input
+                            value={btn.url}
+                            onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
+                            placeholder="https://example.com"
+                          />
+                        )}
+
+                        {btn.type === "PHONE_NUMBER" && (
+                          <Input
+                            value={btn.phoneNumber}
+                            onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
+                            placeholder="+1234567890"
+                          />
+                        )}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleRemoveButton(idx)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  {((buttonType === "QUICK_REPLY" && buttons.length < 3) || 
+                    (buttonType === "CALL_TO_ACTION" && buttons.length < 2)) && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleAddButton}
+                      className="w-full border-dashed"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Button
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Visibility */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">Visibility</Label>
+              <RadioGroup value={visibility} onValueChange={setVisibility} className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="public" id="public" />
+                  <Label htmlFor="public">Public (All Users)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="private" id="private" />
+                  <Label htmlFor="private">Private (Only Me)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+        </ScrollArea>
+        <DialogFooter className="pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create Template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
