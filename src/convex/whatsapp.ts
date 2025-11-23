@@ -29,16 +29,11 @@ function normalizePhoneNumber(phone: string): string {
 }
 
 // Shared template message sending logic (helper function)
-// convex/whatsapp.ts
-
-// ... (keep your imports and normalizePhoneNumber function exactly as they are) ...
-
-// REPLACE your existing sendTemplateMessageHelper with this one:
 async function sendTemplateMessageHelper(
   phoneNumber: string,
   templateName: string,
   languageCode: string,
-  components?: any[] // <--- ADD THIS ARGUMENT
+  components?: any[]
 ): Promise<{ success: boolean; messageId?: string; data?: any; error?: string }> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
@@ -86,7 +81,7 @@ async function sendTemplateMessageHelper(
     };
 
     // Add components (variables) if provided
-    if (components && components.length > 0) {
+    if (components && Array.isArray(components) && components.length > 0) {
       payload.template.components = components;
     }
 
@@ -132,16 +127,13 @@ async function sendTemplateMessageHelper(
   }
 }
 
-// ... (Keep sendMessage and sendInteractiveMessage exactly as they are) ...
-
-// UPDATE your sendTemplateMessage action to accept components:
 export const sendTemplateMessage = action({
   args: {
     phoneNumber: v.string(),
     templateName: v.string(),
     languageCode: v.optional(v.string()),
     leadId: v.optional(v.id("leads")),
-    components: v.optional(v.any()), // <--- ADD THIS ARGUMENT
+    components: v.optional(v.array(v.any())),
   },
   handler: async (ctx, args) => {
     console.log(`[WhatsApp] sendTemplateMessage called with:`, { 
@@ -154,7 +146,7 @@ export const sendTemplateMessage = action({
       args.phoneNumber,
       args.templateName,
       args.languageCode || "en",
-      args.components // <--- PASS IT HERE
+      args.components
     );
 
     if (!result.success) {
@@ -188,8 +180,6 @@ export const sendTemplateMessage = action({
     return result;
   },
 });
-
-// ... (Keep sendTemplateMessageInternal exactly as is, or update similarly if you need internal variables)
 
 // Send a text message via WhatsApp
 export const sendMessage = action({
@@ -249,10 +239,6 @@ export const sendMessage = action({
 
       // Log the sent message and update lastActivityTime
       if (args.leadId) {
-        // If replying, try to find the original message to get body/sender for local log
-        // Note: We can't easily query DB here since this is an action. 
-        // We'll just log the ID. The UI can resolve it if needed or we can pass it in args if we want to be fancy.
-        
         await ctx.runMutation(internal.whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
@@ -390,9 +376,6 @@ export const sendTemplateMessageInternal = internalAction({
       // Don't throw - just log and return the error so webhook processing continues
     }
 
-    // Note: Internal action doesn't log to database since we don't have leadId
-    // Logging happens in the public action when called from UI
-
     return result;
   },
 });
@@ -496,15 +479,6 @@ export const sendReaction = action({
         throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
       }
 
-      // Update the message in the database
-      // We use a separate internal mutation for this to keep logic consistent
-      // But since we can't call internal mutation from here easily without exposing another one,
-      // we'll reuse the webhook handler or create a specific one. 
-      // Actually, we can call the webhook handler internal mutation if we import it.
-      // But better to have a dedicated update function.
-      // For now, let's use the webhook handler as it does exactly what we want: updates reactions.
-      // We pass a dummy phone number that is NOT the lead's phone number to indicate "outbound"
-      
       await ctx.runMutation(internal.webhook.handleWhatsAppReaction, {
         messageId: args.messageId,
         reaction: args.emoji,
