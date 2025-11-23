@@ -6,6 +6,9 @@ import { Layout } from "@/components/Layout";
 import { toast } from "sonner";
 import { LeadList } from "@/components/whatsapp/LeadList";
 import { ChatArea } from "@/components/whatsapp/ChatArea";
+import { CreateTemplateDialog } from "@/components/whatsapp/CreateTemplateDialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
 const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
@@ -24,6 +27,7 @@ export default function WhatsAppPage() {
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ts-ignore - Convex type inference limitation
@@ -323,8 +327,19 @@ export default function WhatsAppPage() {
       <div className="h-[calc(100vh-4rem)] flex flex-col max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">WhatsApp Portal</h1>
-          <div className="text-sm text-gray-600">
-            Showing {filteredLeads.length} of {leadsWithMessages?.length || 0} leads
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setCreateTemplateOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Create New Template
+            </Button>
+            <div className="text-sm text-gray-600">
+              Showing {filteredLeads.length} of {leadsWithMessages?.length || 0} leads
+            </div>
           </div>
         </div>
 
@@ -361,6 +376,11 @@ export default function WhatsAppPage() {
           />
         </div>
       </div>
+      
+      <CreateTemplateDialog 
+        open={createTemplateOpen} 
+        onOpenChange={setCreateTemplateOpen} 
+      />
     </Layout>
   );
 }

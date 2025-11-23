@@ -136,8 +136,8 @@ export default defineSchema({
     replyToSender: v.optional(v.string()),
   })
     .index("by_leadId", ["leadId"])
-    .index("by_phoneNumber", ["phoneNumber"])
-    .index("by_messageId", ["messageId"]), // Ensure we have an index to look up messages by ID
+    .index("by_messageId", ["messageId"])
+    .index("by_phoneNumber", ["phoneNumber"]),
 
   masterdata: defineTable({
     name: v.string(),
@@ -227,4 +227,34 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
   })
     .index("by_status", ["status"]),
+
+  whatsappTemplates: defineTable({
+    name: v.string(),
+    language: v.string(),
+    category: v.string(),
+    components: v.any(), // JSON structure for header, body, footer, buttons
+    status: v.string(), // "pending", "approved", "rejected", "paused"
+    visibility: v.string(), // "public", "private"
+    createdBy: v.id("users"),
+    wabaTemplateId: v.optional(v.string()),
+    rejectionReason: v.optional(v.string()),
+  })
+    .index("by_status", ["status"])
+    .index("by_visibility", ["visibility"])
+    .index("by_createdBy", ["createdBy"]),
+
+  files: defineTable({
+    name: v.string(),
+    path: v.string(),
+    size: v.number(),
+    type: v.string(),
+    uploadedBy: v.id("users"),
+    uploadedAt: v.number(),
+    mimeType: v.optional(v.string()),
+    isPublic: v.optional(v.boolean()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_uploadedBy", ["uploadedBy"])
+    .index("by_type", ["type"])
+    .index("by_uploadedAt", ["uploadedAt"]),
 });

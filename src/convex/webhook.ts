@@ -812,3 +812,40 @@ export const handleWhatsAppReaction = internalMutation({
     }
   },
 });
+
+export const updateTemplateStatusWebhook = internalMutation({
+  args: {
+    templateId: v.optional(v.string()), // Meta's template ID
+    status: v.string(),
+    reason: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Find template by name or WABA ID
+    let template = null;
+    
+    if (args.name) {
+      template = await ctx.db
+        .query("whatsappTemplates")
+        .filter(q => q.eq(q.field("name"), args.name))
+        .first();
+    }
+
+    if (template) {
+      await ctx.db.patch(template._id, {
+        status: args.status.toLowerCase(),
+        rejectionReason: args.reason,
+        wabaTemplateId: args.templateId || template.wabaTemplateId,
+      });
+      
+      // Log it
+      const loggingUserId = await ensureLoggingUserId(ctx);
+      await ctx.db.insert("auditLogs", {
+        userId: loggingUserId,
+        action: "TEMPLATE_STATUS_UPDATE",
+        details: `Template ${template.name} status updated to ${args.status}`,
+        timestamp: Date.now(),
+      });
+    }
+  },
+});
