@@ -83,18 +83,27 @@ export default function WhatsAppPage() {
     if (!leadsWithMessages) return [];
     
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return leadsWithMessages;
+    let filtered = leadsWithMessages;
 
-    return leadsWithMessages.filter((lead: any) => {
-      const name = (lead?.name || "").toLowerCase();
-      const phone = (lead?.mobileNo || "").toLowerCase();
-      const subject = (lead?.subject || "").toLowerCase();
-      const message = (lead?.message || "").toLowerCase();
-      
-      return name.includes(query) || 
-             phone.includes(query) || 
-             subject.includes(query) || 
-             message.includes(query);
+    if (query) {
+      filtered = leadsWithMessages.filter((lead: any) => {
+        const name = (lead?.name || "").toLowerCase();
+        const phone = (lead?.mobileNo || "").toLowerCase();
+        const subject = (lead?.subject || "").toLowerCase();
+        const message = (lead?.message || "").toLowerCase();
+        
+        return name.includes(query) || 
+               phone.includes(query) || 
+               subject.includes(query) || 
+               message.includes(query);
+      });
+    }
+
+    // Sort by lastActivityTime (most recent first), fallback to lastMessageTime, then _creationTime
+    return filtered.sort((a: any, b: any) => {
+      const aTime = a?.lastActivityTime ?? a?.lastMessageTime ?? a?._creationTime ?? 0;
+      const bTime = b?.lastActivityTime ?? b?.lastMessageTime ?? b?._creationTime ?? 0;
+      return bTime - aTime;
     });
   }, [leadsWithMessages, searchQuery]);
 
