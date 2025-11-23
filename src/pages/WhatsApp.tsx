@@ -144,10 +144,8 @@ export default function WhatsAppPage() {
 
   if (!currentUser) return <Layout><div /></Layout>;
 
-  // Helper function to send welcome message
-  const handleSendWelcomeMessage = async () => {
+  const handleSendTemplateWrapper = async (template: any) => {
     if (!selectedLeadId || !currentUser) return;
-
     const lead = filteredLeads.find((l: any) => l._id === selectedLeadId);
     if (!lead?.mobileNo) {
       toast.error("Lead has no phone number");
@@ -155,18 +153,17 @@ export default function WhatsAppPage() {
     }
 
     try {
-      const result = await sendTemplateMessage({
+      await sendTemplateMessage({
         phoneNumber: lead.mobileNo,
-        templateName: "cafoliwelcomemessage",
-        languageCode: "en",
+        templateName: template.name,
+        languageCode: template.language,
         leadId: selectedLeadId as any,
+        components: [] // We might need to handle variables later
       });
-      
-      console.log("[WhatsApp] Welcome message sent successfully:", result);
-      toast.success("Welcome message sent successfully!");
+      toast.success(`Template "${template.name}" sent successfully`);
     } catch (error: any) {
-      console.error("[WhatsApp] Failed to send welcome message:", error);
-      toast.error(error?.message || "Failed to send welcome message");
+      console.error("[WhatsApp] Failed to send template:", error);
+      toast.error(error?.message || "Failed to send template");
     }
   };
 
@@ -359,7 +356,6 @@ export default function WhatsAppPage() {
             messageInput={messageInput}
             setMessageInput={setMessageInput}
             handleSendMessage={handleSendMessage}
-            handleSendWelcomeMessage={handleSendWelcomeMessage}
             isMessagingAllowed={isMessagingAllowed}
             selectedFiles={selectedFiles}
             handleRemoveFile={handleRemoveFile}
@@ -373,6 +369,7 @@ export default function WhatsAppPage() {
             messagesEndRef={messagesEndRef}
             replyingTo={replyingTo}
             setReplyingTo={setReplyingTo}
+            onSendTemplate={handleSendTemplateWrapper}
           />
         </div>
       </div>

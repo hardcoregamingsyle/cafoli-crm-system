@@ -6,6 +6,7 @@ import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileTe
 import { useState, useEffect } from "react";
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TemplatesDialog } from "./TemplatesDialog";
 
 interface ChatAreaProps {
   selectedLeadId: string | null;
@@ -14,7 +15,6 @@ interface ChatAreaProps {
   messageInput: string;
   setMessageInput: (val: string) => void;
   handleSendMessage: () => void;
-  handleSendWelcomeMessage: () => void;
   isMessagingAllowed: boolean;
   selectedFiles: File[];
   handleRemoveFile: (index: number) => void;
@@ -28,6 +28,7 @@ interface ChatAreaProps {
   messagesEndRef: React.RefObject<HTMLDivElement>;
   replyingTo: any | null;
   setReplyingTo: (msg: any | null) => void;
+  onSendTemplate: (template: any) => void;
 }
 
 export function ChatArea({
@@ -37,7 +38,6 @@ export function ChatArea({
   messageInput,
   setMessageInput,
   handleSendMessage,
-  handleSendWelcomeMessage,
   isMessagingAllowed,
   selectedFiles,
   handleRemoveFile,
@@ -51,9 +51,11 @@ export function ChatArea({
   messagesEndRef,
   replyingTo,
   setReplyingTo,
+  onSendTemplate,
 }: ChatAreaProps) {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
 
   // Close reaction picker when clicking outside
   useEffect(() => {
@@ -162,15 +164,25 @@ export function ChatArea({
               {lead?.mobileNo}
             </div>
           </div>
-          {selectedLeadId && !lead?.welcomeMessageSent && (
-            <Button
-              onClick={handleSendWelcomeMessage}
-              variant="outline"
-              size="sm"
-              className="ml-2"
-            >
-              Send Welcome Message
-            </Button>
+          {selectedLeadId && (
+            <>
+              <Button
+                onClick={() => setIsTemplatesOpen(true)}
+                variant="outline"
+                size="sm"
+                className="ml-2"
+              >
+                Templates
+              </Button>
+              <TemplatesDialog 
+                open={isTemplatesOpen} 
+                onOpenChange={setIsTemplatesOpen}
+                onSendTemplate={(template) => {
+                  onSendTemplate(template);
+                  setIsTemplatesOpen(false);
+                }}
+              />
+            </>
           )}
         </div>
       </CardHeader>
