@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ChatAreaProps {
   selectedLeadId: string | null;
@@ -46,6 +46,17 @@ export function ChatArea({
   messagesEndRef,
 }: ChatAreaProps) {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
+
+  // Close reaction picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setReactingTo(null);
+    if (reactingTo) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [reactingTo]);
   
   const renderReadReceipt = (status: string | undefined) => {
     if (!status || status === "sent") {
@@ -156,7 +167,6 @@ export function ChatArea({
               <div
                 key={msg._id}
                 className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"} group relative`}
-                onMouseLeave={() => setReactingTo(null)}
               >
                 <div
                   className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm ${
@@ -203,7 +213,10 @@ export function ChatArea({
 
                   {/* Emoji Picker */}
                   {reactingTo === msg._id && (
-                    <div className={`absolute -top-10 ${msg.direction === "outbound" ? "right-0" : "left-0"} bg-white shadow-lg rounded-full p-1 flex gap-1 z-20 border border-gray-200`}>
+                    <div 
+                      className={`absolute -top-10 ${msg.direction === "outbound" ? "right-0" : "left-0"} bg-white shadow-lg rounded-full p-1 flex gap-1 z-20 border border-gray-200`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {["👍", "❤️", "😂", "😮", "😢", "🙏"].map(emoji => (
                         <button
                           key={emoji}
