@@ -616,6 +616,23 @@ export const storeWhatsAppMessage = internalMutation({
     // Normalize phone number using the shared helper
     const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
+    // Resolve reply context if ID is present but body is missing
+    let replyToBody = args.replyToBody;
+    let replyToSender = args.replyToSender;
+
+    if (args.replyToMessageId && !replyToBody) {
+      const originalMsg = await ctx.db
+        .query("whatsappMessages")
+        .withIndex("by_messageId", (q: any) => q.eq("messageId", args.replyToMessageId))
+        .unique();
+      
+      if (originalMsg) {
+        replyToBody = originalMsg.message;
+        // If sender wasn't provided (it usually is in webhook context.from, but good to have fallback)
+        if (!replyToSender) replyToSender = originalMsg.phoneNumber; 
+      }
+    }
+
     // Try to find matching lead by phone number
     const allLeads = await ctx.db.query("leads").collect();
     let matchingLead = allLeads.find(
@@ -696,8 +713,8 @@ export const storeWhatsAppMessage = internalMutation({
       mimeType: args.mimeType,
       caption: args.caption,
       replyToMessageId: args.replyToMessageId,
-      replyToBody: args.replyToBody,
-      replyToSender: args.replyToSender,
+      replyToBody: replyToBody,
+      replyToSender: replyToSender,
     });
 
     // Update lastActivityTime for the lead

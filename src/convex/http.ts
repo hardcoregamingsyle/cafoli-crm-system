@@ -279,12 +279,24 @@ http.route({
                   messageText = `[${messageType}]`;
                 }
 
+                // Extract reply context if present
+                const context = message.context;
+                let replyToMessageId = undefined;
+                let replyToSender = undefined;
+
+                if (context) {
+                  replyToMessageId = context.id;
+                  replyToSender = context.from;
+                }
+
                 // Store the incoming message
                 await ctx.runMutation((internal as any).webhook.storeWhatsAppMessage, {
                   phoneNumber,
                   message: messageText,
                   messageId,
                   metadata: message,
+                  replyToMessageId,
+                  replyToSender,
                 });
               }
 
