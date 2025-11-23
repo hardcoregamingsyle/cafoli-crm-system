@@ -43,6 +43,7 @@ export default function WhatsAppPage() {
   const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
   const sendMediaMessage = useAction(api.whatsapp.sendMediaMessage);
   const markMessagesAsRead = useMutation(api.whatsappQueries.markMessagesAsRead);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
   // Mark messages as read when lead is selected
   useEffect(() => {
@@ -187,37 +188,41 @@ export default function WhatsAppPage() {
 
     setIsUploading(true);
     try {
-      // Convert file to base64 data URL
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const dataUrl = reader.result as string;
-        
-        try {
-          const mediaType = getMediaType(selectedFile);
-          const result = await sendMediaMessage({
-            phoneNumber: lead.mobileNo,
-            mediaType,
-            mediaUrl: dataUrl,
-            caption: caption || undefined,
-            filename: selectedFile.name,
-            leadId: selectedLeadId as any,
-          });
-          
-          console.log("[WhatsApp] Media message sent successfully:", result);
-          setSelectedFile(null);
-          setCaption("");
-          toast.success("Media sent successfully!");
-        } catch (error: any) {
-          console.error("[WhatsApp] Failed to send media:", error);
-          toast.error(error?.message || "Failed to send media");
-        } finally {
-          setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(selectedFile);
+      // 1. Get upload URL
+      const postUrl = await generateUploadUrl();
+      
+      // 2. Upload file
+      const result = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": selectedFile.type },
+        body: selectedFile,
+      });
+      
+      if (!result.ok) {
+        throw new Error(`Upload failed: ${result.statusText}`);
+      }
+      
+      const { storageId } = await result.json();
+
+      // 3. Send message with storage ID
+      const mediaType = getMediaType(selectedFile);
+      const sendResult = await sendMediaMessage({
+        phoneNumber: lead.mobileNo,
+        mediaType,
+        mediaStorageId: storageId,
+        caption: caption || undefined,
+        filename: selectedFile.name,
+        leadId: selectedLeadId as any,
+      });
+      
+      console.log("[WhatsApp] Media message sent successfully:", sendResult);
+      setSelectedFile(null);
+      setCaption("");
+      toast.success("Media sent successfully!");
     } catch (error: any) {
-      console.error("[WhatsApp] Failed to process media:", error);
-      toast.error("Failed to process media file");
+      console.error("[WhatsApp] Failed to send media:", error);
+      toast.error(error?.message || "Failed to send media");
+    } finally {
       setIsUploading(false);
     }
   };

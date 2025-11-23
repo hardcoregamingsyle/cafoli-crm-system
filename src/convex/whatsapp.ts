@@ -2,7 +2,7 @@
 
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // Shared phone normalization helper
 function normalizePhoneNumber(phone: string): string {
@@ -442,6 +442,7 @@ export const sendMediaMessage = action({
     mediaType: v.string(), // image, video, audio, document, sticker
     mediaId: v.optional(v.string()),
     mediaUrl: v.optional(v.string()),
+    mediaStorageId: v.optional(v.id("_storage")),
     caption: v.optional(v.string()),
     filename: v.optional(v.string()),
     leadId: v.optional(v.id("leads")),
@@ -457,15 +458,25 @@ export const sendMediaMessage = action({
 
     const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
+    // Resolve media URL if storage ID is provided
+    let finalMediaUrl = args.mediaUrl;
+    if (args.mediaStorageId) {
+      const url = await ctx.runQuery(api.files.getDownloadUrl, { storageId: args.mediaStorageId });
+      if (!url) {
+        throw new Error("Failed to resolve storage URL");
+      }
+      finalMediaUrl = url;
+    }
+
     // Build media object based on type
     const mediaObject: any = {};
     
     if (args.mediaId) {
       mediaObject.id = args.mediaId;
-    } else if (args.mediaUrl) {
-      mediaObject.link = args.mediaUrl;
+    } else if (finalMediaUrl) {
+      mediaObject.link = finalMediaUrl;
     } else {
-      throw new Error("Either mediaId or mediaUrl must be provided");
+      throw new Error("Either mediaId, mediaUrl, or mediaStorageId must be provided");
     }
 
     if (args.caption && ["image", "video", "document"].includes(args.mediaType)) {
@@ -510,6 +521,9 @@ export const sendMediaMessage = action({
           direction: "outbound",
           messageId: data.messages?.[0]?.id || null,
           status: "sent",
+          mediaType: args.mediaType,
+          mediaUrl: finalMediaUrl,
+          mediaId: args.mediaId,
         });
 
         await ctx.runMutation(internal.whatsappQueries.updateLeadActivity, {
