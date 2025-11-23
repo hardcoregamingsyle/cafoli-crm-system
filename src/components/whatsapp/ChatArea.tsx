@@ -158,7 +158,7 @@ export function ChatArea({
                     msg.direction === "outbound"
                       ? "bg-[#dcf8c6]"
                       : "bg-white"
-                  }`}
+                  } relative`}
                 >
                   <div className="text-sm break-words text-gray-900">{String(msg.message)}</div>
                   {renderMediaMessage(msg)}
@@ -175,6 +175,13 @@ export function ChatArea({
                       </span>
                     )}
                   </div>
+                  
+                  {/* Reaction Display */}
+                  {msg.reaction && (
+                    <div className="absolute -bottom-3 -right-2 bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-sm">
+                      {msg.reaction}
+                    </div>
+                  )}
                 </div>
               </div>
             ))

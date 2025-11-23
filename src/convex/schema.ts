@@ -115,20 +115,21 @@ export default defineSchema({
     leadId: v.optional(v.id("leads")),
     phoneNumber: v.string(),
     message: v.string(),
-    direction: v.optional(v.string()),
+    direction: v.union(v.literal("inbound"), v.literal("outbound")),
     messageId: v.optional(v.string()),
-    status: v.optional(v.string()),
+    status: v.string(), // sent, delivered, read, received, failed
     timestamp: v.number(),
     metadata: v.optional(v.any()),
-    mediaType: v.optional(v.string()),
+    mediaType: v.optional(v.string()), // image, video, document, audio
     mediaUrl: v.optional(v.string()),
     mediaId: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     caption: v.optional(v.string()),
+    reaction: v.optional(v.string()), // Add reaction field
   })
     .index("by_leadId", ["leadId"])
     .index("by_phoneNumber", ["phoneNumber"])
-    .index("by_messageId", ["messageId"]),
+    .index("by_messageId", ["messageId"]), // Ensure we have an index to look up messages by ID
 
   masterdata: defineTable({
     name: v.string(),
@@ -148,18 +149,17 @@ export default defineSchema({
   })
     .index("by_isAssigned", ["isAssigned"]),
 
- leadRequests: defineTable({
-  requestedBy: v.id("users"),
-  requestedByName: v.string(),
-  requestedByRole: v.string(),
-  numberOfLeads: v.number(),
-  status: v.string(),
-  processedBy: v.optional(v.id("users")),
-  processedAt: v.optional(v.number()),
-})
-  .index("by_requestedBy", ["requestedBy"])
-  .index("by_status", ["status"]),
-
+  leadRequests: defineTable({
+    requestedBy: v.id("users"),
+    requestedByName: v.string(),
+    requestedByRole: v.string(),
+    numberOfLeads: v.number(),
+    status: v.string(),
+    processedBy: v.optional(v.id("users")),
+    processedAt: v.optional(v.number()),
+  })
+    .index("by_requestedBy", ["requestedBy"])
+    .index("by_status", ["status"]),
 
   campaigns: defineTable({
     name: v.string(),

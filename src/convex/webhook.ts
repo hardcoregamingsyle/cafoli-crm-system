@@ -740,3 +740,29 @@ export const updateWhatsAppMessageStatus = internalMutation({
     }
   },
 });
+
+// Add: Handle WhatsApp reaction events
+export const handleWhatsAppReaction = internalMutation({
+  args: {
+    messageId: v.string(),
+    reaction: v.string(), // The emoji
+    phoneNumber: v.string(), // Who reacted
+  },
+  handler: async (ctx, args) => {
+    // Find the message being reacted to
+    const message = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_messageId", (q) => q.eq("messageId", args.messageId))
+      .unique();
+
+    if (message) {
+      // Update the message with the reaction
+      // If reaction is empty string (unreact), we could clear it, but usually it's an emoji
+      await ctx.db.patch(message._id, {
+        reaction: args.reaction,
+      });
+    } else {
+      console.log(`[WhatsApp] Received reaction for unknown message: ${args.messageId}`);
+    }
+  },
+});
