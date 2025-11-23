@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { ROLES } from "./schema";
+import { internal } from "./_generated/api";
 
 export const createTemplate = mutation({
   args: {
@@ -16,10 +17,11 @@ export const createTemplate = mutation({
     const user = await ctx.db.get(args.currentUserId);
     if (!user) throw new Error("User not found");
 
-    // In a real implementation, this would also trigger an action to submit to WhatsApp API
-    // For now, we store it as "pending" (internal approval or waiting for submission)
+    // If admin, we mark as "processing" and send to Meta immediately.
+    // If not admin, we mark as "pending_approval" (internal).
     
-    const status = user.role === ROLES.ADMIN ? "approved" : "pending";
+    const isAdmin = user.role === ROLES.ADMIN;
+    const initialStatus = isAdmin ? "processing" : "pending_approval";
 
     const templateId = await ctx.db.insert("whatsappTemplates", {
       name: args.name,
@@ -27,10 +29,18 @@ export const createTemplate = mutation({
       category: args.category,
       subCategory: args.subCategory,
       components: args.components,
-      status: status,
+      status: initialStatus,
       visibility: args.visibility,
       createdBy: args.currentUserId,
     });
+
+    if (isAdmin) {
+      // Schedule the action to submit to Meta
+      // Cast to any to avoid type error if api types aren't updated yet
+      await ctx.scheduler.runAfter(0, (internal as any).whatsappTemplateActions.submitTemplateToMeta, {
+        templateId,
+      });
+    }
 
     return templateId;
   },
@@ -73,5 +83,30 @@ export const updateTemplateStatus = mutation({
       status: args.status,
       rejectionReason: args.reason,
     });
+  },
+});
+
+// Internal functions for Actions
+
+export const getTemplateInternal = internalQuery({
+  args: { templateId: v.id("whatsappTemplates") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.templateId);
+  },
+});
+
+export const updateTemplateMetaStatus = internalMutation({
+  args: {
+    templateId: v.id("whatsappTemplates"),
+    status: v.string(),
+    wabaTemplateId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const updates: any = { status: args.status };
+    if (args.wabaTemplateId) updates.wabaTemplateId = args.wabaTemplateId;
+    if (args.reason) updates.rejectionReason = args.reason;
+    
+    await ctx.db.patch(args.templateId, updates);
   },
 });

@@ -30,6 +30,7 @@ import type * as whatsapp from "../whatsapp.js";
 import type * as whatsappMedia from "../whatsappMedia.js";
 import type * as whatsappPortal from "../whatsappPortal.js";
 import type * as whatsappQueries from "../whatsappQueries.js";
+import type * as whatsappTemplateActions from "../whatsappTemplateActions.js";
 import type * as whatsappTemplates from "../whatsappTemplates.js";
 
 import type {
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   whatsappMedia: typeof whatsappMedia;
   whatsappPortal: typeof whatsappPortal;
   whatsappQueries: typeof whatsappQueries;
+  whatsappTemplateActions: typeof whatsappTemplateActions;
   whatsappTemplates: typeof whatsappTemplates;
 }>;
 

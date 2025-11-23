@@ -1,2 +1,136 @@
-// I am using executeCommandTool to overwrite the file because the file appears to be corrupted 
-// and could not be read into context, making standard EDIT FILE operations unreliable.
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
+import { v } from "convex/values";
+import { ROLES } from "./schema";
+import { internal } from "./_generated/api";
+
+export const createTemplate = mutation({
+  args: {
+    name: v.string(),
+    language: v.string(),
+    category: v.string(),
+    subCategory: v.optional(v.string()),
+    components: v.any(),
+    visibility: v.string(),
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user) throw new Error("User not found");
+
+    // If admin, we mark as "processing" and send to Meta immediately.
+    // If not admin, we mark as "pending_approval" (internal).
+    
+    const isAdmin = user.role === ROLES.ADMIN;
+    const initialStatus = isAdmin ? "processing" : "pending_approval";
+
+    const templateId = await ctx.db.insert("whatsappTemplates", {
+      name: args.name,
+      language: args.language,
+      category: args.category,
+      subCategory: args.subCategory,
+      components: args.components,
+      status: initialStatus,
+      visibility: args.visibility,
+      createdBy: args.currentUserId,
+    });
+
+    if (isAdmin) {
+      // Schedule the action to submit to Meta
+      await ctx.scheduler.runAfter(0, internal.whatsappTemplateActions.submitTemplateToMeta, {
+        templateId,
+      });
+    }
+
+    return templateId;
+  },
+});
+
+export const getTemplates = query({
+  args: {
+    currentUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    let templates = await ctx.db.query("whatsappTemplates").collect();
+
+    if (args.currentUserId) {
+      const user = await ctx.db.get(args.currentUserId);
+      if (user) {
+        // Filter: Show Public templates OR Private templates created by this user
+        // Admins see all
+        if (user.role !== ROLES.ADMIN) {
+          templates = templates.filter(
+            (t) =>
+              t.visibility === "public" ||
+              t.createdBy === args.currentUserId
+          );
+        }
+      }
+    }
+
+    return templates.sort((a, b) => b._creationTime - a._creationTime);
+  },
+});
+
+export const updateTemplateStatus = mutation({
+  args: {
+    templateId: v.id("whatsappTemplates"),
+    status: v.string(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.templateId, {
+      status: args.status,
+      rejectionReason: args.reason,
+    });
+  },
+});
+
+// Internal functions for Actions
+
+export const getTemplateInternal = internalQuery({
+  args: { templateId: v.id("whatsappTemplates") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.templateId);
+  },
+});
+
+export const updateTemplateMetaStatus = internalMutation({
+  args: {
+    templateId: v.id("whatsappTemplates"),
+    status: v.string(),
+    wabaTemplateId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const updates: any = { status: args.status };
+    if (args.wabaTemplateId) updates.wabaTemplateId = args.wabaTemplateId;
+    if (args.reason) updates.rejectionReason = args.reason;
+    
+    await ctx.db.patch(args.templateId, updates);
+  },
+});
+
+// Internal functions for Actions
+
+export const getTemplateInternal = internalQuery({
+  args: { templateId: v.id("whatsappTemplates") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.templateId);
+  },
+});
+
+export const updateTemplateMetaStatus = internalMutation({
+  args: {
+    templateId: v.id("whatsappTemplates"),
+    status: v.string(),
+    wabaTemplateId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const updates: any = { status: args.status };
+    if (args.wabaTemplateId) updates.wabaTemplateId = args.wabaTemplateId;
+    if (args.reason) updates.rejectionReason = args.reason;
+    
+    await ctx.db.patch(args.templateId, updates);
+  },
+});

@@ -230,9 +230,9 @@ export default function CreateTemplatePage() {
       });
 
       if (currentUser.role === "admin") {
-        toast.success("Template created successfully (Approved)");
+        toast.success("Template submitted to Meta for approval");
       } else {
-        toast.success("Template created successfully (Pending Approval)");
+        toast.success("Template created successfully (Pending Internal Approval)");
       }
       navigate("/whatsapp");
     } catch (error: any) {
