@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile } from "lucide-react";
+import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile, Reply, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,6 +25,8 @@ interface ChatAreaProps {
   handleSendReaction: (messageId: string, emoji: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  replyingTo: any | null;
+  setReplyingTo: (msg: any | null) => void;
 }
 
 export function ChatArea({
@@ -46,6 +48,8 @@ export function ChatArea({
   handleSendReaction,
   fileInputRef,
   messagesEndRef,
+  replyingTo,
+  setReplyingTo,
 }: ChatAreaProps) {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -188,6 +192,20 @@ export function ChatArea({
                       : "bg-white"
                   } relative mb-4`}
                 >
+                  {/* Reply Context Display */}
+                  {msg.replyToMessageId && (
+                    <div className={`mb-2 p-2 rounded border-l-4 text-xs ${
+                      msg.direction === "outbound" ? "bg-[#cfe9ba] border-[#a6c98c]" : "bg-gray-100 border-gray-300"
+                    }`}>
+                      <div className="font-semibold text-gray-600 mb-0.5">
+                        {msg.replyToSender === lead?.mobileNo ? lead?.name || lead?.mobileNo : "You"}
+                      </div>
+                      <div className="truncate text-gray-500">
+                        {msg.replyToBody || "Original message"}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-sm break-words text-gray-900">{String(msg.message)}</div>
                   {renderMediaMessage(msg)}
                   <div className="flex items-center justify-end gap-1 mt-1">
@@ -222,17 +240,30 @@ export function ChatArea({
                     </div>
                   ) : null}
 
-                  {/* Reaction Button */}
+                  {/* Message Actions (Reply & React) */}
                   {msg.messageId && (
-                    <button
-                      className={`absolute top-0 ${msg.direction === "outbound" ? "-left-8" : "-right-8"} p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReactingTo(reactingTo === msg._id ? null : msg._id);
-                      }}
-                    >
-                      <Smile className="h-4 w-4" />
-                    </button>
+                    <div className={`absolute top-0 ${msg.direction === "outbound" ? "-left-16" : "-right-16"} flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplyingTo(msg);
+                        }}
+                        title="Reply"
+                      >
+                        <Reply className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReactingTo(reactingTo === msg._id ? null : msg._id);
+                        }}
+                        title="React"
+                      >
+                        <Smile className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
 
                   {/* Emoji Picker for Reactions */}
@@ -262,6 +293,28 @@ export function ChatArea({
         {!isMessagingAllowed && (
           <div className="mb-2 text-xs text-amber-600 bg-amber-50 p-2 rounded">
             ⚠️ Messaging disabled: Lead hasn't sent a message in the last 24 hours
+          </div>
+        )}
+
+        {/* Reply Preview Banner */}
+        {replyingTo && (
+          <div className="mb-2 p-2 bg-gray-100 rounded border-l-4 border-blue-500 flex justify-between items-center">
+            <div className="overflow-hidden">
+              <div className="text-xs font-bold text-blue-600 mb-0.5">
+                Replying to {replyingTo.direction === "outbound" ? "You" : (lead?.name || lead?.mobileNo)}
+              </div>
+              <div className="text-sm text-gray-600 truncate">
+                {replyingTo.message}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-gray-200 rounded-full"
+              onClick={() => setReplyingTo(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         )}
         

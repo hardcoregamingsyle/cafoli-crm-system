@@ -131,6 +131,24 @@ export const logMessage = internalMutation({
   },
   handler: async (ctx, args) => {
     try {
+      let replyToBody = args.replyToBody;
+      let replyToSender = args.replyToSender;
+
+      // If we have a reply ID but no body/sender, try to find the original message
+      if (args.replyToMessageId && (!replyToBody || !replyToSender)) {
+        // We use filter here as we might not have a specific index on messageId yet
+        // In a production app with millions of messages, you'd want an index on messageId
+        const originalMsg = await ctx.db
+          .query("whatsappMessages")
+          .filter((q) => q.eq(q.field("messageId"), args.replyToMessageId))
+          .first();
+
+        if (originalMsg) {
+          replyToBody = replyToBody || originalMsg.message;
+          replyToSender = replyToSender || originalMsg.phoneNumber;
+        }
+      }
+
       await ctx.db.insert("whatsappMessages", {
         leadId: args.leadId,
         phoneNumber: args.phoneNumber,
@@ -143,8 +161,8 @@ export const logMessage = internalMutation({
         mediaUrl: args.mediaUrl,
         mediaId: args.mediaId,
         replyToMessageId: args.replyToMessageId,
-        replyToBody: args.replyToBody,
-        replyToSender: args.replyToSender,
+        replyToBody: replyToBody,
+        replyToSender: replyToSender,
       });
       return { success: true };
     } catch (error) {

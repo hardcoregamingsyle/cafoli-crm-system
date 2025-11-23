@@ -23,6 +23,7 @@ export default function WhatsAppPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ts-ignore - Convex type inference limitation
@@ -50,6 +51,7 @@ export default function WhatsAppPage() {
   useEffect(() => {
     if (selectedLeadId && authReady) {
       markMessagesAsRead({ leadId: selectedLeadId as any });
+      setReplyingTo(null); // Clear reply when changing leads
     }
   }, [selectedLeadId, authReady, markMessagesAsRead]);
 
@@ -292,10 +294,12 @@ export default function WhatsAppPage() {
         phoneNumber: lead.mobileNo,
         message: messageInput.trim(),
         leadId: selectedLeadId as any,
+        replyToMessageId: replyingTo?.messageId,
       });
       
       console.log("[WhatsApp] Message sent successfully:", result);
       setMessageInput("");
+      setReplyingTo(null);
       toast.success("Message sent successfully!");
     } catch (error: any) {
       console.error("[WhatsApp] Failed to send message:", error);
@@ -341,6 +345,8 @@ export default function WhatsAppPage() {
             handleSendReaction={handleSendReaction}
             fileInputRef={fileInputRef}
             messagesEndRef={messagesEndRef}
+            replyingTo={replyingTo}
+            setReplyingTo={setReplyingTo}
           />
         </div>
       </div>
