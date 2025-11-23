@@ -1,2 +1,1 @@
-npm install emoji-picker-react
-
+rm src/components/whatsapp/CreateTemplateDialog.tsx

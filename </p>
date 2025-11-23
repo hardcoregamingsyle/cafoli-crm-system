@@ -1,134 +1,530 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
+import { useCrmAuth } from "@/hooks/use-crm-auth";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Layout } from "@/components/Layout";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
+type ButtonType = "NONE" | "QUICK_REPLY" | "CALL_TO_ACTION";
+
+interface TemplateButton {
+  type: "QUICK_REPLY" | "PHONE_NUMBER" | "URL";
+  text: string;
+  phoneNumber?: string;
+  url?: string;
+}
+
+export default function CreateTemplatePage() {
+  const { currentUser } = useCrmAuth();
+  const createTemplate = useMutation(api.whatsappTemplates.createTemplate);
+  const navigate = useNavigate();
+  
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("MARKETING");
+  const [subCategory, setSubCategory] = useState("DEFAULT");
+  const [language, setLanguage] = useState("en");
+  const [bodyText, setBodyText] = useState("");
+  const [visibility, setVisibility] = useState("public");
+  
+  // New fields
+  const [headerType, setHeaderType] = useState<HeaderType>("NONE");
+  const [headerText, setHeaderText] = useState("");
+  const [footerText, setFooterText] = useState("");
+  const [buttonType, setButtonType] = useState<ButtonType>("NONE");
+  const [buttons, setButtons] = useState<TemplateButton[]>([]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset sub-category when category changes
+  const handleCategoryChange = (val: string) => {
+    setCategory(val);
+    setSubCategory("DEFAULT");
+  };
+
+  const handleAddButton = () => {
+    if (buttonType === "QUICK_REPLY") {
+      if (buttons.length >= 3) return;
+      setButtons([...buttons, { type: "QUICK_REPLY", text: "" }]);
+    } else if (buttonType === "CALL_TO_ACTION") {
+      if (buttons.length >= 2) return;
+      // Default to URL for new CTA
+      setButtons([...buttons, { type: "URL", text: "", url: "" }]);
+    }
+  };
+
+  const handleRemoveButton = (index: number) => {
+    setButtons(buttons.filter((_, i) => i !== index));
+  };
+
+  const handleButtonChange = (index: number, field: keyof TemplateButton, value: string) => {
+    const newButtons = [...buttons];
+    // Cast value to any to avoid type errors with specific field types
+    newButtons[index] = { ...newButtons[index], [field]: value as any };
+    setButtons(newButtons);
+  };
+
+  const handleButtonTypeChange = (value: string) => {
+    setButtonType(value as ButtonType);
+    setButtons([]);
+  };
+
+  // Helper to format WhatsApp text for preview
+  const formatWhatsAppText = (text: string) => {
+    if (!text) return null;
+    
+    // Split by newlines to handle paragraphs
+    return text.split('\n').map((line, i) => {
+      // Basic formatting replacement
+      let formattedLine = line
+        // Bold *text*
+        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+        // Italic _text_
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+        // Strikethrough ~text~
+        .replace(/~(.*?)~/g, '<del>$1</del>')
+        // Monospace 
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // Links [text](url)
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+        // Code blocks
+        .replace(/```(.*?)\n(.*?)\n```/gs, '<pre><code>$1</code></pre>')
+        // Line breaks
+        .replace(/\n/g, '<br/>')
+        // Remove extra whitespace
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Add line number for debugging
+      if (i === 0) {
+        formattedLine = `<div class="whatsapp-debug">Line ${i+1}: ${formattedLine}</div>`;
+      }
+      
+      return formattedLine;
+    }).join('<br/>');
+  };
+
+  const handleSubmit = async () => {
+    if (!name || !bodyText) {
+      toast.error("Please fill in required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      await createTemplate({
+        name,
+        category,
+        subCategory,
+        language,
+        bodyText,
+        visibility,
+        headerType,
+        headerText,
+        footerText,
+        buttonType,
+        buttons
+      });
+      
+      toast.success("Template created successfully!");
+      navigate("/whatsapp");
+    } catch (error) {
+      toast.error("Failed to create template");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/whatsapp")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold">Create WhatsApp Template</h1>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left Column: Form */}
+        <div className="flex flex-col gap-4">
+          <Card className="flex-1">
+            <CardHeader className="bg-[#008069] text-white py-3">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                Template Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 p-4 space-y-4">
+              <div className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Template Name</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter template name"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Category</Label>
+                    <Select 
+                      value={category} 
+                      onValueChange={handleCategoryChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MARKETING">Marketing</SelectItem>
+                        <SelectItem value="SALES">Sales</SelectItem>
+                        <SelectItem value="SUPPORT">Support</SelectItem>
+                        <SelectItem value="ONBOARDING">Onboarding</SelectItem>
+                        <SelectItem value="CUSTOM">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Sub-Category</Label>
+                    <Select 
+                      value={subCategory} 
+                      onValueChange={setSubCategory}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEFAULT">Default</SelectItem>
+                        <SelectItem value="WELCOME">Welcome</SelectItem>
+                        <SelectItem value="ORDER_CONFIRMATION">Order Confirmation</SelectItem>
+                        <SelectItem value="DELIVERY_UPDATE">Delivery Update</SelectItem>
+                        <SelectItem value="CUSTOM">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Language</Label>
+                    <Select 
+                      value={language} 
+                      onValueChange={setLanguage}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                        <SelectItem value="pt">Portuguese</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Template Body</Label>
+                  <Textarea
+                    value={bodyText}
+                    onChange={(e) => setBodyText(e.target.value)}
+                    placeholder="Enter message body (supports *bold*, _italic_, ~strikethrough~, `monospace`, [links], code blocks)"
+                    className="mt-1 h-32"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Visibility</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Public</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="checkbox"
+                          checked={visibility === "public"}
+                          onChange={(e) => setVisibility(e.target.checked ? "public" : "private")}
+                        />
+                        <span>Public</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Private</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="checkbox"
+                          checked={visibility === "private"}
+                          onChange={(e) => setVisibility(e.target.checked ? "private" : "public")}
+                        />
+                        <span>Private</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Footer */}
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-base font-semibold">Footer (Optional)</Label>
-              <Input 
-                value={footerText} 
-                onChange={(e) => setFooterText(e.target.value)}
-                placeholder="Enter footer text"
-                maxLength={60}
-              />
-            </div>
+          {/* Header */}
+          <Card className="flex-1">
+            <CardHeader className="bg-[#008069] text-white py-3">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                Header (Optional)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 p-4 space-y-4">
+              <div className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Header Type</Label>
+                    <Select 
+                      value={headerType} 
+                      onValueChange={(val) => setHeaderType(val as HeaderType)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NONE">None</SelectItem>
+                        <SelectItem value="TEXT">Text</SelectItem>
+                        <SelectItem value="IMAGE">Image</SelectItem>
+                        <SelectItem value="VIDEO">Video</SelectItem>
+                        <SelectItem value="DOCUMENT">Document</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Header Text</Label>
+                    <Input
+                      value={headerText}
+                      onChange={(e) => setHeaderText(e.target.value)}
+                      placeholder="Enter header text"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
 
-            {/* Buttons */}
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-base font-semibold">Buttons (Optional)</Label>
-              <div className="grid gap-2">
-                <Label>Button Type</Label>
-                <Select 
-                  value={buttonType} 
-                  onValueChange={handleButtonTypeChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">None</SelectItem>
-                    <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
-                    <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Header Image</Label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
+                      <div className="text-gray-500">
+                        <span className="text-sm">Upload image (max 10MB)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Header Video</Label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
+                      <div className="text-gray-500">
+                        <span className="text-sm">Upload video (max 10MB)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {buttonType !== "NONE" && (
-                <div className="space-y-3">
-                  {buttons.map((btn, idx) => (
-                    <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border">
-                      <div className="grid gap-2 flex-1">
-                        {buttonType === "CALL_TO_ACTION" && (
-                          <Select 
-                            value={btn.type} 
-                            onValueChange={(v) => handleButtonChange(idx, "type", v)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="URL">Website URL</SelectItem>
-                              <SelectItem value="PHONE_NUMBER">Phone Number</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                  {/* Footer */}
+                  <div className="space-y-3 border-t pt-4">
+                    <Label className="text-base font-semibold">Footer (Optional)</Label>
+                    <div className="grid gap-2">
+                      <Textarea
+                        value={footerText}
+                        onChange={(e) => setFooterText(e.target.value)}
+                        placeholder="Enter footer text (optional)"
+                        className="h-12"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="space-y-3 border-t pt-4">
+                    <Label className="text-base font-semibold">Buttons (Optional)</Label>
+                    <div className="grid gap-2">
+                      <Label>Button Type</Label>
+                      <Select 
+                        value={buttonType} 
+                        onValueChange={handleButtonTypeChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">None</SelectItem>
+                          <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
+                          <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {buttonType !== "NONE" && (
+                      <div className="space-y-3">
+                        {buttons.map((btn, idx) => (
+                          <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border">
+                            <div className="grid gap-2 flex-1">
+                              {buttonType === "CALL_TO_ACTION" && (
+                                <Select 
+                                  value={btn.type} 
+                                  onValueChange={(v) => handleButtonChange(idx, "type", v)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="URL">Website URL</SelectItem>
+                                    <SelectItem value="PHONE_NUMBER">Phone Number</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              
+                              <Input
+                                value={btn.text}
+                                onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
+                                placeholder="Button Text"
+                                maxLength={25}
+                              />
+
+                              {btn.type === "URL" && (
+                                <Input
+                                  value={btn.url}
+                                  onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
+                                  placeholder="https://example.com"
+                                />
+                              )}
+
+                              {btn.type === "PHONE_NUMBER" && (
+                                <Input
+                                  value={btn.phoneNumber}
+                                  onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
+                                  placeholder="+1234567890"
+                                />
+                              )}
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleRemoveButton(idx)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
                         
-                        <Input
-                          value={btn.text}
-                          onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
-                          placeholder="Button Text"
-                          maxLength={25}
-                        />
-
-                        {btn.type === "URL" && (
-                          <Input
-                            value={btn.url}
-                            onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
-                            placeholder="https://example.com"
-                          />
-                        )}
-
-                        {btn.type === "PHONE_NUMBER" && (
-                          <Input
-                            value={btn.phoneNumber}
-                            onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
-                            placeholder="+1234567890"
-                          />
+                        {((buttonType === "QUICK_REPLY" && buttons.length < 3) || 
+                          (buttonType === "CALL_TO_ACTION" && buttons.length < 2)) && (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleAddButton}
+                            className="w-full border-dashed"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Button
+                          </Button>
                         )}
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleRemoveButton(idx)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  {((buttonType === "QUICK_REPLY" && buttons.length < 3) || 
-                    (buttonType === "CALL_TO_ACTION" && buttons.length < 2)) && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleAddButton}
-                      className="w-full border-dashed"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Button
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
 
-            {/* Visibility */}
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-base font-semibold">Visibility</Label>
-              <RadioGroup value={visibility} onValueChange={setVisibility} className="flex gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="public" id="public" />
-                  <Label htmlFor="public">Public (All Users)</Label>
+          {/* Right Column: Preview */}
+          <div className="flex flex-col gap-4">
+            <Card className="flex-1 bg-[#E5DDD5] relative overflow-hidden flex flex-col">
+              <CardHeader className="bg-[#008069] text-white py-3">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 p-4 overflow-y-auto flex flex-col items-start">
+                <div className="bg-white rounded-lg shadow-sm max-w-[85%] w-full overflow-hidden relative">
+                  {/* Header Preview */}
+                  {headerType !== "NONE" && (
+                    <div className="p-1">
+                      {headerType === "TEXT" && headerText && (
+                        <div className="p-2 font-bold text-gray-800">{headerText}</div>
+                      )}
+                      {headerType === "IMAGE" && (
+                        <div className="bg-gray-200 h-32 flex items-center justify-center text-gray-500 rounded">
+                          Image Header
+                        </div>
+                      )}
+                      {headerType === "VIDEO" && (
+                        <div className="bg-gray-200 h-32 flex items-center justify-center text-gray-500 rounded">
+                          Video Header
+                        </div>
+                      )}
+                      {headerType === "DOCUMENT" && (
+                        <div className="bg-gray-100 p-3 flex items-center justify-center text-gray-500 rounded border border-dashed border-gray-300">
+                          Document Header
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Body Preview */}
+                  <div className="px-3 py-2 text-gray-800 text-sm whitespace-pre-wrap">
+                    {bodyText ? formatWhatsAppText(bodyText) : <span className="text-gray-400 italic">Message body...</span>}
+                  </div>
+
+                  {/* Footer Preview */}
+                  {footerText && (
+                    <div className="px-3 pb-2 text-[11px] text-gray-500">
+                      {footerText}
+                    </div>
+                  )}
+
+                  {/* Timestamp */}
+                  <div className="px-2 pb-1 text-[10px] text-gray-400 text-right">
+                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="private" id="private" />
-                  <Label htmlFor="private">Private (Only Me)</Label>
-                </div>
-              </RadioGroup>
+
+                {/* Buttons Preview */}
+                {buttonType !== "NONE" && buttons.length > 0 && (
+                  <div className="mt-2 w-full max-w-[85%] space-y-2">
+                    {buttons.map((btn, idx) => (
+                      <div key={idx} className="bg-white rounded text-[#00a884] text-center py-2 text-sm font-medium shadow-sm cursor-pointer hover:bg-gray-50">
+                        {btn.type === "URL" && "🔗 "}
+                        {btn.type === "PHONE_NUMBER" && "📞 "}
+                        {btn.text || "Button Text"}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <div className="flex justify-end gap-4">
+              <Button variant="outline" onClick={() => navigate("/whatsapp")}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-[#008069] hover:bg-[#006d59]">
+                {isSubmitting ? "Creating..." : "Submit for Approval"}
+              </Button>
             </div>
           </div>
-        </ScrollArea>
-        <DialogFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Template"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </Layout>
   );
 }

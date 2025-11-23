@@ -23,6 +23,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Migrate from "./pages/Migrate.tsx";
 import ReportPage from "@/pages/Report.tsx";
 import WhatsAppPage from "@/pages/WhatsApp.tsx";
+import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -80,6 +81,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/migrate" element={<Migrate />} />
             <Route path="/report" element={<ReportPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
+            <Route path="/whatsapp/create-template" element={<CreateTemplatePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ConvexProviderWrapper>

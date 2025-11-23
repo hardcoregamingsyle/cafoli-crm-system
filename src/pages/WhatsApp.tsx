@@ -6,9 +6,9 @@ import { Layout } from "@/components/Layout";
 import { toast } from "sonner";
 import { LeadList } from "@/components/whatsapp/LeadList";
 import { ChatArea } from "@/components/whatsapp/ChatArea";
-import { CreateTemplateDialog } from "@/components/whatsapp/CreateTemplateDialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
 const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
@@ -17,6 +17,7 @@ const getLeadMessagesQuery: any = (() => api.whatsappQueries.getLeadMessages)();
 
 export default function WhatsAppPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
+  const navigate = useNavigate();
 
   // Initialize auth state
   const [authReady, setAuthReady] = useState(false);
@@ -27,7 +28,6 @@ export default function WhatsAppPage() {
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
-  const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ts-ignore - Convex type inference limitation
@@ -332,7 +332,7 @@ export default function WhatsAppPage() {
               variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => setCreateTemplateOpen(true)}
+              onClick={() => navigate("/whatsapp/create-template")}
             >
               <Plus className="w-4 h-4" />
               Create New Template
@@ -376,11 +376,6 @@ export default function WhatsAppPage() {
           />
         </div>
       </div>
-      
-      <CreateTemplateDialog 
-        open={createTemplateOpen} 
-        onOpenChange={setCreateTemplateOpen} 
-      />
     </Layout>
   );
 }

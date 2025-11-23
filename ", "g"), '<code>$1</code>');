@@ -1,0 +1,285 @@
+      return (
+        <div key={i} dangerouslySetInnerHTML={{ __html: formattedLine || '&nbsp;' }} />
+      );
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!currentUser) return;
+    if (!name || !bodyText) {
+      toast.error("Name and Body text are required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Construct components structure for WhatsApp
+      const components: any[] = [];
+
+      // Header
+      if (headerType !== "NONE") {
+        const headerComponent: any = {
+          type: "HEADER",
+          format: headerType,
+        };
+        if (headerType === "TEXT") {
+          headerComponent.text = headerText;
+        }
+        components.push(headerComponent);
+      }
+
+      // Body
+      components.push({
+        type: "BODY",
+        text: bodyText,
+      });
+
+      // Footer
+      if (footerText) {
+        components.push({
+          type: "FOOTER",
+          text: footerText,
+        });
+      }
+
+      // Buttons
+      if (buttonType !== "NONE" && buttons.length > 0) {
+        const buttonsComponent: any = {
+          type: "BUTTONS",
+          buttons: buttons.map(b => {
+            if (b.type === "QUICK_REPLY") {
+              return { type: "QUICK_REPLY", text: b.text };
+            } else if (b.type === "URL") {
+              return { type: "URL", text: b.text, url: b.url };
+            } else if (b.type === "PHONE_NUMBER") {
+              return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phoneNumber };
+            }
+            return null;
+          }).filter(Boolean)
+        };
+        components.push(buttonsComponent);
+      }
+
+      await createTemplate({
+        name,
+        category,
+        subCategory,
+        language,
+        components,
+        visibility,
+        currentUserId: currentUser._id,
+      });
+
+      toast.success("Template created successfully (Pending Approval)");
+      navigate("/whatsapp");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create template");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="max-w-6xl mx-auto p-6 h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/whatsapp")}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Create New WhatsApp Template</h1>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden">
+          {/* Left Column: Form */}
+          <Card className="flex flex-col overflow-hidden">
+            <CardHeader>
+              <CardTitle>Template Details</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden p-0">
+              <ScrollArea className="h-full px-6 pb-6">
+                <div className="grid gap-6 py-4">
+                  {/* Basic Info */}
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Template Name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "_"))}
+                        placeholder="e.g., welcome_message"
+                      />
+                      <p className="text-xs text-gray-500">Lowercase, underscores only</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Category</Label>
+                        <Select value={category} onValueChange={handleCategoryChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MARKETING">Marketing</SelectItem>
+                            <SelectItem value="UTILITY">Utility</SelectItem>
+                            <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Sub Category</Label>
+                        <Select value={subCategory} onValueChange={setSubCategory}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DEFAULT">Default</SelectItem>
+                            {category === "MARKETING" && (
+                              <>
+                                <SelectItem value="CATALOGUE">Catalogue</SelectItem>
+                                <SelectItem value="FLOWS">Flows</SelectItem>
+                                <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                              </>
+                            )}
+                            {category === "UTILITY" && (
+                              <>
+                                <SelectItem value="FLOWS">Flows</SelectItem>
+                                <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Language</Label>
+                        <Select value={language} onValueChange={setLanguage}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English (en)</SelectItem>
+                            <SelectItem value="en_US">English (US)</SelectItem>
+                            <SelectItem value="hi">Hindi (hi)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Visibility</Label>
+                        <Select value={visibility} onValueChange={setVisibility}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="public">Public</SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Header */}
+                  <div className="space-y-3 border-t pt-4">
+                    <Label className="text-base font-semibold">Header (Optional)</Label>
+                    <div className="grid gap-2">
+                      <Label>Header Type</Label>
+                      <Select value={headerType} onValueChange={(v) => setHeaderType(v as HeaderType)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">None</SelectItem>
+                          <SelectItem value="TEXT">Text</SelectItem>
+                          <SelectItem value="IMAGE">Image</SelectItem>
+                          <SelectItem value="VIDEO">Video</SelectItem>
+                          <SelectItem value="DOCUMENT">Document</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {headerType === "TEXT" && (
+                      <div className="grid gap-2">
+                        <Label>Header Text</Label>
+                        <Input 
+                          value={headerText} 
+                          onChange={(e) => setHeaderText(e.target.value)}
+                          placeholder="Enter header text"
+                          maxLength={60}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Body */}
+                  <div className="space-y-3 border-t pt-4">
+                    <Label className="text-base font-semibold">Body</Label>
+                    <div className="grid gap-2">
+                      <Textarea
+                        id="body"
+                        value={bodyText}
+                        onChange={(e) => setBodyText(e.target.value)}
+                        placeholder="Enter your message text here..."
+                        className="h-32 font-mono text-sm"
+                      />
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <p>Variables: {"{{1}}"}, {"{{2}}"}, etc.</p>
+                        <p>Formatting: *bold*, _italics_, ~strikethrough~, 
+</div>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Right Column: Preview */}
+          <Card className="flex flex-col overflow-hidden">
+            <CardHeader>
+              <CardTitle>Preview</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden p-0">
+              <div className="h-full flex flex-col">
+                <div className="flex-1 p-6 bg-gray-50">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-800 mb-2">
+                      {headerType === "TEXT" ? headerText : "No Header"}
+                    </div>
+                    <div className="text-lg text-gray-600 mb-4">
+                      {bodyText}
+                    </div>
+                    {footerText && (
+                      <div className="text-sm text-gray-500">
+                        {footerText}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="p-6 border-t bg-white">
+                  <div className="text-center">
+                    <div className="text-sm text-gray-500">
+                      {buttons.length > 0 ? "Buttons will appear here" : "No buttons"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button 
+            onClick={handleSubmit}
+            disabled={isSubmitting || !name || !bodyText}
+            className="px-6 py-3"
+          >
+            {isSubmitting ? (
+              <Spinner className="w-4 h-4 mr-2" />
+            ) : (
+              <Check className="w-4 h-4 mr-2" />
+            )}
+            {isSubmitting ? "Creating Template..." : "Create Template"}
+          </Button>
+        </div>
+      </div>
+    </Layout>
+  );
+};
