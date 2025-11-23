@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile, Reply, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -206,7 +207,7 @@ export function ChatArea({
                     </div>
                   )}
 
-                  <div className="text-sm break-words text-gray-900">{String(msg.message)}</div>
+                  <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
                   {renderMediaMessage(msg)}
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[10px] text-gray-500">
@@ -389,7 +390,7 @@ export function ChatArea({
             </PopoverContent>
           </Popover>
 
-          <Input
+          <Textarea
             placeholder={
               selectedFiles.length > 0
                 ? "Use caption field above..." 
@@ -397,13 +398,13 @@ export function ChatArea({
             }
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed && selectedFiles.length === 0) {
                 e.preventDefault();
                 handleSendMessage();
               }
             }}
-            className="bg-white"
+            className="bg-white min-h-[40px] max-h-[120px] flex-1"
             disabled={!isMessagingAllowed || isUploading || selectedFiles.length > 0}
           />
           <Button 
