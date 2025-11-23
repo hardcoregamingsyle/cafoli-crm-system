@@ -103,6 +103,7 @@ export default defineSchema({
     heat: v.optional(v.string()),
     lastActivityTime: v.optional(v.number()),
     unreadCount: v.optional(v.number()),
+    lastMessage: v.optional(v.string()),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])
