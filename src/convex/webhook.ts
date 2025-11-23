@@ -756,10 +756,33 @@ export const handleWhatsAppReaction = internalMutation({
       .unique();
 
     if (message) {
-      // Update the message with the reaction
-      // If reaction is empty string (unreact), we could clear it, but usually it's an emoji
+      // Determine direction of reaction based on who reacted
+      // If the phoneNumber matches the message's phoneNumber (the lead), it's inbound
+      // Otherwise it's likely us (outbound) - though usually webhooks for our own reactions come differently
+      // For now, assume webhook reactions with phoneNumber matching the lead are "inbound"
+      
+      const isFromLead = args.phoneNumber === message.phoneNumber;
+      const from = isFromLead ? "inbound" : "outbound";
+
+      let currentReactions = message.reactions || [];
+      
+      // Remove existing reaction from this side if exists
+      currentReactions = currentReactions.filter(r => r.from !== from);
+
+      // If reaction is not empty (empty string means remove reaction), add it
+      if (args.reaction) {
+        currentReactions.push({
+          from,
+          emoji: args.reaction,
+          timestamp: Date.now()
+        });
+      }
+
       await ctx.db.patch(message._id, {
-        reaction: args.reaction,
+        reactions: currentReactions,
+        // Keep legacy field updated with the latest reaction for backward compat if needed, 
+        // or just the lead's reaction
+        reaction: args.reaction || undefined 
       });
     } else {
       console.log(`[WhatsApp] Received reaction for unknown message: ${args.messageId}`);

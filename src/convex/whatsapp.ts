@@ -483,10 +483,18 @@ export const sendReaction = action({
       }
 
       // Update the message in the database
+      // We use a separate internal mutation for this to keep logic consistent
+      // But since we can't call internal mutation from here easily without exposing another one,
+      // we'll reuse the webhook handler or create a specific one. 
+      // Actually, we can call the webhook handler internal mutation if we import it.
+      // But better to have a dedicated update function.
+      // For now, let's use the webhook handler as it does exactly what we want: updates reactions.
+      // We pass a dummy phone number that is NOT the lead's phone number to indicate "outbound"
+      
       await ctx.runMutation(internal.webhook.handleWhatsAppReaction, {
         messageId: args.messageId,
         reaction: args.emoji,
-        phoneNumber: normalizedPhone,
+        phoneNumber: "CRM_USER", // This ensures it's treated as "outbound" in our logic
       });
 
       return { success: true, data };

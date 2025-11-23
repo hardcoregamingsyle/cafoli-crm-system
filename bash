@@ -1,1 +1,2 @@
-npx convex run migrate:normalizeAllPhoneNumbers
+npm install emoji-picker-react
+

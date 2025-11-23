@@ -125,7 +125,12 @@ export default defineSchema({
     mediaId: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     caption: v.optional(v.string()),
-    reaction: v.optional(v.string()), // Add reaction field
+    reaction: v.optional(v.string()), // Deprecated: use reactions array
+    reactions: v.optional(v.array(v.object({
+      from: v.string(), // "inbound" (customer) or "outbound" (business)
+      emoji: v.string(),
+      timestamp: v.number()
+    }))),
   })
     .index("by_leadId", ["leadId"])
     .index("by_phoneNumber", ["phoneNumber"])

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile } from "lucide-react";
 import { useState, useEffect } from "react";
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ChatAreaProps {
   selectedLeadId: string | null;
@@ -46,6 +48,7 @@ export function ChatArea({
   messagesEndRef,
 }: ChatAreaProps) {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Close reaction picker when clicking outside
   useEffect(() => {
@@ -119,6 +122,16 @@ export function ChatArea({
     return null;
   };
 
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setMessageInput(messageInput + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const onReactionEmojiClick = (emojiData: EmojiClickData, messageId: string) => {
+    handleSendReaction(messageId, emojiData.emoji);
+    setReactingTo(null);
+  };
+
   if (!selectedLeadId) {
     return (
       <Card className="md:col-span-2 flex flex-col overflow-hidden bg-gray-50 h-full">
@@ -173,7 +186,7 @@ export function ChatArea({
                     msg.direction === "outbound"
                       ? "bg-[#dcf8c6]"
                       : "bg-white"
-                  } relative`}
+                  } relative mb-4`}
                 >
                   <div className="text-sm break-words text-gray-900">{String(msg.message)}</div>
                   {renderMediaMessage(msg)}
@@ -192,11 +205,22 @@ export function ChatArea({
                   </div>
                   
                   {/* Reaction Display */}
-                  {msg.reaction && (
-                    <div className="absolute -bottom-3 -right-2 bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-sm z-10">
-                      {msg.reaction}
+                  {(msg.reactions && msg.reactions.length > 0) || msg.reaction ? (
+                    <div className="absolute -bottom-3 right-0 flex gap-1 z-10">
+                      {/* Legacy support */}
+                      {msg.reaction && !msg.reactions && (
+                        <div className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs">
+                          {msg.reaction}
+                        </div>
+                      )}
+                      {/* New reactions array support */}
+                      {msg.reactions?.map((r: any, idx: number) => (
+                        <div key={idx} className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs" title={r.from === 'outbound' ? 'You' : 'Lead'}>
+                          {r.emoji}
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Reaction Button */}
                   {msg.messageId && (
@@ -211,24 +235,20 @@ export function ChatArea({
                     </button>
                   )}
 
-                  {/* Emoji Picker */}
+                  {/* Emoji Picker for Reactions */}
                   {reactingTo === msg._id && (
                     <div 
-                      className={`absolute -top-10 ${msg.direction === "outbound" ? "right-0" : "left-0"} bg-white shadow-lg rounded-full p-1 flex gap-1 z-20 border border-gray-200`}
+                      className={`absolute top-8 ${msg.direction === "outbound" ? "right-0" : "left-0"} z-50`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {["👍", "❤️", "😂", "😮", "😢", "🙏"].map(emoji => (
-                        <button
-                          key={emoji}
-                          className="hover:bg-gray-100 p-1 rounded-full transition-colors text-lg leading-none"
-                          onClick={() => {
-                            handleSendReaction(msg.messageId, emoji);
-                            setReactingTo(null);
-                          }}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+                      <div className="bg-white shadow-xl rounded-lg border border-gray-200">
+                        <EmojiPicker 
+                          onEmojiClick={(data: EmojiClickData) => onReactionEmojiClick(data, msg.messageId)}
+                          width={300}
+                          height={350}
+                          previewConfig={{ showPreview: false }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -281,7 +301,7 @@ export function ChatArea({
           />
         )}
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -299,6 +319,23 @@ export function ChatArea({
           >
             <Paperclip className="h-4 w-4" />
           </Button>
+          
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" disabled={!isMessagingAllowed}>
+                <Smile className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 border-none shadow-none" side="top" align="start">
+              <EmojiPicker 
+                onEmojiClick={onEmojiClick}
+                width={300}
+                height={400}
+                previewConfig={{ showPreview: false }}
+              />
+            </PopoverContent>
+          </Popover>
+
           <Input
             placeholder={
               selectedFiles.length > 0
