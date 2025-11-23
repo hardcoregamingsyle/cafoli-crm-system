@@ -608,6 +608,9 @@ export const storeWhatsAppMessage = internalMutation({
     mediaId: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     caption: v.optional(v.string()),
+    replyToMessageId: v.optional(v.string()),
+    replyToBody: v.optional(v.string()),
+    replyToSender: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Normalize phone number using the shared helper
@@ -692,6 +695,9 @@ export const storeWhatsAppMessage = internalMutation({
       mediaId: args.mediaId,
       mimeType: args.mimeType,
       caption: args.caption,
+      replyToMessageId: args.replyToMessageId,
+      replyToBody: args.replyToBody,
+      replyToSender: args.replyToSender,
     });
 
     // Update lastActivityTime for the lead

@@ -131,6 +131,9 @@ export default defineSchema({
       emoji: v.string(),
       timestamp: v.number()
     }))),
+    replyToMessageId: v.optional(v.string()),
+    replyToBody: v.optional(v.string()),
+    replyToSender: v.optional(v.string()),
   })
     .index("by_leadId", ["leadId"])
     .index("by_phoneNumber", ["phoneNumber"])
