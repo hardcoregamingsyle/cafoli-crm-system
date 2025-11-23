@@ -12,8 +12,8 @@ interface ChatAreaProps {
   handleSendMessage: () => void;
   handleSendWelcomeMessage: () => void;
   isMessagingAllowed: boolean;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
+  selectedFiles: File[];
+  handleRemoveFile: (index: number) => void;
   caption: string;
   setCaption: (val: string) => void;
   isUploading: boolean;
@@ -32,8 +32,8 @@ export function ChatArea({
   handleSendMessage,
   handleSendWelcomeMessage,
   isMessagingAllowed,
-  selectedFile,
-  setSelectedFile,
+  selectedFiles,
+  handleRemoveFile,
   caption,
   setCaption,
   isUploading,
@@ -190,29 +190,35 @@ export function ChatArea({
         )}
         
         {/* File preview */}
-        {selectedFile && (
-          <div className="mb-2 p-2 bg-gray-100 rounded flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {selectedFile.type.startsWith("image/") && <Image className="h-4 w-4" />}
-              {selectedFile.type.startsWith("video/") && <Video className="h-4 w-4" />}
-              {selectedFile.type.startsWith("audio/") && <Music className="h-4 w-4" />}
-              {!selectedFile.type.startsWith("image/") && !selectedFile.type.startsWith("video/") && !selectedFile.type.startsWith("audio/") && <FileText className="h-4 w-4" />}
-              <span className="text-sm">{selectedFile.name}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedFile(null)}
-            >
-              ✕
-            </Button>
+        {selectedFiles.length > 0 && (
+          <div className="mb-2 p-2 bg-gray-100 rounded space-y-2 max-h-40 overflow-y-auto">
+            {selectedFiles.map((file, index) => (
+              <div key={index} className="flex items-center justify-between bg-white p-2 rounded border shadow-sm">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {file.type.startsWith("image/") && <Image className="h-4 w-4 flex-shrink-0 text-blue-500" />}
+                  {file.type.startsWith("video/") && <Video className="h-4 w-4 flex-shrink-0 text-purple-500" />}
+                  {file.type.startsWith("audio/") && <Music className="h-4 w-4 flex-shrink-0 text-green-500" />}
+                  {!file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("audio/") && <FileText className="h-4 w-4 flex-shrink-0 text-gray-500" />}
+                  <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                  <span className="text-xs text-gray-400">({(file.size / 1024).toFixed(0)} KB)</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
+                  onClick={() => handleRemoveFile(index)}
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
           </div>
         )}
         
         {/* Caption input for media */}
-        {selectedFile && (
+        {selectedFiles.length > 0 && (
           <Input
-            placeholder="Add a caption (optional)..."
+            placeholder="Add a caption (sent with first file)..."
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             className="mb-2 bg-white"
@@ -224,6 +230,7 @@ export function ChatArea({
             ref={fileInputRef}
             type="file"
             className="hidden"
+            multiple
             accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             onChange={handleFileSelect}
             disabled={!isMessagingAllowed}
@@ -238,24 +245,24 @@ export function ChatArea({
           </Button>
           <Input
             placeholder={
-              selectedFile 
+              selectedFiles.length > 0
                 ? "Use caption field above..." 
                 : (isMessagingAllowed ? "Type a message..." : "Messaging disabled")
             }
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onKeyPress={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed && !selectedFile) {
+              if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed && selectedFiles.length === 0) {
                 e.preventDefault();
                 handleSendMessage();
               }
             }}
             className="bg-white"
-            disabled={!isMessagingAllowed || isUploading || !!selectedFile}
+            disabled={!isMessagingAllowed || isUploading || selectedFiles.length > 0}
           />
           <Button 
-            onClick={selectedFile ? handleSendMedia : handleSendMessage}
-            disabled={(!messageInput.trim() && !selectedFile) || !isMessagingAllowed || isUploading} 
+            onClick={selectedFiles.length > 0 ? handleSendMedia : handleSendMessage}
+            disabled={(!messageInput.trim() && selectedFiles.length === 0) || !isMessagingAllowed || isUploading} 
             className="bg-[#25d366] hover:bg-[#20bd5a] disabled:opacity-50"
           >
             {isUploading ? "..." : <Send className="h-4 w-4" />}

@@ -20,7 +20,7 @@ export default function WhatsAppPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -163,28 +163,44 @@ export default function WhatsAppPage() {
 
   // Helper function to handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      
+      // Validate file size (max 16MB for most media, 100MB for videos)
+      const validFiles = newFiles.filter(file => {
+        const maxSize = file.type.startsWith("video/") ? 100 * 1024 * 1024 : 16 * 1024 * 1024;
+        if (file.size > maxSize) {
+          toast.error(`File ${file.name} too large. Max size: ${maxSize / (1024 * 1024)}MB`);
+          return false;
+        }
+        return true;
+      });
 
-    // Validate file size (max 16MB for most media, 100MB for videos)
-    const maxSize = file.type.startsWith("video/") ? 100 * 1024 * 1024 : 16 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast.error(`File too large. Max size: ${maxSize / (1024 * 1024)}MB`);
-      return;
+      if (validFiles.length > 0) {
+        setSelectedFiles(prev => [...prev, ...validFiles]);
+
+        // Automatically set message as caption if present (only if caption is empty)
+        if (messageInput.trim() && !caption) {
+          setCaption(messageInput);
+          setMessageInput("");
+        }
+      }
     }
-
-    setSelectedFile(file);
-
-    // Automatically set message as caption if present
-    if (messageInput.trim()) {
-      setCaption(messageInput);
-      setMessageInput("");
+    
+    // Reset input value to allow selecting the same file again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
+  };
+
+  // Helper function to remove a file
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // Helper function to send media message
   const handleSendMedia = async () => {
-    if (!selectedFile || !selectedLeadId || !currentUser) return;
+    if (selectedFiles.length === 0 || !selectedLeadId || !currentUser) return;
 
     const lead = filteredLeads.find((l: any) => l._id === selectedLeadId);
     if (!lead?.mobileNo) {
@@ -194,37 +210,46 @@ export default function WhatsAppPage() {
 
     setIsUploading(true);
     try {
-      // 1. Get upload URL
-      const postUrl = await generateUploadUrl();
-      
-      // 2. Upload file
-      const result = await fetch(postUrl, {
-        method: "POST",
-        headers: { "Content-Type": selectedFile.type },
-        body: selectedFile,
-      });
-      
-      if (!result.ok) {
-        throw new Error(`Upload failed: ${result.statusText}`);
+      // Loop through all selected files
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        
+        // 1. Get upload URL
+        const postUrl = await generateUploadUrl();
+        
+        // 2. Upload file
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        
+        if (!result.ok) {
+          throw new Error(`Upload failed for ${file.name}: ${result.statusText}`);
+        }
+        
+        const { storageId } = await result.json();
+
+        // 3. Send message with storage ID
+        const mediaType = getMediaType(file);
+        
+        // Attach caption only to the first file
+        const fileCaption = i === 0 ? caption : undefined;
+
+        await sendMediaMessage({
+          phoneNumber: lead.mobileNo,
+          mediaType,
+          mediaStorageId: storageId,
+          caption: fileCaption,
+          filename: file.name,
+          leadId: selectedLeadId as any,
+        });
       }
       
-      const { storageId } = await result.json();
-
-      // 3. Send message with storage ID
-      const mediaType = getMediaType(selectedFile);
-      const sendResult = await sendMediaMessage({
-        phoneNumber: lead.mobileNo,
-        mediaType,
-        mediaStorageId: storageId,
-        caption: caption || undefined,
-        filename: selectedFile.name,
-        leadId: selectedLeadId as any,
-      });
-      
-      console.log("[WhatsApp] Media message sent successfully:", sendResult);
-      setSelectedFile(null);
+      console.log("[WhatsApp] All media messages sent successfully");
+      setSelectedFiles([]);
       setCaption("");
-      toast.success("Media sent successfully!");
+      toast.success("All media sent successfully!");
     } catch (error: any) {
       console.error("[WhatsApp] Failed to send media:", error);
       toast.error(error?.message || "Failed to send media");
@@ -286,8 +311,8 @@ export default function WhatsAppPage() {
             handleSendMessage={handleSendMessage}
             handleSendWelcomeMessage={handleSendWelcomeMessage}
             isMessagingAllowed={isMessagingAllowed}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
+            selectedFiles={selectedFiles}
+            handleRemoveFile={handleRemoveFile}
             caption={caption}
             setCaption={setCaption}
             isUploading={isUploading}
