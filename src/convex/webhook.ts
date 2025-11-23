@@ -700,6 +700,7 @@ export const storeWhatsAppMessage = internalMutation({
       await ctx.db.patch(matchingLead._id, {
         lastActivityTime: Date.now(),
         unreadCount: currentUnread + 1,
+        lastMessage: args.message, // Update lastMessage field
       });
     }
 

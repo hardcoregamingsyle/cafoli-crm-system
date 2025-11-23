@@ -8,35 +8,16 @@ export const getLeadsWithMessages = query({
   handler: async (ctx, _args) => {
     const leads = await ctx.db.query("leads").collect();
     
-    // Get latest message for each lead to populate lastMessage
-    const leadsWithDetails = await Promise.all(
-      leads.map(async (lead) => {
-        const lastMsg = await ctx.db
-          .query("whatsappMessages")
-          .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
-          .order("desc")
-          .first();
-
-        // Ensure lastMessage is a string to prevent React errors
-        let lastMessage = "";
-        if (lastMsg) {
-          lastMessage = String(lastMsg.message || "");
-        } else if (lead.message) {
-          lastMessage = String(lead.message);
-        }
-
-        return {
-          ...lead,
-          lastMessage,
-          lastMessageTime: lastMsg ? lastMsg.timestamp : lead.lastActivityTime,
-          unreadCount: typeof lead.unreadCount === 'number' ? lead.unreadCount : 0,
-        };
-      })
-    );
-
-    return leadsWithDetails.sort((a, b) => {
-      const timeA = a.lastMessageTime || a._creationTime || 0;
-      const timeB = b.lastMessageTime || b._creationTime || 0;
+    // Return leads directly, relying on the denormalized lastMessage field
+    // This avoids the N+1 query problem that was causing Server Errors
+    return leads.map((lead) => ({
+      ...lead,
+      lastMessage: lead.lastMessage || lead.message || "",
+      lastMessageTime: lead.lastActivityTime || lead._creationTime,
+      unreadCount: lead.unreadCount || 0,
+    })).sort((a, b) => {
+      const timeA = a.lastMessageTime || 0;
+      const timeB = b.lastMessageTime || 0;
       return timeB - timeA;
     });
   },
