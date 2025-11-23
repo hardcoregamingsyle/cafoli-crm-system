@@ -9,20 +9,22 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
-type ButtonType = "NONE" | "QUICK_REPLY" | "CALL_TO_ACTION" | "COPY_CODE";
 
 interface TemplateButton {
-  type: "QUICK_REPLY" | "PHONE_NUMBER" | "URL" | "COPY_CODE";
+  type: "QUICK_REPLY" | "PHONE_NUMBER" | "URL" | "COPY_CODE" | "FLOW";
   text: string;
   phoneNumber?: string;
   url?: string;
-  example?: string; // For URL variables if needed
+  example?: string; // For URL variables or Copy Code
+  flowId?: string;
+  flowAction?: "navigate" | "data_exchange";
+  navigateScreen?: string;
 }
 
 export default function CreateTemplatePage() {
@@ -32,7 +34,7 @@ export default function CreateTemplatePage() {
   
   const [name, setName] = useState("");
   const [category, setCategory] = useState("MARKETING");
-  const [subCategory, setSubCategory] = useState("CUSTOM"); // Changed default
+  const [subCategory, setSubCategory] = useState("CUSTOM");
   const [language, setLanguage] = useState("en");
   const [bodyText, setBodyText] = useState("");
   const [visibility, setVisibility] = useState("public");
@@ -41,7 +43,6 @@ export default function CreateTemplatePage() {
   const [headerType, setHeaderType] = useState<HeaderType>("NONE");
   const [headerText, setHeaderText] = useState("");
   const [footerText, setFooterText] = useState("");
-  const [buttonType, setButtonType] = useState<ButtonType>("NONE");
   const [buttons, setButtons] = useState<TemplateButton[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,30 +52,46 @@ export default function CreateTemplatePage() {
     setCategory(val);
     if (val === "AUTHENTICATION") {
       setSubCategory("ONE_TIME_PASSWORD");
-      setButtonType("COPY_CODE");
       setButtons([{ type: "COPY_CODE", text: "Copy Code" }]);
       setHeaderType("NONE");
       setFooterText("");
     } else {
       setSubCategory("CUSTOM");
-      setButtonType("NONE");
       setButtons([]);
     }
   };
 
-  const handleAddButton = () => {
-    if (buttonType === "QUICK_REPLY") {
-      if (buttons.length >= 3) return;
-      setButtons([...buttons, { type: "QUICK_REPLY", text: "" }]);
-    } else if (buttonType === "CALL_TO_ACTION") {
-      if (buttons.length >= 2) return;
-      // Default to URL for new CTA
-      setButtons([...buttons, { type: "URL", text: "", url: "" }]);
+  const handleAddButton = (type: TemplateButton["type"]) => {
+    if (buttons.length >= 10) {
+      toast.error("Maximum 10 buttons allowed");
+      return;
     }
+
+    const newButton: TemplateButton = { type, text: "" };
+    
+    if (type === "URL") newButton.url = "";
+    if (type === "PHONE_NUMBER") newButton.phoneNumber = "";
+    if (type === "COPY_CODE") newButton.text = "Copy Code";
+    if (type === "FLOW") {
+      newButton.flowAction = "navigate";
+      newButton.navigateScreen = "screen_01";
+    }
+
+    setButtons([...buttons, newButton]);
   };
 
   const handleRemoveButton = (index: number) => {
     setButtons(buttons.filter((_, i) => i !== index));
+  };
+
+  const handleMoveButton = (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === buttons.length - 1) return;
+
+    const newButtons = [...buttons];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    [newButtons[index], newButtons[targetIndex]] = [newButtons[targetIndex], newButtons[index]];
+    setButtons(newButtons);
   };
 
   const handleButtonChange = (index: number, field: keyof TemplateButton, value: string) => {
@@ -93,15 +110,6 @@ export default function CreateTemplatePage() {
     // Cast value to any to avoid type errors with specific field types
     newButtons[index] = { ...newButtons[index], [field]: value as any };
     setButtons(newButtons);
-  };
-
-  const handleButtonTypeChange = (value: string) => {
-    setButtonType(value as ButtonType);
-    if (value === "COPY_CODE") {
-       setButtons([{ type: "COPY_CODE", text: "Copy Code" }]);
-    } else {
-       setButtons([]);
-    }
   };
 
   // Helper to format WhatsApp text for preview
@@ -184,7 +192,7 @@ export default function CreateTemplatePage() {
       }
 
       // Buttons
-      if (buttonType !== "NONE" && buttons.length > 0) {
+      if (buttons.length > 0) {
         const buttonsComponent: any = {
           type: "BUTTONS",
           buttons: buttons.map(b => {
@@ -196,6 +204,14 @@ export default function CreateTemplatePage() {
               return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phoneNumber };
             } else if (b.type === "COPY_CODE") {
               return { type: "COPY_CODE", example: "123456" }; // WhatsApp requires example for copy code
+            } else if (b.type === "FLOW") {
+              return { 
+                type: "FLOW", 
+                text: b.text, 
+                flow_id: b.flowId, 
+                flow_action: b.flowAction, 
+                navigate_screen: b.navigateScreen 
+              };
             }
             return null;
           }).filter(Boolean)
@@ -416,106 +432,119 @@ export default function CreateTemplatePage() {
 
                   {/* Buttons */}
                   <div className="space-y-3 border-t pt-4">
-                    <Label className="text-base font-semibold">Buttons (Optional)</Label>
-                    <div className="grid gap-2">
-                      <Label>Button Type</Label>
-                      <Select 
-                        value={buttonType} 
-                        onValueChange={handleButtonTypeChange}
-                        disabled={category === "AUTHENTICATION"}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
-                          <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
-                          {category === "AUTHENTICATION" && (
-                            <SelectItem value="COPY_CODE">Copy Code</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex justify-between items-center">
+                      <Label className="text-base font-semibold">Buttons (Max 10)</Label>
+                      <span className="text-xs text-gray-500">{buttons.length}/10</span>
                     </div>
 
-                    {buttonType !== "NONE" && (
-                      <div className="space-y-3">
-                        {buttons.map((btn, idx) => (
-                          <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border">
-                            <div className="grid gap-2 flex-1">
-                              {buttonType === "CALL_TO_ACTION" && (
-                                <Select 
-                                  value={btn.type} 
-                                  onValueChange={(v) => handleButtonChange(idx, "type", v)}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="URL">Website URL</SelectItem>
-                                    <SelectItem value="PHONE_NUMBER">Phone Number</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                              
-                              {buttonType === "COPY_CODE" ? (
-                                <Input value="Copy Code" disabled />
-                              ) : (
-                                <div className="grid gap-1">
-                                  <Input
-                                    value={btn.text}
-                                    onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
-                                    placeholder="Button Text"
-                                    maxLength={25}
-                                  />
-                                  <span className="text-[10px] text-gray-400 text-right">{btn.text.length}/25</span>
-                                </div>
-                              )}
+                    <div className="space-y-3">
+                      {buttons.map((btn, idx) => (
+                        <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border group">
+                          <div className="flex flex-col gap-1 pt-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleMoveButton(idx, "up")}
+                              disabled={idx === 0}
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleMoveButton(idx, "down")}
+                              disabled={idx === buttons.length - 1}
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </Button>
+                          </div>
 
-                              {btn.type === "URL" && (
-                                <Input
-                                  value={btn.url}
-                                  onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
-                                  placeholder="https://example.com"
-                                />
-                              )}
-
-                              {btn.type === "PHONE_NUMBER" && (
-                                <Input
-                                  value={btn.phoneNumber}
-                                  onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
-                                  placeholder="+1234567890"
-                                />
-                              )}
+                          <div className="grid gap-2 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {btn.type.replace("_", " ")}
+                              </span>
                             </div>
-                            {buttonType !== "COPY_CODE" && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleRemoveButton(idx)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                            
+                            {btn.type === "COPY_CODE" ? (
+                              <Input value="Copy Code" disabled />
+                            ) : (
+                              <div className="grid gap-1">
+                                <Input
+                                  value={btn.text}
+                                  onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
+                                  placeholder="Button Text"
+                                  maxLength={25}
+                                />
+                                <span className="text-[10px] text-gray-400 text-right">{btn.text.length}/25</span>
+                              </div>
+                            )}
+
+                            {btn.type === "URL" && (
+                              <Input
+                                value={btn.url}
+                                onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
+                                placeholder="https://example.com"
+                              />
+                            )}
+
+                            {btn.type === "PHONE_NUMBER" && (
+                              <Input
+                                value={btn.phoneNumber}
+                                onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
+                                placeholder="+1234567890"
+                              />
+                            )}
+
+                            {btn.type === "FLOW" && (
+                              <div className="grid gap-2">
+                                <Input
+                                  value={btn.flowId}
+                                  onChange={(e) => handleButtonChange(idx, "flowId", e.target.value)}
+                                  placeholder="Flow ID"
+                                />
+                                <Input
+                                  value={btn.navigateScreen}
+                                  onChange={(e) => handleButtonChange(idx, "navigateScreen", e.target.value)}
+                                  placeholder="Initial Screen (e.g. screen_01)"
+                                />
+                              </div>
                             )}
                           </div>
-                        ))}
-                        
-                        {((buttonType === "QUICK_REPLY" && buttons.length < 3) || 
-                          (buttonType === "CALL_TO_ACTION" && buttons.length < 2)) && (
+                          
                           <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleAddButton}
-                            className="w-full border-dashed"
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleRemoveButton(idx)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Button
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      ))}
+                      
+                      {buttons.length < 10 && category !== "AUTHENTICATION" && (
+                        <div className="flex gap-2 flex-wrap">
+                          <Select onValueChange={(v) => handleAddButton(v as TemplateButton["type"])}>
+                            <SelectTrigger className="w-full border-dashed">
+                              <div className="flex items-center gap-2">
+                                <Plus className="w-4 h-4" />
+                                <span>Add Button</span>
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="QUICK_REPLY">Custom (Quick Reply)</SelectItem>
+                              <SelectItem value="URL">Visit Website</SelectItem>
+                              <SelectItem value="PHONE_NUMBER">Call Phone Number</SelectItem>
+                              <SelectItem value="FLOW">Complete Flow</SelectItem>
+                              <SelectItem value="COPY_CODE">Copy Offer Code</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </ScrollArea>
@@ -575,13 +604,15 @@ export default function CreateTemplatePage() {
                   </div>
 
                   {/* Buttons */}
-                  {buttonType !== "NONE" && buttons.length > 0 && (
+                  {buttons.length > 0 && (
                     <div className="mt-1 space-y-1">
                       {buttons.map((btn, idx) => (
-                        <div key={idx} className="bg-white rounded text-center py-2 text-[#00a884] text-sm font-medium cursor-pointer shadow-sm hover:bg-gray-50">
-                          {btn.type === "URL" && <span className="mr-1">🔗</span>}
-                          {btn.type === "PHONE_NUMBER" && <span className="mr-1">📞</span>}
-                          {btn.type === "COPY_CODE" && <span className="mr-1">📋</span>}
+                        <div key={idx} className="bg-white rounded text-center py-2 text-[#00a884] text-sm font-medium cursor-pointer shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2">
+                          {btn.type === "URL" && <span className="text-xs">🔗</span>}
+                          {btn.type === "PHONE_NUMBER" && <span className="text-xs">📞</span>}
+                          {btn.type === "COPY_CODE" && <span className="text-xs">📋</span>}
+                          {btn.type === "FLOW" && <span className="text-xs">⚡</span>}
+                          {btn.type === "QUICK_REPLY" && <span className="text-xs">↩️</span>}
                           {btn.text || "Button"}
                         </div>
                       ))}
