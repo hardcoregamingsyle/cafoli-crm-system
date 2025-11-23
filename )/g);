@@ -1,0 +1,11 @@
+    return parts.map((part, i) => {
+      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+        return <strong key={i}>{part.slice(1, -1)}</strong>;
+      }
+      if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      if (part.startsWith('~') && part.endsWith('~') && part.length > 2) {
+        return <span key={i} className="line-through">{part.slice(1, -1)}</span>;
+      }
+      if (part.startsWith('

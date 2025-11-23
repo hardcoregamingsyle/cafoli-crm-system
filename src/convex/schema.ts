@@ -232,6 +232,7 @@ export default defineSchema({
     name: v.string(),
     language: v.string(),
     category: v.string(),
+    subCategory: v.optional(v.string()),
     components: v.any(), // JSON structure for header, body, footer, buttons
     status: v.string(), // "pending", "approved", "rejected", "paused"
     visibility: v.string(), // "public", "private"

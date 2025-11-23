@@ -33,6 +33,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
   
   const [name, setName] = useState("");
   const [category, setCategory] = useState("MARKETING");
+  const [subCategory, setSubCategory] = useState("DEFAULT");
   const [language, setLanguage] = useState("en");
   const [bodyText, setBodyText] = useState("");
   const [visibility, setVisibility] = useState("public");
@@ -45,6 +46,12 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
   const [buttons, setButtons] = useState<TemplateButton[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset sub-category when category changes
+  const handleCategoryChange = (val: string) => {
+    setCategory(val);
+    setSubCategory("DEFAULT");
+  };
 
   const handleAddButton = () => {
     if (buttonType === "QUICK_REPLY") {
@@ -132,6 +139,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
       await createTemplate({
         name,
         category,
+        subCategory,
         language,
         components,
         visibility,
@@ -145,6 +153,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
       setName("");
       setBodyText("");
       setCategory("MARKETING");
+      setSubCategory("DEFAULT");
       setVisibility("public");
       setHeaderType("NONE");
       setHeaderText("");
@@ -182,7 +191,7 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
+                  <Select value={category} onValueChange={handleCategoryChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

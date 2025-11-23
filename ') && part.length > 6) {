@@ -1,0 +1,301 @@
+        return <code key={i} className="bg-gray-100 px-1 rounded font-mono text-sm">{part.slice(3, -3)}</code>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Create New WhatsApp Template</DialogTitle>
+        </DialogHeader>
+        <div className="flex gap-6 flex-1 overflow-hidden">
+          {/* Left Side - Form */}
+          <ScrollArea className="flex-1 pr-4">
+            <div className="grid gap-6 py-4">
+              {/* Basic Info */}
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Template Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "_"))}
+                    placeholder="e.g., welcome_message"
+                  />
+                  <p className="text-xs text-gray-500">Lowercase, underscores only</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Category</Label>
+                    <Select value={category} onValueChange={handleCategoryChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MARKETING">Marketing</SelectItem>
+                        <SelectItem value="UTILITY">Utility</SelectItem>
+                        <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Sub Category */}
+                  <div className="grid gap-2">
+                    <Label>Sub Category</Label>
+                    <Select value={subCategory} onValueChange={setSubCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEFAULT">Default</SelectItem>
+                        {category === "MARKETING" && (
+                          <>
+                            <SelectItem value="CATALOGUE">Catalogue</SelectItem>
+                            <SelectItem value="FLOWS">Flows</SelectItem>
+                            <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                          </>
+                        )}
+                        {category === "UTILITY" && (
+                          <>
+                            <SelectItem value="FLOWS">Flows</SelectItem>
+                            <SelectItem value="CALLING_PERMISSION">Calling Permission</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Language</Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English (en)</SelectItem>
+                        <SelectItem value="en_US">English (US)</SelectItem>
+                        <SelectItem value="hi">Hindi (hi)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Header */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="text-base font-semibold">Header (Optional)</Label>
+                <div className="grid gap-2">
+                  <Label>Header Type</Label>
+                  <Select value={headerType} onValueChange={(v) => setHeaderType(v as HeaderType)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">None</SelectItem>
+                      <SelectItem value="TEXT">Text</SelectItem>
+                      <SelectItem value="IMAGE">Image</SelectItem>
+                      <SelectItem value="VIDEO">Video</SelectItem>
+                      <SelectItem value="DOCUMENT">Document</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {headerType === "TEXT" && (
+                  <div className="grid gap-2">
+                    <Label>Header Text</Label>
+                    <Input 
+                      value={headerText} 
+                      onChange={(e) => setHeaderText(e.target.value)}
+                      placeholder="Enter header text"
+                      maxLength={60}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="text-base font-semibold">Body</Label>
+                <div className="grid gap-2">
+                  <Textarea
+                    id="body"
+                    value={bodyText}
+                    onChange={(e) => setBodyText(e.target.value)}
+                    placeholder="Enter your message text here... Use *bold*, _italics_, ~strike~"
+                    className="h-32 font-mono text-sm"
+                  />
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p>Variables: {"{{1}}"}, {"{{2}}"}, etc.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="text-base font-semibold">Footer (Optional)</Label>
+                <div className="grid gap-2">
+                  <Textarea
+                    value={footerText}
+                    onChange={(e) => setFooterText(e.target.value)}
+                    placeholder="Enter footer text (optional)"
+                    className="h-12"
+                  />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="text-base font-semibold">Buttons (Optional)</Label>
+                <div className="grid gap-2">
+                  <Label>Button Type</Label>
+                  <Select 
+                    value={buttonType} 
+                    onValueChange={handleButtonTypeChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">None</SelectItem>
+                      <SelectItem value="QUICK_REPLY">Quick Reply (Max 3)</SelectItem>
+                      <SelectItem value="CALL_TO_ACTION">Call to Action (Max 2)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {buttonType !== "NONE" && (
+                  <div className="space-y-3">
+                    {buttons.map((btn, idx) => (
+                      <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md border">
+                        <div className="grid gap-2 flex-1">
+                          {buttonType === "CALL_TO_ACTION" && (
+                            <Select 
+                              value={btn.type} 
+                              onValueChange={(v) => handleButtonChange(idx, "type", v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="URL">Website URL</SelectItem>
+                                <SelectItem value=\"PHONE_NUMBER\">Phone Number</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                          
+                          <Input
+                            value={btn.text}
+                            onChange={(e) => handleButtonChange(idx, "text", e.target.value)}
+                            placeholder="Button Text"
+                            maxLength={25}
+                          />
+
+                          {btn.type === "URL" && (
+                            <Input
+                              value={btn.url}
+                              onChange={(e) => handleButtonChange(idx, "url", e.target.value)}
+                              placeholder="https://example.com"
+                            />
+                          )}
+
+                          {btn.type === "PHONE_NUMBER" && (
+                            <Input
+                              value={btn.phoneNumber}
+                              onChange={(e) => handleButtonChange(idx, "phoneNumber", e.target.value)}
+                              placeholder="+1234567890"
+                            />
+                          )}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleRemoveButton(idx)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    
+                    {((buttonType === "QUICK_REPLY" && buttons.length < 3) || 
+                      (buttonType === "CALL_TO_ACTION" && buttons.length < 2)) && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleAddButton}
+                        className="w-full border-dashed"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Button
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+
+          {/* Right Side - Preview */}
+          <div className="w-[300px] bg-gray-100 rounded-lg p-4 flex flex-col gap-4 border-l">
+            <Label className="font-semibold text-gray-700">Preview</Label>
+            <div className="bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat flex-1 rounded-lg p-4 overflow-y-auto">
+              <div className="bg-white rounded-lg p-2 shadow-sm max-w-[90%] ml-auto relative">
+                {/* Header Preview */}
+                {headerType !== "NONE" && (
+                  <div className="mb-2 rounded bg-gray-200 h-32 flex items-center justify-center text-gray-500 text-sm">
+                    {headerType === "TEXT" ? (
+                      <span className="p-2 text-black font-semibold">{headerText || "Header Text"}</span>
+                    ) : (
+                      <span>{headerType} Media</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Body Preview */}
+                <div className="text-sm whitespace-pre-wrap mb-1">
+                  {bodyText ? formatWhatsAppText(bodyText) : <span className="text-gray-400 italic">Message body...</span>}
+                </div>
+
+                {/* Footer Preview */}
+                {footerText && (
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {footerText}
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                <div className="text-[10px] text-gray-400 text-right mt-1">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+
+              {/* Buttons Preview */}
+              {buttonType !== "NONE" && buttons.length > 0 && (
+                <div className="mt-2 space-y-1 max-w-[90%] ml-auto">
+                  {buttons.map((btn, idx) => (
+                    <div key={idx} className="bg-white rounded text-center py-2 text-blue-500 text-sm font-medium shadow-sm cursor-pointer hover:bg-gray-50">
+                      {btn.type === "URL" && "🔗 "}
+                      {btn.type === "PHONE_NUMBER" && "📞 "}
+                      {btn.text || "Button"}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create Template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
