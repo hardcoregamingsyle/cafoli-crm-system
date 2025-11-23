@@ -190,22 +190,28 @@ export default function WhatsAppPage() {
                     key={lead._id}
                     onClick={() => setSelectedLeadId(lead._id)}
                     className={`w-full text-left p-3 hover:bg-gray-50 border-b transition-colors ${
-                      selectedLeadId === lead._id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
+                      selectedLeadId === lead._id 
+                        ? "bg-blue-50 border-l-4 border-l-blue-500" 
+                        : lead.unreadCount > 0 
+                        ? "bg-green-50 border-l-4 border-l-green-500" 
+                        : ""
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{lead.name || "Unnamed Lead"}</div>
+                        <div className={`font-medium truncate ${lead.unreadCount > 0 ? "font-bold" : ""}`}>
+                          {lead.name || "Unnamed Lead"}
+                        </div>
                         <div className="text-xs text-gray-500 truncate">{lead.mobileNo || "No phone"}</div>
                         {lead.lastMessage && (
-                          <div className="text-xs text-gray-400 truncate mt-1">
+                          <div className={`text-xs truncate mt-1 ${lead.unreadCount > 0 ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                             {lead.lastMessage}
                           </div>
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {lead.unreadCount > 0 && (
-                          <Badge variant="default" className="text-xs">
+                          <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
                             {lead.unreadCount}
                           </Badge>
                         )}
