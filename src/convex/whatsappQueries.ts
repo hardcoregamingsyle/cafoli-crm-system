@@ -122,6 +122,9 @@ export const logMessage = internalMutation({
     direction: v.union(v.literal("inbound"), v.literal("outbound")),
     messageId: v.union(v.string(), v.null()),
     status: v.optional(v.string()),
+    mediaType: v.optional(v.string()),
+    mediaUrl: v.optional(v.string()),
+    mediaId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     try {
@@ -133,6 +136,9 @@ export const logMessage = internalMutation({
         messageId: args.messageId || undefined,
         status: args.status || "sent",
         timestamp: Date.now(),
+        mediaType: args.mediaType,
+        mediaUrl: args.mediaUrl,
+        mediaId: args.mediaId,
       });
       return { success: true };
     } catch (error) {

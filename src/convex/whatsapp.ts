@@ -382,3 +382,144 @@ export const sendTemplateMessageInternal = internalAction({
     return result;
   },
 });
+
+// Add new action to upload media to WhatsApp
+export const uploadMedia = action({
+  args: {
+    fileUrl: v.string(),
+    mimeType: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_NUMBER_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    if (!token || !phoneId) {
+      throw new Error("WhatsApp credentials not configured");
+    }
+
+    try {
+      // Fetch the file from the URL
+      const fileResponse = await fetch(args.fileUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+      }
+
+      const fileBlob = await fileResponse.blob();
+      const formData = new FormData();
+      formData.append("messaging_product", "whatsapp");
+      formData.append("file", fileBlob);
+      formData.append("type", args.mimeType);
+
+      const response = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}/media`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsApp media upload error: ${JSON.stringify(data)}`);
+      }
+
+      return { success: true, mediaId: data.id };
+    } catch (error: any) {
+      throw new Error(`Failed to upload media: ${error.message}`);
+    }
+  },
+});
+
+// Add new action to send media messages
+export const sendMediaMessage = action({
+  args: {
+    phoneNumber: v.string(),
+    mediaType: v.string(), // image, video, audio, document, sticker
+    mediaId: v.optional(v.string()),
+    mediaUrl: v.optional(v.string()),
+    caption: v.optional(v.string()),
+    filename: v.optional(v.string()),
+    leadId: v.optional(v.id("leads")),
+  },
+  handler: async (ctx, args) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_NUMBER_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    if (!token || !phoneId) {
+      throw new Error("WhatsApp credentials not configured");
+    }
+
+    const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
+
+    // Build media object based on type
+    const mediaObject: any = {};
+    
+    if (args.mediaId) {
+      mediaObject.id = args.mediaId;
+    } else if (args.mediaUrl) {
+      mediaObject.link = args.mediaUrl;
+    } else {
+      throw new Error("Either mediaId or mediaUrl must be provided");
+    }
+
+    if (args.caption && ["image", "video", "document"].includes(args.mediaType)) {
+      mediaObject.caption = args.caption;
+    }
+
+    if (args.filename && args.mediaType === "document") {
+      mediaObject.filename = args.filename;
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: normalizedPhone,
+            type: args.mediaType,
+            [args.mediaType]: mediaObject,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
+      }
+
+      // Log the sent media message
+      if (args.leadId) {
+        await ctx.runMutation(internal.whatsappQueries.logMessage, {
+          leadId: args.leadId,
+          phoneNumber: normalizedPhone,
+          message: args.caption || `[${args.mediaType.toUpperCase()}]`,
+          direction: "outbound",
+          messageId: data.messages?.[0]?.id || null,
+          status: "sent",
+        });
+
+        await ctx.runMutation(internal.whatsappQueries.updateLeadActivity, {
+          leadId: args.leadId,
+        });
+      }
+
+      return { success: true, messageId: data.messages?.[0]?.id, data };
+    } catch (error: any) {
+      throw new Error(`Failed to send media message: ${error.message}`);
+    }
+  },
+});

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Check, CheckCheck } from "lucide-react";
+import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music } from "lucide-react";
 import { toast } from "sonner";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
@@ -23,6 +23,10 @@ export default function WhatsAppPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [caption, setCaption] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ts-ignore - Convex type inference limitation
   const leadsWithMessages = useConvexQuery(
@@ -40,6 +44,7 @@ export default function WhatsAppPage() {
 
   const sendMessage = useAction(api.whatsapp.sendMessage);
   const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
+  const sendMediaMessage = useAction(api.whatsapp.sendMediaMessage);
 
   // Log webhook data to console for debugging
   useEffect(() => {
@@ -154,6 +159,128 @@ export default function WhatsAppPage() {
       console.error("[WhatsApp] Failed to send welcome message:", error);
       toast.error(error?.message || "Failed to send welcome message");
     }
+  };
+
+  // Helper function to get media type from file
+  const getMediaType = (file: File): string => {
+    const mimeType = file.type;
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    return "document";
+  };
+
+  // Helper function to handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 16MB for most media, 100MB for videos)
+    const maxSize = file.type.startsWith("video/") ? 100 * 1024 * 1024 : 16 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`File too large. Max size: ${maxSize / (1024 * 1024)}MB`);
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  // Helper function to send media message
+  const handleSendMedia = async () => {
+    if (!selectedFile || !selectedLeadId || !currentUser) return;
+
+    const lead = filteredLeads.find((l: any) => l._id === selectedLeadId);
+    if (!lead?.mobileNo) {
+      toast.error("Lead has no phone number");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // Convert file to base64 data URL
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const dataUrl = reader.result as string;
+        
+        try {
+          const mediaType = getMediaType(selectedFile);
+          const result = await sendMediaMessage({
+            phoneNumber: lead.mobileNo,
+            mediaType,
+            mediaUrl: dataUrl,
+            caption: caption || undefined,
+            filename: selectedFile.name,
+            leadId: selectedLeadId as any,
+          });
+          
+          console.log("[WhatsApp] Media message sent successfully:", result);
+          setSelectedFile(null);
+          setCaption("");
+          toast.success("Media sent successfully!");
+        } catch (error: any) {
+          console.error("[WhatsApp] Failed to send media:", error);
+          toast.error(error?.message || "Failed to send media");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(selectedFile);
+    } catch (error: any) {
+      console.error("[WhatsApp] Failed to process media:", error);
+      toast.error("Failed to process media file");
+      setIsUploading(false);
+    }
+  };
+
+  // Helper function to render media message
+  const renderMediaMessage = (msg: any) => {
+    if (!msg.mediaType) return null;
+
+    const mediaType = msg.mediaType;
+    const mediaUrl = msg.mediaUrl;
+
+    if (mediaType === "image") {
+      return (
+        <div className="mt-2">
+          <img src={mediaUrl} alt="Shared image" className="max-w-full rounded-lg" />
+          {msg.caption && <p className="text-sm mt-1">{msg.caption}</p>}
+        </div>
+      );
+    }
+
+    if (mediaType === "video") {
+      return (
+        <div className="mt-2">
+          <video controls className="max-w-full rounded-lg">
+            <source src={mediaUrl} />
+          </video>
+          {msg.caption && <p className="text-sm mt-1">{msg.caption}</p>}
+        </div>
+      );
+    }
+
+    if (mediaType === "audio") {
+      return (
+        <div className="mt-2">
+          <audio controls className="w-full">
+            <source src={mediaUrl} />
+          </audio>
+        </div>
+      );
+    }
+
+    if (mediaType === "document") {
+      return (
+        <div className="mt-2 flex items-center gap-2 p-2 bg-gray-100 rounded">
+          <FileText className="h-5 w-5" />
+          <a href={mediaUrl} download className="text-sm text-blue-600 hover:underline">
+            Download Document
+          </a>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -274,6 +401,7 @@ export default function WhatsAppPage() {
                             }`}
                           >
                             <div className="text-sm break-words text-gray-900">{msg.message}</div>
+                            {renderMediaMessage(msg)}
                             <div className="flex items-center justify-end gap-1 mt-1">
                               <span className="text-[10px] text-gray-500">
                                 {new Date(msg.timestamp).toLocaleTimeString([], { 
@@ -300,26 +428,73 @@ export default function WhatsAppPage() {
                       ⚠️ Messaging disabled: Lead hasn't sent a message in the last 24 hours
                     </div>
                   )}
+                  
+                  {/* File preview */}
+                  {selectedFile && (
+                    <div className="mb-2 p-2 bg-gray-100 rounded flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {selectedFile.type.startsWith("image/") && <Image className="h-4 w-4" />}
+                        {selectedFile.type.startsWith("video/") && <Video className="h-4 w-4" />}
+                        {selectedFile.type.startsWith("audio/") && <Music className="h-4 w-4" />}
+                        {!selectedFile.type.startsWith("image/") && !selectedFile.type.startsWith("video/") && !selectedFile.type.startsWith("audio/") && <FileText className="h-4 w-4" />}
+                        <span className="text-sm">{selectedFile.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFile(null)}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Caption input for media */}
+                  {selectedFile && (
+                    <Input
+                      placeholder="Add a caption (optional)..."
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value)}
+                      className="mb-2 bg-white"
+                    />
+                  )}
+                  
                   <div className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                      onChange={handleFileSelect}
+                      disabled={!isMessagingAllowed}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={!isMessagingAllowed || isUploading}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
                     <Input
                       placeholder={isMessagingAllowed ? "Type a message..." : "Messaging disabled"}
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed) {
+                        if (e.key === "Enter" && !e.shiftKey && isMessagingAllowed && !selectedFile) {
                           e.preventDefault();
                           handleSendMessage();
                         }
                       }}
                       className="bg-white"
-                      disabled={!isMessagingAllowed}
+                      disabled={!isMessagingAllowed || isUploading}
                     />
                     <Button 
-                      onClick={handleSendMessage} 
-                      disabled={!messageInput.trim() || !isMessagingAllowed} 
+                      onClick={selectedFile ? handleSendMedia : handleSendMessage}
+                      disabled={(!messageInput.trim() && !selectedFile) || !isMessagingAllowed || isUploading} 
                       className="bg-[#25d366] hover:bg-[#20bd5a] disabled:opacity-50"
                     >
-                      <Send className="h-4 w-4" />
+                      {isUploading ? "..." : <Send className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
