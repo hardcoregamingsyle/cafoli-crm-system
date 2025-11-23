@@ -620,3 +620,53 @@ export const sendMediaMessage = action({
     }
   },
 });
+
+// Mark messages as read on WhatsApp and in DB
+export const markAsRead = action({
+  args: {
+    leadId: v.id("leads"),
+  },
+  handler: async (ctx, args) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_NUMBER_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    // 1. Get unread messages
+    const unreadMessages = await ctx.runQuery(internal.whatsappQueries.getUnreadMessages, {
+      leadId: args.leadId,
+    });
+
+    // 2. Mark as read on WhatsApp (if credentials exist)
+    if (token && phoneId && unreadMessages.length > 0) {
+      await Promise.all(
+        unreadMessages.map(async (msg) => {
+          if (!msg.messageId) return;
+          try {
+            await fetch(
+              `https://graph.facebook.com/${version}/${phoneId}/messages`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  status: "read",
+                  message_id: msg.messageId,
+                }),
+              }
+            );
+          } catch (error) {
+            console.error(`[WhatsApp] Failed to mark message ${msg.messageId} as read:`, error);
+          }
+        })
+      );
+    }
+
+    // 3. Update DB status
+    await ctx.runMutation(internal.whatsappQueries.markMessagesAsRead, {
+      leadId: args.leadId,
+    });
+  },
+});

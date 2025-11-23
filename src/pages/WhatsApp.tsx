@@ -44,16 +44,27 @@ export default function WhatsAppPage() {
   const sendTemplateMessage = useAction(api.whatsapp.sendTemplateMessage);
   const sendMediaMessage = useAction(api.whatsapp.sendMediaMessage);
   const sendReaction = useAction(api.whatsapp.sendReaction);
-  const markMessagesAsRead = useMutation(api.whatsappQueries.markMessagesAsRead);
+  const markAsRead = useAction(api.whatsapp.markAsRead);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
-  // Mark messages as read when lead is selected
+  // Mark messages as read when lead is selected or new messages arrive
   useEffect(() => {
-    if (selectedLeadId && authReady) {
-      markMessagesAsRead({ leadId: selectedLeadId as any });
-      setReplyingTo(null); // Clear reply when changing leads
+    if (selectedLeadId && authReady && messages) {
+      const hasUnread = messages.some((msg: any) => msg.direction === "inbound" && msg.status !== "read");
+      const lead = leadsWithMessages?.find((l: any) => l._id === selectedLeadId);
+      
+      if (hasUnread || (lead && lead.unreadCount > 0)) {
+        markAsRead({ leadId: selectedLeadId as any });
+      }
     }
-  }, [selectedLeadId, authReady, markMessagesAsRead]);
+  }, [selectedLeadId, authReady, messages, leadsWithMessages, markAsRead]);
+
+  // Clear reply when changing leads
+  useEffect(() => {
+    if (selectedLeadId) {
+      setReplyingTo(null);
+    }
+  }, [selectedLeadId]);
 
   // Log webhook data to console for debugging
   useEffect(() => {

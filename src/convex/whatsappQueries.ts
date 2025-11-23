@@ -1,4 +1,4 @@
-import { query, internalMutation, mutation } from "./_generated/server";
+import { query, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 // Query to get WhatsApp messages for a lead
@@ -72,6 +72,21 @@ export const getMessagesByPhone = query({
   },
 });
 
+// Internal query to get unread messages for a lead
+export const getUnreadMessages = internalQuery({
+  args: {
+    leadId: v.id("leads"),
+  },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .collect();
+    
+    return messages.filter((m) => m.direction === "inbound" && m.status !== "read");
+  },
+});
+
 // Internal mutation to log WhatsApp messages
 // Update lead's lastActivityTime
 export const updateLeadActivity = internalMutation({
@@ -85,7 +100,7 @@ export const updateLeadActivity = internalMutation({
   },
 });
 
-export const markMessagesAsRead = mutation({
+export const markMessagesAsRead = internalMutation({
   args: {
     leadId: v.id("leads"),
   },
