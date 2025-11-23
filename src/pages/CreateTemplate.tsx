@@ -229,7 +229,11 @@ export default function CreateTemplatePage() {
         currentUserId: currentUser._id,
       });
 
-      toast.success("Template created successfully (Pending Approval)");
+      if (currentUser.role === "admin") {
+        toast.success("Template created successfully (Approved)");
+      } else {
+        toast.success("Template created successfully (Pending Approval)");
+      }
       navigate("/whatsapp");
     } catch (error: any) {
       toast.error(error.message || "Failed to create template");

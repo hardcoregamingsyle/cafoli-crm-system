@@ -19,13 +19,15 @@ export const createTemplate = mutation({
     // In a real implementation, this would also trigger an action to submit to WhatsApp API
     // For now, we store it as "pending" (internal approval or waiting for submission)
     
+    const status = user.role === ROLES.ADMIN ? "approved" : "pending";
+
     const templateId = await ctx.db.insert("whatsappTemplates", {
       name: args.name,
       language: args.language,
       category: args.category,
       subCategory: args.subCategory,
       components: args.components,
-      status: "pending",
+      status: status,
       visibility: args.visibility,
       createdBy: args.currentUserId,
     });
