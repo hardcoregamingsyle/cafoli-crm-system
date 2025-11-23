@@ -237,7 +237,11 @@ export function ChatArea({
             <Paperclip className="h-4 w-4" />
           </Button>
           <Input
-            placeholder={isMessagingAllowed ? "Type a message..." : "Messaging disabled"}
+            placeholder={
+              selectedFile 
+                ? "Use caption field above..." 
+                : (isMessagingAllowed ? "Type a message..." : "Messaging disabled")
+            }
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onKeyPress={(e) => {
@@ -247,7 +251,7 @@ export function ChatArea({
               }
             }}
             className="bg-white"
-            disabled={!isMessagingAllowed || isUploading}
+            disabled={!isMessagingAllowed || isUploading || !!selectedFile}
           />
           <Button 
             onClick={selectedFile ? handleSendMedia : handleSendMessage}

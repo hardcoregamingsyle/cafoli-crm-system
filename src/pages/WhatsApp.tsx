@@ -174,6 +174,12 @@ export default function WhatsAppPage() {
     }
 
     setSelectedFile(file);
+
+    // Automatically set message as caption if present
+    if (messageInput.trim()) {
+      setCaption(messageInput);
+      setMessageInput("");
+    }
   };
 
   // Helper function to send media message
