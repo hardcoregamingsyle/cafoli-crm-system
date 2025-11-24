@@ -139,17 +139,30 @@ export const getMyLeads = query({
   },
   handler: async (ctx, args) => {
     try {
+      // Validate currentUserId exists
+      if (!args.currentUserId) {
+        return [];
+      }
+
+      // Validate it's a proper ID format
+      if (typeof args.currentUserId === "string" && args.currentUserId.length < 20) {
+        return [];
+      }
+
       let currentUser: any = null;
-      // FIX: Robustly resolve currentUser for both Id and string formats
-      if (args.currentUserId) {
-        try {
-          currentUser = await ctx.db.get(args.currentUserId as any);
-        } catch (_) {
-          currentUser = null;
-        }
+      try {
+        currentUser = await ctx.db.get(args.currentUserId as any);
+      } catch (error) {
+        console.error("Error fetching user in getMyLeads:", error);
+        return [];
       }
       
-      if (!currentUser || currentUser.role === ROLES.ADMIN) {
+      if (!currentUser) {
+        return [];
+      }
+
+      // Admin users should not use this query
+      if (currentUser.role === ROLES.ADMIN) {
         return [];
       }
 
@@ -159,10 +172,16 @@ export const getMyLeads = query({
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
-      } catch {
+      } catch (error) {
+        console.error("Error querying leads by index:", error);
         // Fallback to full table scan if index fails
-        const all = await ctx.db.query("leads").collect();
-        leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+        try {
+          const all = await ctx.db.query("leads").collect();
+          leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+        } catch (fallbackError) {
+          console.error("Fallback query also failed:", fallbackError);
+          return [];
+        }
       }
 
       // Filter out not relevant leads
@@ -174,9 +193,10 @@ export const getMyLeads = query({
         const bTime = b.lastActivityTime ?? b._creationTime;
         return bTime - aTime; // Descending order (newest first)
       });
+      
       return leads;
     } catch (err) {
-      console.error("getMyLeads error:", err);
+      console.error("getMyLeads outer error:", err);
       return [];
     }
   },
