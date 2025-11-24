@@ -11,7 +11,9 @@ import { Plus, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
-const getLeadsWithMessagesQuery: any = (() => api.whatsappPortal.getLeadsWithMessages)();
+const getMyLeadsQuery: any = (() => api.leads.getMyLeads)();
+// @ts-ignore - TS2589: Known Convex type inference limitation
+const getAllLeadsQuery: any = (() => api.leads.getAllLeads)();
 // @ts-ignore - TS2589: Known Convex type inference limitation
 const getLeadMessagesQuery: any = (() => api.whatsappQueries.getLeadMessages)();
 
@@ -29,11 +31,21 @@ export default function WhatsAppPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch leads based on user role
   // @ts-ignore - Convex type inference limitation
-  const leadsWithMessages = useConvexQuery(
-    getLeadsWithMessagesQuery,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+  const myLeads = useConvexQuery(
+    getMyLeadsQuery,
+    currentUser && currentUser.role !== "admin" ? { currentUserId: currentUser._id, limit: 500 } : "skip"
   );
+
+  // @ts-ignore - Convex type inference limitation
+  const allLeads = useConvexQuery(
+    getAllLeadsQuery,
+    currentUser && currentUser.role === "admin" ? { currentUserId: currentUser._id, filter: "all" } : "skip"
+  );
+
+  // Combine leads based on role
+  const leadsWithMessages = currentUser?.role === "admin" ? allLeads : myLeads;
 
   // @ts-ignore - Convex type inference limitation
   const messages = useConvexQuery(
@@ -350,6 +362,7 @@ export default function WhatsAppPage() {
             </Button>
             <div className="text-sm text-gray-600">
               Showing {filteredLeads.length} of {leadsWithMessages?.length || 0} leads
+              {currentUser?.role === "admin" ? " (All Leads)" : " (My Leads)"}
             </div>
           </div>
         </div>
