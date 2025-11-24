@@ -44,7 +44,7 @@ export default function MyLeadsPage() {
 
   const leads = useQuery(
     (api as any).leads.getMyLeads,
-    currentUser ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id, limit: 500 } : "skip"
   );
   const updateLeadStatus = useMutation((api as any).leads.updateLeadStatus);
   const setNextFollowup = useMutation((api as any).leads.setNextFollowup);
