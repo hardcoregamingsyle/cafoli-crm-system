@@ -28,7 +28,7 @@ export const getLeadMessages = query({
 
       // Check if lead exists - if deleted, return empty array
       if (!lead) {
-        console.warn("[getLeadMessages] Lead not found (possibly deleted):", args.leadId);
+        console.warn("[getLeadMessages] Lead not found or deleted:", args.leadId);
         return [];
       }
 
@@ -151,8 +151,6 @@ export const logMessage = internalMutation({
 
       // If we have a reply ID but no body/sender, try to find the original message
       if (args.replyToMessageId && (!replyToBody || !replyToSender)) {
-        // We use filter here as we might not have a specific index on messageId yet
-        // In a production app with millions of messages, you'd want an index on messageId
         const originalMsg = await ctx.db
           .query("whatsappMessages")
           .filter((q) => q.eq(q.field("messageId"), args.replyToMessageId))

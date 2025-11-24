@@ -19,7 +19,6 @@ export default function WhatsAppPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
 
-  // Auth is handled by the hook itself, no need for separate ready state
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +46,17 @@ export default function WhatsAppPage() {
   const sendReaction = useAction(api.whatsapp.sendReaction);
   const markAsRead = useAction(api.whatsapp.markAsRead);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+
+  // Clear selected lead if it gets deleted or becomes unavailable
+  useEffect(() => {
+    if (selectedLeadId && leadsWithMessages) {
+      const leadStillExists = leadsWithMessages.some((l: any) => l._id === selectedLeadId);
+      if (!leadStillExists) {
+        console.log("[WhatsApp] Selected lead no longer available, clearing selection");
+        setSelectedLeadId(null);
+      }
+    }
+  }, [selectedLeadId, leadsWithMessages]);
 
   // Mark messages as read when lead is selected or new messages arrive
   useEffect(() => {
@@ -91,7 +101,7 @@ export default function WhatsAppPage() {
     const lastInboundMessage = inboundMessages[inboundMessages.length - 1];
     const lastInboundTime = lastInboundMessage.timestamp;
     const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const twentyFourHours = 24 * 60 * 60 * 1000;
     
     return (now - lastInboundTime) <= twentyFourHours;
   }, [messages]);
@@ -125,7 +135,7 @@ export default function WhatsAppPage() {
       });
     }
 
-    // Sort by lastActivityTime (most recent first), fallback to lastMessageTime, then _creationTime
+    // Sort by lastActivityTime (most recent first)
     return filtered.sort((a: any, b: any) => {
       const aTime = a?.lastActivityTime ?? a?.lastMessageTime ?? a?._creationTime ?? 0;
       const bTime = b?.lastActivityTime ?? b?.lastMessageTime ?? b?._creationTime ?? 0;
@@ -154,7 +164,7 @@ export default function WhatsAppPage() {
         templateName: template.name,
         languageCode: template.language,
         leadId: selectedLeadId as any,
-        components: [] // We might need to handle variables later
+        components: []
       });
       toast.success(`Template "${template.name}" sent successfully`);
     } catch (error: any) {
@@ -163,7 +173,6 @@ export default function WhatsAppPage() {
     }
   };
 
-  // Helper function to get media type from file
   const getMediaType = (file: File): string => {
     const mimeType = file.type;
     if (mimeType.startsWith("image/")) return "image";
@@ -172,12 +181,10 @@ export default function WhatsAppPage() {
     return "document";
   };
 
-  // Helper function to handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       
-      // Validate file size (max 16MB for most media, 100MB for videos)
       const validFiles = newFiles.filter(file => {
         const maxSize = file.type.startsWith("video/") ? 100 * 1024 * 1024 : 16 * 1024 * 1024;
         if (file.size > maxSize) {
@@ -190,7 +197,6 @@ export default function WhatsAppPage() {
       if (validFiles.length > 0) {
         setSelectedFiles(prev => [...prev, ...validFiles]);
 
-        // Automatically set message as caption if present (only if caption is empty)
         if (messageInput.trim() && !caption) {
           setCaption(messageInput);
           setMessageInput("");
@@ -198,18 +204,15 @@ export default function WhatsAppPage() {
       }
     }
     
-    // Reset input value to allow selecting the same file again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  // Helper function to remove a file
   const handleRemoveFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Helper function to send media message
   const handleSendMedia = async () => {
     if (selectedFiles.length === 0 || !selectedLeadId || !currentUser) return;
 
@@ -221,14 +224,11 @@ export default function WhatsAppPage() {
 
     setIsUploading(true);
     try {
-      // Loop through all selected files
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         
-        // 1. Get upload URL
         const postUrl = await generateUploadUrl();
         
-        // 2. Upload file
         const result = await fetch(postUrl, {
           method: "POST",
           headers: { "Content-Type": file.type },
@@ -241,10 +241,7 @@ export default function WhatsAppPage() {
         
         const { storageId } = await result.json();
 
-        // 3. Send message with storage ID
         const mediaType = getMediaType(file);
-        
-        // Attach caption only to the first file
         const fileCaption = i === 0 ? caption : undefined;
 
         await sendMediaMessage({
