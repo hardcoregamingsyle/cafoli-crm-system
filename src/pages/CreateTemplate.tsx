@@ -60,7 +60,8 @@ export default function CreateTemplatePage() {
       const templateToEdit = templates.find((t: any) => t._id === editTemplateId);
       if (templateToEdit) {
         setName(templateToEdit.name || "");
-        setCategory(templateToEdit.category || "MARKETING");
+        // Ensure category matches Select options (uppercase)
+        setCategory(templateToEdit.category?.toUpperCase() || "MARKETING");
         setSubCategory(templateToEdit.subCategory || "CUSTOM");
         setLanguage(templateToEdit.language || "en");
         setVisibility(templateToEdit.visibility || "public");
@@ -70,7 +71,8 @@ export default function CreateTemplatePage() {
         if (headerComp) {
           setHeaderType(headerComp.format || "NONE");
           if (headerComp.format === "TEXT") {
-            setHeaderText(headerComp.text || "");
+            // Handle both text field and example if present
+            setHeaderText(headerComp.text || (headerComp.example?.header_text?.[0] || ""));
           }
         } else {
           setHeaderType("NONE");
