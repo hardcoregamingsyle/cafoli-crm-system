@@ -140,18 +140,20 @@ export const getMyLeads = query({
   handler: async (ctx, args) => {
     try {
       // Validate currentUserId exists
-      if (!args.currentUserId) {
+      if (!args.currentUserId || args.currentUserId === "undefined" || args.currentUserId === "null") {
         return [];
       }
 
-      // Validate it's a proper ID format
-      if (typeof args.currentUserId === "string" && args.currentUserId.length < 20) {
+      // Validate it's a proper ID format using normalizeId
+      const normalizedUserId = ctx.db.normalizeId("users", args.currentUserId);
+      if (!normalizedUserId) {
+        // If it's not a valid ID, we can't fetch the user
         return [];
       }
 
       let currentUser: any = null;
       try {
-        currentUser = await ctx.db.get(args.currentUserId as any);
+        currentUser = await ctx.db.get(normalizedUserId);
       } catch (error) {
         console.error("Error fetching user in getMyLeads:", error);
         return [];

@@ -152,12 +152,20 @@ export const deleteTemplate = action({
   handler: async (ctx, args) => {
     try {
       // First verify the template exists
-      const template = await ctx.runQuery(internal.whatsappTemplates.getTemplateInternal, {
-        templateId: args.templateId,
-      });
+      let template;
+      try {
+        template = await ctx.runQuery(internal.whatsappTemplates.getTemplateInternal, {
+          templateId: args.templateId,
+        });
+      } catch (err) {
+        console.error("Error fetching template internal:", err);
+        throw new Error("Failed to verify template existence");
+      }
 
       if (!template) {
-        throw new Error("Template not found in database");
+        // If template is already gone from DB, consider it success or throw specific error
+        console.log("Template not found in database, might be already deleted");
+        return { success: true };
       }
 
       const token = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -190,7 +198,8 @@ export const deleteTemplate = action({
           if (data.error?.code === 100 || data.error?.message?.includes("does not exist")) {
             console.log("[WhatsApp] Template not found on Meta, deleting from DB only");
           } else {
-            throw new Error(data.error?.message || "Failed to delete from Meta");
+            // Log but don't block DB deletion if it's a permission issue or something else
+            console.warn("Failed to delete from Meta, but proceeding to delete from DB:", data.error?.message);
           }
         } else {
           console.log("[WhatsApp] Template deleted from Meta successfully");
@@ -209,6 +218,7 @@ export const deleteTemplate = action({
       }
     } catch (error: any) {
       console.error("[WhatsApp] Delete template error:", error);
+      // Return a structured error if possible, or throw a clean error
       throw new Error(`Failed to delete template: ${error.message}`);
     }
   },

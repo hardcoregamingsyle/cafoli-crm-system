@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -115,6 +115,7 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
           <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0 bg-white shrink-0">
             <div className="flex items-center gap-4">
               <DialogTitle className="text-xl font-bold text-gray-800">WhatsApp Templates</DialogTitle>
+              <DialogDescription className="hidden">Manage your WhatsApp templates</DialogDescription>
               <Badge variant="secondary" className="hidden sm:flex bg-blue-50 text-blue-700 hover:bg-blue-100">
                 {templates?.length || 0} Templates
               </Badge>
