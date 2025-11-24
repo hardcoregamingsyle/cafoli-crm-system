@@ -123,7 +123,9 @@ export default function MyLeadsPage() {
 
   // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    const list: Array<any> = (leads ?? []);
+    const list: Array<any> = (leads ?? []).filter(
+      (lead: any) => String(lead?.assignedTo ?? "") === String(currentUser?._id ?? "")
+    );
     const q = (search || "").trim().toLowerCase();
 
     // Apply all filters
@@ -176,7 +178,7 @@ export default function MyLeadsPage() {
       const bTime = b?.lastActivityTime ?? b?._creationTime ?? 0;
       return bTime - aTime;
     });
-  }, [leads, search, selectedStatuses, selectedSources, selectedHeats]);
+  }, [leads, search, selectedStatuses, selectedSources, selectedHeats, currentUser?._id]);
 
   // Toggle functions for filters
   const toggleStatus = (status: string) => {
