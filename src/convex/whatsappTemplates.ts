@@ -106,11 +106,11 @@ export const upsertTemplates = internalMutation({
         .first();
 
       if (existing) {
+        // Update existing template with Meta's data (Meta is source of truth)
         await ctx.db.patch(existing._id, {
           status: t.status,
           components: t.components,
           category: t.category,
-          // Update name/language if they changed on Meta (unlikely for same ID but possible)
           name: t.name,
           language: t.language,
         });
@@ -125,6 +125,7 @@ export const upsertTemplates = internalMutation({
             .first();
         
         if (existingByName) {
+             // Link existing template with Meta ID and update with Meta's data
              await ctx.db.patch(existingByName._id, {
                 wabaTemplateId: t.wabaTemplateId,
                 status: t.status,
@@ -132,6 +133,7 @@ export const upsertTemplates = internalMutation({
                 category: t.category,
              });
         } else {
+            // Create new template from Meta
             await ctx.db.insert("whatsappTemplates", {
               name: t.name,
               language: t.language,

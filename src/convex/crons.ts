@@ -172,5 +172,13 @@ crons.interval(
   {}
 );
 
+// NEW: Sync WhatsApp templates from Meta every 30 minutes
+crons.interval(
+  "Sync WhatsApp templates from Meta",
+  { minutes: 30 },
+  (internal as any).whatsappTemplateActions.syncTemplates,
+  {}
+);
+
 // Add default export required by Convex
 export default crons;
