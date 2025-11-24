@@ -159,11 +159,15 @@ export const deleteTemplate = action({
         });
       } catch (err) {
         console.error("Error fetching template internal:", err);
-        throw new Error("Failed to verify template existence");
+        // If we can't verify it exists, we can't safely delete it from Meta or DB
+        // But if the error is "Document not found", we can assume it's gone.
+        // However, runQuery usually throws if the function throws.
+        // Let's assume if this fails, we abort.
+        throw new Error("Failed to verify template existence: " + (err as any).message);
       }
 
       if (!template) {
-        // If template is already gone from DB, consider it success or throw specific error
+        // If template is already gone from DB, consider it success
         console.log("Template not found in database, might be already deleted");
         return { success: true };
       }
