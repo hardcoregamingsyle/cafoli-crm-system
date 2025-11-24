@@ -1279,6 +1279,7 @@ export function Layout({ children }: LayoutProps) {
                           agencyName: leadForm.agencyName || undefined,
                         },
                       ],
+                      assignedTo: isManager || currentUser.role === ROLES.STAFF ? currentUser._id : undefined,
                       currentUserId: currentUser._id,
                     });
                     toast.success("Lead added");
