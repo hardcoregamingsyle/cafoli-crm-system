@@ -155,6 +155,27 @@ export const sendTemplateMessage = action({
       throw new Error(result.error || "Failed to send template message");
     }
 
+    let loggedMessage = `[Template: ${args.templateName}]`;
+    try {
+      let templateDoc = await ctx.runQuery(internal.whatsappTemplates.getTemplateByNameAndLanguage, {
+        name: args.templateName,
+        language: args.languageCode,
+      });
+
+      if (!templateDoc && args.languageCode) {
+        templateDoc = await ctx.runQuery(internal.whatsappTemplates.getTemplateByNameAndLanguage, {
+          name: args.templateName,
+        });
+      }
+
+      const preview = buildTemplateMessagePreview(templateDoc, args.components);
+      if (preview) {
+        loggedMessage = preview;
+      }
+    } catch (previewError) {
+      console.error("[WhatsApp] Failed to build template preview:", previewError);
+    }
+
     // Log the sent message
     if (args.leadId) {
       try {
@@ -162,7 +183,7 @@ export const sendTemplateMessage = action({
         await ctx.runMutation(internal.whatsappQueries.logMessage, {
           leadId: args.leadId,
           phoneNumber: normalizedPhone,
-          message: `[Template: ${args.templateName}]`,
+          message: loggedMessage,
           direction: "outbound",
           messageId: result.messageId || null,
           status: "sent",
@@ -644,3 +665,59 @@ export const markAsRead = action({
     });
   },
 });
+
+type TemplateComponent = {
+  type: string;
+  format?: string;
+  text?: string;
+};
+
+type TemplateDocument = {
+  components?: TemplateComponent[];
+};
+
+const normalizeComponentType = (value?: string) => (value || "").toUpperCase();
+
+function buildTemplateMessagePreview(
+  template: TemplateDocument | null,
+  overrides?: any[]
+): string | null {
+  if (!template?.components) return null;
+
+  const header = template.components.find(
+    (component) => normalizeComponentType(component.type) === "HEADER" && component.format === "TEXT"
+  )?.text;
+
+  const bodyComponent = template.components.find(
+    (component) => normalizeComponentType(component.type) === "BODY"
+  );
+  const footer = template.components.find(
+    (component) => normalizeComponentType(component.type) === "FOOTER"
+  )?.text;
+
+  let bodyText = bodyComponent?.text ?? "";
+
+  if (bodyText && overrides?.length) {
+    const overrideBody = overrides.find(
+      (component: any) => normalizeComponentType(component.type) === "BODY"
+    );
+    const parameters: any[] = overrideBody?.parameters ?? [];
+    if (parameters.length > 0) {
+      bodyText = bodyText.replace(/{{(\d+)}}/g, (_match, index) => {
+        const param = parameters[Number(index) - 1];
+        if (!param) return "";
+        if (param.type === "text") return param.text ?? "";
+        if (param.type === "currency") return param.currency?.fallback_value ?? "";
+        if (param.type === "date_time") return param.date_time?.fallback_value ?? "";
+        return param.text ?? "";
+      });
+    }
+  }
+
+  const sections = [header, bodyText, footer].filter(
+    (value) => typeof value === "string" && value.trim().length > 0
+  ) as string[];
+
+  if (sections.length === 0) return null;
+  return sections.join("\n\n").trim();
+}

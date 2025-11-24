@@ -166,6 +166,33 @@ export const getTemplateInternal = internalQuery({
   },
 });
 
+export const getTemplateByNameAndLanguage = internalQuery({
+  args: {
+    name: v.string(),
+    language: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let template = await ctx.db
+      .query("whatsappTemplates")
+      .withIndex("by_name_and_language", (q) => {
+        if (args.language) {
+          return q.eq("name", args.name).eq("language", args.language);
+        }
+        return q.eq("name", args.name);
+      })
+      .first();
+
+    if (template || !args.language) {
+      return template ?? null;
+    }
+
+    return await ctx.db
+      .query("whatsappTemplates")
+      .withIndex("by_name_and_language", (q) => q.eq("name", args.name))
+      .first();
+  },
+});
+
 export const updateTemplateMetaStatus = internalMutation({
   args: {
     templateId: v.id("whatsappTemplates"),

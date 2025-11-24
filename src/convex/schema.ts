@@ -243,7 +243,8 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_visibility", ["visibility"])
-    .index("by_createdBy", ["createdBy"]),
+    .index("by_createdBy", ["createdBy"])
+    .index("by_name_and_language", ["name", "language"]),
 
   files: defineTable({
     name: v.string(),
