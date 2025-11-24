@@ -19,8 +19,7 @@ export default function WhatsAppPage() {
   const { currentUser, initializeAuth } = useCrmAuth();
   const navigate = useNavigate();
 
-  // Initialize auth state
-  const [authReady, setAuthReady] = useState(false);
+  // Auth is handled by the hook itself, no need for separate ready state
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,15 +32,13 @@ export default function WhatsAppPage() {
   // @ts-ignore - Convex type inference limitation
   const leadsWithMessages = useConvexQuery(
     getLeadsWithMessagesQuery,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+    currentUser ? { currentUserId: currentUser._id } : "skip"
   );
 
   // @ts-ignore - Convex type inference limitation
   const messages = useConvexQuery(
     getLeadMessagesQuery,
-    selectedLeadId && authReady
-      ? { leadId: selectedLeadId as any }
-      : "skip"
+    selectedLeadId ? { leadId: selectedLeadId as any } : "skip"
   );
 
   const sendMessage = useAction(api.whatsapp.sendMessage);
@@ -53,7 +50,7 @@ export default function WhatsAppPage() {
 
   // Mark messages as read when lead is selected or new messages arrive
   useEffect(() => {
-    if (selectedLeadId && authReady && messages) {
+    if (selectedLeadId && messages) {
       const hasUnread = messages.some((msg: any) => msg.direction === "inbound" && msg.status !== "read");
       const lead = leadsWithMessages?.find((l: any) => l._id === selectedLeadId);
       
@@ -61,7 +58,7 @@ export default function WhatsAppPage() {
         markAsRead({ leadId: selectedLeadId as any });
       }
     }
-  }, [selectedLeadId, authReady, messages, leadsWithMessages, markAsRead]);
+  }, [selectedLeadId, messages, leadsWithMessages, markAsRead]);
 
   // Clear reply when changing leads
   useEffect(() => {
@@ -139,7 +136,6 @@ export default function WhatsAppPage() {
   // Auth initialization
   useEffect(() => {
     initializeAuth();
-    setAuthReady(true);
   }, [initializeAuth]);
 
   if (!currentUser) return <Layout><div /></Layout>;
