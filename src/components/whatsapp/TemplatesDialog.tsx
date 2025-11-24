@@ -111,7 +111,7 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-white rounded-xl shadow-2xl">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-white rounded-xl shadow-2xl sm:max-w-[95vw]">
           <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0 bg-white shrink-0">
             <div className="flex items-center gap-4">
               <DialogTitle className="text-xl font-bold text-gray-800">WhatsApp Templates</DialogTitle>
@@ -144,7 +144,7 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
           
           <div className="flex-1 flex overflow-hidden bg-gray-50/50">
             {/* Template List */}
-            <div className="w-2/5 min-w-[400px] max-w-[500px] border-r bg-white h-full flex flex-col">
+            <div className="w-[350px] min-w-[300px] max-w-[400px] border-r bg-white h-full flex flex-col shrink-0">
               <div className="p-4 sm:hidden border-b">
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -225,7 +225,7 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
             </div>
 
             {/* Preview Panel */}
-            <div className="flex-1 bg-[#F0F2F5] flex flex-col relative overflow-hidden">
+            <div className="flex-1 bg-[#F0F2F5] flex flex-col relative overflow-hidden min-w-0">
               {previewTemplate ? (
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                   {/* Preview Header */}
@@ -256,8 +256,8 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
                    </div>
 
                   {/* Preview Content */}
-                  <ScrollArea className="flex-1 bg-[#efeae2]">
-                    <div className="p-8 flex items-start justify-center py-12">
+                  <ScrollArea className="flex-1 bg-[#efeae2] h-full">
+                    <div className="p-8 flex items-start justify-center py-12 min-h-full">
                       {/* WhatsApp Background Pattern */}
                       <div className="absolute inset-0 opacity-40 bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat pointer-events-none"></div>
                      

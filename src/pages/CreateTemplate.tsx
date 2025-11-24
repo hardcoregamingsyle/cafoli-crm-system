@@ -59,10 +59,10 @@ export default function CreateTemplatePage() {
     if (editTemplateId && templates) {
       const templateToEdit = templates.find((t: any) => t._id === editTemplateId);
       if (templateToEdit) {
-        setName(templateToEdit.name);
-        setCategory(templateToEdit.category);
+        setName(templateToEdit.name || "");
+        setCategory(templateToEdit.category || "MARKETING");
         setSubCategory(templateToEdit.subCategory || "CUSTOM");
-        setLanguage(templateToEdit.language);
+        setLanguage(templateToEdit.language || "en");
         setVisibility(templateToEdit.visibility || "public");
         
         // Parse components
@@ -74,11 +74,14 @@ export default function CreateTemplatePage() {
           }
         } else {
           setHeaderType("NONE");
+          setHeaderText("");
         }
         
         const bodyComp = templateToEdit.components.find((c: any) => c.type === "BODY");
         if (bodyComp) {
           setBodyText(bodyComp.text || "");
+        } else {
+          setBodyText("");
         }
         
         const footerComp = templateToEdit.components.find((c: any) => c.type === "FOOTER");
