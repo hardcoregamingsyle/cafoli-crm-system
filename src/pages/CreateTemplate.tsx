@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
@@ -31,6 +31,13 @@ export default function CreateTemplatePage() {
   const { currentUser } = useCrmAuth();
   const createTemplate = useMutation(api.whatsappTemplates.createTemplate);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editTemplateId = searchParams.get("edit");
+  
+  const templates = useQuery(
+    api.whatsappTemplates.getTemplates,
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  );
   
   const [name, setName] = useState("");
   const [category, setCategory] = useState("MARKETING");
@@ -46,6 +53,74 @@ export default function CreateTemplatePage() {
   const [buttons, setButtons] = useState<TemplateButton[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load template data when editing
+  useEffect(() => {
+    if (editTemplateId && templates) {
+      const templateToEdit = templates.find((t: any) => t._id === editTemplateId);
+      if (templateToEdit) {
+        setName(templateToEdit.name);
+        setCategory(templateToEdit.category);
+        setSubCategory(templateToEdit.subCategory || "CUSTOM");
+        setLanguage(templateToEdit.language);
+        setVisibility(templateToEdit.visibility || "public");
+        
+        // Parse components
+        const headerComp = templateToEdit.components.find((c: any) => c.type === "HEADER");
+        if (headerComp) {
+          setHeaderType(headerComp.format || "NONE");
+          if (headerComp.format === "TEXT") {
+            setHeaderText(headerComp.text || "");
+          }
+        } else {
+          setHeaderType("NONE");
+        }
+        
+        const bodyComp = templateToEdit.components.find((c: any) => c.type === "BODY");
+        if (bodyComp) {
+          setBodyText(bodyComp.text || "");
+        }
+        
+        const footerComp = templateToEdit.components.find((c: any) => c.type === "FOOTER");
+        if (footerComp) {
+          setFooterText(footerComp.text || "");
+        } else {
+          setFooterText("");
+        }
+        
+        const buttonsComp = templateToEdit.components.find((c: any) => c.type === "BUTTONS");
+        if (buttonsComp && buttonsComp.buttons) {
+          const parsedButtons = buttonsComp.buttons.map((btn: any) => {
+            const button: TemplateButton = {
+              type: btn.type,
+              text: btn.text || (btn.type === "COPY_CODE" ? "Copy Code" : "Button"),
+            };
+            
+            if (btn.type === "URL") {
+              button.url = btn.url || "";
+              // Extract example from URL if it contains variables
+              if (btn.example && btn.example.length > 0) {
+                button.example = btn.example[0];
+              }
+            } else if (btn.type === "PHONE_NUMBER") {
+              button.phoneNumber = btn.phone_number || "";
+            } else if (btn.type === "COPY_CODE") {
+              button.example = btn.example || "";
+            } else if (btn.type === "FLOW") {
+              button.flowId = btn.flow_id || "";
+              button.flowAction = btn.flow_action || "navigate";
+              button.navigateScreen = btn.navigate_screen || "screen_01";
+            }
+            
+            return button;
+          });
+          setButtons(parsedButtons);
+        } else {
+          setButtons([]);
+        }
+      }
+    }
+  }, [editTemplateId, templates]);
 
   // Reset sub-category and buttons when category changes
   const handleCategoryChange = (val: string) => {
@@ -249,7 +324,9 @@ export default function CreateTemplatePage() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/whatsapp")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-bold">Create New WhatsApp Template</h1>
+          <h1 className="text-2xl font-bold">
+            {editTemplateId ? "Edit WhatsApp Template" : "Create New WhatsApp Template"}
+          </h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden">
