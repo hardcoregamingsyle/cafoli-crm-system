@@ -236,7 +236,7 @@ export default defineSchema({
     components: v.any(), // JSON structure for header, body, footer, buttons
     status: v.string(), // "pending", "approved", "rejected", "paused"
     visibility: v.string(), // "public", "private"
-    createdBy: v.id("users"),
+    createdBy: v.optional(v.id("users")),
     wabaTemplateId: v.optional(v.string()),
     rejectionReason: v.optional(v.string()),
   })

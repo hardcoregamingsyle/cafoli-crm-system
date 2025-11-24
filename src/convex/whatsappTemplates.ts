@@ -62,7 +62,7 @@ export const getTemplates = query({
           templates = templates.filter(
             (t) =>
               t.visibility === "public" ||
-              t.createdBy === args.currentUserId
+              (t.createdBy && t.createdBy === args.currentUserId)
           );
         }
       }
@@ -84,6 +84,65 @@ export const updateTemplateStatus = mutation({
       rejectionReason: args.reason,
     });
   },
+});
+
+export const upsertTemplates = internalMutation({
+  args: {
+    templates: v.array(v.object({
+      name: v.string(),
+      language: v.string(),
+      category: v.string(),
+      components: v.any(),
+      status: v.string(),
+      wabaTemplateId: v.string(),
+    }))
+  },
+  handler: async (ctx, args) => {
+    for (const t of args.templates) {
+      // Check if exists by wabaTemplateId
+      const existing = await ctx.db
+        .query("whatsappTemplates")
+        .filter(q => q.eq(q.field("wabaTemplateId"), t.wabaTemplateId))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          status: t.status,
+          components: t.components,
+          category: t.category,
+        });
+      } else {
+        // Check if exists by name and language (legacy or created locally but not linked yet)
+        const existingByName = await ctx.db
+            .query("whatsappTemplates")
+            .filter(q => q.and(
+                q.eq(q.field("name"), t.name),
+                q.eq(q.field("language"), t.language)
+            ))
+            .first();
+        
+        if (existingByName) {
+             await ctx.db.patch(existingByName._id, {
+                wabaTemplateId: t.wabaTemplateId,
+                status: t.status,
+                components: t.components,
+                category: t.category,
+             });
+        } else {
+            await ctx.db.insert("whatsappTemplates", {
+              name: t.name,
+              language: t.language,
+              category: t.category,
+              components: t.components,
+              status: t.status,
+              wabaTemplateId: t.wabaTemplateId,
+              visibility: "public", // Default to public for external templates
+              // createdBy is undefined for synced templates
+            });
+        }
+      }
+    }
+  }
 });
 
 // Internal functions for Actions

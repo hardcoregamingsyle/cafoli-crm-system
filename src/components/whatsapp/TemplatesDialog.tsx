@@ -5,10 +5,12 @@ import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
-import { Loader2, Send, Edit } from "lucide-react";
+import { Loader2, Send, Edit, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
+import { useAction } from "convex/react";
+import { toast } from "sonner";
 
 interface TemplatesDialogProps {
   open: boolean;
@@ -21,8 +23,23 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
   const templates = useQuery(api.whatsappTemplates.getTemplates, 
     currentUser ? { currentUserId: currentUser._id } : "skip"
   );
+  const syncTemplates = useAction(api.whatsappTemplateActions.syncTemplates);
   const navigate = useNavigate();
   const [previewTemplate, setPreviewTemplate] = useState<any | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncTemplates();
+      toast.success(`Synced ${result.count} templates from Meta`);
+    } catch (error: any) {
+      console.error("Sync failed:", error);
+      toast.error("Failed to sync templates: " + error.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -38,8 +55,18 @@ export function TemplatesDialog({ open, onOpenChange, onSendTemplate }: Template
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col h-[80vh]">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between pr-8">
           <DialogTitle>WhatsApp Templates</DialogTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSync} 
+            disabled={isSyncing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+            {isSyncing ? "Syncing..." : "Sync from Meta"}
+          </Button>
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden flex gap-4 min-h-0">

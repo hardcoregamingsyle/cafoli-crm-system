@@ -85,3 +85,61 @@ export const submitTemplateToMeta = action({
     }
   },
 });
+
+export const syncTemplates = action({
+  args: {},
+  handler: async (ctx) => {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const wabaId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+    const version = process.env.CLOUD_API_VERSION || "v21.0";
+
+    if (!token || !wabaId) {
+      throw new Error("Missing WhatsApp credentials");
+    }
+
+    let allTemplates: any[] = [];
+    let nextUrl = `https://graph.facebook.com/${version}/${wabaId}/message_templates?limit=100`;
+
+    console.log("[WhatsApp] Starting template sync from Meta...");
+
+    try {
+      while (nextUrl) {
+        const response = await fetch(nextUrl, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (!response.ok) {
+           console.error("[WhatsApp] Sync failed:", data);
+           throw new Error(data.error?.message || "Failed to fetch templates");
+        }
+        
+        if (data.data) {
+            allTemplates.push(...data.data);
+        }
+        nextUrl = data.paging?.next || null;
+      }
+
+      console.log(`[WhatsApp] Fetched ${allTemplates.length} templates from Meta. Syncing to DB...`);
+
+      // Map to our schema format
+      const mappedTemplates = allTemplates.map((t: any) => ({
+          name: t.name,
+          language: t.language,
+          category: t.category,
+          components: t.components,
+          status: t.status,
+          wabaTemplateId: t.id,
+      }));
+
+      await ctx.runMutation(internal.whatsappTemplates.upsertTemplates, {
+          templates: mappedTemplates
+      });
+
+      return { count: mappedTemplates.length };
+    } catch (error: any) {
+      console.error("[WhatsApp] Sync exception:", error);
+      throw new Error(`Sync failed: ${error.message}`);
+    }
+  }
+});
