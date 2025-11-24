@@ -110,6 +110,9 @@ export const upsertTemplates = internalMutation({
           status: t.status,
           components: t.components,
           category: t.category,
+          // Update name/language if they changed on Meta (unlikely for same ID but possible)
+          name: t.name,
+          language: t.language,
         });
       } else {
         // Check if exists by name and language (legacy or created locally but not linked yet)
@@ -143,6 +146,13 @@ export const upsertTemplates = internalMutation({
       }
     }
   }
+});
+
+export const deleteTemplateInternal = internalMutation({
+  args: { templateId: v.id("whatsappTemplates") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.templateId);
+  },
 });
 
 // Internal functions for Actions
