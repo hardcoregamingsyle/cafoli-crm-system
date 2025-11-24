@@ -136,6 +136,7 @@ export const getAllLeads = query({
 export const getMyLeads = query({
   args: {
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
@@ -189,6 +190,8 @@ export const getMyLeads = query({
       // Filter out not relevant leads
       leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
 
+      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
+
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {
         const aTime = a.lastActivityTime ?? a._creationTime;
@@ -196,7 +199,7 @@ export const getMyLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
       
-      return leads;
+      return leads.slice(0, limit);
     } catch (err) {
       console.error("getMyLeads outer error:", err);
       return [];
