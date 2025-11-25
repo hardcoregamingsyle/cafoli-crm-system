@@ -1,8 +1,8 @@
-import { internalMutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 // One-time migration to revert unassignments that happened under old rules
 // This should be run manually once to fix leads that were unassigned too early
-export const revertOldUnassignments = internalMutation({
+export const revertOldUnassignments = mutation({
   args: {},
   handler: async (ctx) => {
     // Check if already used
@@ -92,29 +92,6 @@ export const revertOldUnassignments = internalMutation({
     
     console.log(`Reverted ${revertedCount} leads that were unassigned under old rules`);
     return { revertedCount };
-  },
-});
-
-export const markRevertAsUsed = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const existing = await ctx.db
-      .query("systemFlags")
-      .withIndex("by_key", (q) => q.eq("key", "revert_unassignments_used"))
-      .first();
-    
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        value: true,
-        usedAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("systemFlags", {
-        key: "revert_unassignments_used",
-        value: true,
-        usedAt: Date.now(),
-      });
-    }
   },
 });
 
