@@ -78,6 +78,29 @@ export function ChatArea({
       document.removeEventListener('click', handleClickOutside);
     };
   }, [reactingTo]);
+
+  // Helper function to check if two timestamps are on different days
+  const isDifferentDay = (timestamp1: number, timestamp2: number): boolean => {
+    const date1 = new Date(timestamp1);
+    const date2 = new Date(timestamp2);
+    return date1.toDateString() !== date2.toDateString();
+  };
+
+  // Helper function to format date separator
+  const formatDateSeparator = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+  };
   
   const renderReadReceipt = (status: string | undefined) => {
     if (!status || status === "sent") {
@@ -247,111 +270,126 @@ export function ChatArea({
               No messages yet. Start the conversation!
             </div>
           ) : (
-            messages.map((msg: any) => (
-              <div
-                key={msg._id}
-                className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"} group relative`}
-              >
-                <div
-                  className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm ${
-                    msg.direction === "outbound"
-                      ? "bg-[#dcf8c6]"
-                      : "bg-white"
-                  } relative mb-4`}
-                >
-                  {/* Reply Context Display */}
-                  {msg.replyToMessageId && (
-                    <div className={`mb-2 p-2 rounded border-l-4 text-xs ${
-                      msg.direction === "outbound" ? "bg-[#cfe9ba] border-[#a6c98c]" : "bg-gray-100 border-gray-300"
-                    }`}>
-                      <div className="font-semibold text-gray-600 mb-0.5">
-                        {msg.replyToSender === lead?.mobileNo ? lead?.name || lead?.mobileNo : "You"}
-                      </div>
-                      <div className="truncate text-gray-500">
-                        {msg.replyToBody || "Original message"}
+            messages.map((msg: any, index: number) => {
+              const showDateSeparator = index === 0 || isDifferentDay(messages[index - 1].timestamp, msg.timestamp);
+              
+              return (
+                <div key={msg._id}>
+                  {/* Date Separator */}
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-4">
+                      <div className="bg-white/90 shadow-sm rounded-lg px-3 py-1 text-xs text-gray-600 font-medium">
+                        {formatDateSeparator(msg.timestamp)}
                       </div>
                     </div>
                   )}
-
-                  <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
-                  {renderMediaMessage(msg)}
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </span>
-                    {msg.direction === "outbound" && (
-                      <span className="text-gray-500">
-                        {renderReadReceipt(msg.status)}
-                      </span>
-                    )}
-                  </div>
                   
-                  {/* Reaction Display */}
-                  {(msg.reactions && msg.reactions.length > 0) || msg.reaction ? (
-                    <div className="absolute -bottom-3 right-0 flex gap-1 z-10">
-                      {/* Legacy support */}
-                      {msg.reaction && !msg.reactions && (
-                        <div className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs">
-                          {msg.reaction}
+                  {/* Message Bubble */}
+                  <div
+                    className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"} group relative`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm ${
+                        msg.direction === "outbound"
+                          ? "bg-[#dcf8c6]"
+                          : "bg-white"
+                      } relative mb-4`}
+                    >
+                      {/* Reply Context Display */}
+                      {msg.replyToMessageId && (
+                        <div className={`mb-2 p-2 rounded border-l-4 text-xs ${
+                          msg.direction === "outbound" ? "bg-[#cfe9ba] border-[#a6c98c]" : "bg-gray-100 border-gray-300"
+                        }`}>
+                          <div className="font-semibold text-gray-600 mb-0.5">
+                            {msg.replyToSender === lead?.mobileNo ? lead?.name || lead?.mobileNo : "You"}
+                          </div>
+                          <div className="truncate text-gray-500">
+                            {msg.replyToBody || "Original message"}
+                          </div>
                         </div>
                       )}
-                      {/* New reactions array support */}
-                      {msg.reactions?.map((r: any, idx: number) => (
-                        <div key={idx} className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs" title={r.from === 'outbound' ? 'You' : 'Lead'}>
-                          {r.emoji}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
 
-                  {/* Message Actions (Reply & React) */}
-                  {msg.messageId && (
-                    <div className={`absolute top-0 ${msg.direction === "outbound" ? "-left-16" : "-right-16"} flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                      <button
-                        className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReplyingTo(msg);
-                        }}
-                        title="Reply"
-                      >
-                        <Reply className="h-4 w-4" />
-                      </button>
-                      <button
-                        className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReactingTo(reactingTo === msg._id ? null : msg._id);
-                        }}
-                        title="React"
-                      >
-                        <Smile className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Emoji Picker for Reactions */}
-                  {reactingTo === msg._id && (
-                    <div 
-                      className={`absolute top-8 ${msg.direction === "outbound" ? "right-0" : "left-0"} z-50`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="bg-white shadow-xl rounded-lg border border-gray-200">
-                        <EmojiPicker 
-                          onEmojiClick={(data: EmojiClickData) => onReactionEmojiClick(data, msg.messageId)}
-                          width={300}
-                          height={350}
-                          previewConfig={{ showPreview: false }}
-                        />
+                      <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
+                      {renderMediaMessage(msg)}
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <span className="text-[10px] text-gray-500">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                        {msg.direction === "outbound" && (
+                          <span className="text-gray-500">
+                            {renderReadReceipt(msg.status)}
+                          </span>
+                        )}
                       </div>
+                      
+                      {/* Reaction Display */}
+                      {(msg.reactions && msg.reactions.length > 0) || msg.reaction ? (
+                        <div className="absolute -bottom-3 right-0 flex gap-1 z-10">
+                          {/* Legacy support */}
+                          {msg.reaction && !msg.reactions && (
+                            <div className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs">
+                              {msg.reaction}
+                            </div>
+                          )}
+                          {/* New reactions array support */}
+                          {msg.reactions?.map((r: any, idx: number) => (
+                            <div key={idx} className="bg-white rounded-full p-0.5 shadow-md border border-gray-100 text-xs" title={r.from === 'outbound' ? 'You' : 'Lead'}>
+                              {r.emoji}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {/* Message Actions (Reply & React) */}
+                      {msg.messageId && (
+                        <div className={`absolute top-0 ${msg.direction === "outbound" ? "-left-16" : "-right-16"} flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                          <button
+                            className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplyingTo(msg);
+                            }}
+                            title="Reply"
+                          >
+                            <Reply className="h-4 w-4" />
+                          </button>
+                          <button
+                            className="p-1 text-gray-400 hover:text-gray-600 bg-white/50 rounded-full hover:bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReactingTo(reactingTo === msg._id ? null : msg._id);
+                            }}
+                            title="React"
+                          >
+                            <Smile className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Emoji Picker for Reactions */}
+                      {reactingTo === msg._id && (
+                        <div 
+                          className={`absolute top-8 ${msg.direction === "outbound" ? "right-0" : "left-0"} z-50`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="bg-white shadow-xl rounded-lg border border-gray-200">
+                            <EmojiPicker 
+                              onEmojiClick={(data: EmojiClickData) => onReactionEmojiClick(data, msg.messageId)}
+                              width={300}
+                              height={350}
+                              previewConfig={{ showPreview: false }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <div ref={messagesEndRef} />
         </div>

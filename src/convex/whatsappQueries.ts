@@ -177,6 +177,17 @@ export const logMessage = internalMutation({
         replyToBody: replyToBody,
         replyToSender: replyToSender,
       });
+
+      // Update lead's last message info
+      if (args.leadId) {
+        await ctx.db.patch(args.leadId, {
+          lastMessage: args.message,
+          lastMessageTime: Date.now(),
+          lastMessageDirection: args.direction,
+          lastMessageStatus: args.status || "sent",
+        });
+      }
+
       return { success: true };
     } catch (error) {
       console.error("Error logging WhatsApp message:", error);

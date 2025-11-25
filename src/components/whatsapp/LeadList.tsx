@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Check, CheckCheck } from "lucide-react";
 
 interface LeadListProps {
   leads: any[];
@@ -19,6 +20,38 @@ export function LeadList({
   setSearchQuery,
   showAssignment,
 }: LeadListProps) {
+  const renderReadReceipt = (status: string | undefined) => {
+    if (!status || status === "sent") {
+      return <Check className="h-3 w-3 inline" />;
+    } else if (status === "delivered") {
+      return <CheckCheck className="h-3 w-3 inline" />;
+    } else if (status === "read") {
+      return <CheckCheck className="h-3 w-3 inline text-blue-400" />;
+    }
+    return null;
+  };
+
+  const formatLastMessageTime = (timestamp: number | undefined) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+  };
+
+  const truncateMessage = (message: string | undefined, maxLength: number = 37) => {
+    if (!message) return "";
+    return message.length > maxLength ? message.substring(0, maxLength) + "..." : message;
+  };
+
   return (
     <Card className="md:col-span-1 flex flex-col overflow-hidden h-full">
       <CardHeader className="pb-3">
@@ -61,8 +94,15 @@ export function LeadList({
                     </div>
                   )}
                   {lead.lastMessage && (
-                    <div className={`text-xs truncate mt-1 ${lead.unreadCount > 0 ? "text-gray-700 font-medium" : "text-gray-400"}`}>
-                      {String(lead.lastMessage)}
+                    <div className={`text-xs mt-1 flex items-center gap-1 ${lead.unreadCount > 0 ? "text-gray-700 font-medium" : "text-gray-400"}`}>
+                      <span className="truncate flex-1">
+                        {truncateMessage(String(lead.lastMessage), 37)}
+                      </span>
+                      {lead.lastMessageDirection === "outbound" && (
+                        <span className="text-gray-400 shrink-0">
+                          {renderReadReceipt(lead.lastMessageStatus)}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -74,7 +114,7 @@ export function LeadList({
                   )}
                   {lead.lastMessageTime && (
                     <div className="text-xs text-gray-400">
-                      {new Date(lead.lastMessageTime).toLocaleDateString()}
+                      {formatLastMessageTime(lead.lastMessageTime)}
                     </div>
                   )}
                 </div>
