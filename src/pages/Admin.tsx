@@ -11,7 +11,7 @@ import { ROLES, Role } from "@/convex/schema";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { KeyRound, LogIn } from "lucide-react";
+import { KeyRound, LogIn, RotateCcw } from "lucide-react";
 
 export default function AdminPage() {
   const { currentUser, initializeAuth, impersonateUser } = useCrmAuth();
@@ -39,10 +39,17 @@ export default function AdminPage() {
   const deleteAllLeadsMutation = useMutation((api as any).leads.deleteAllLeads);
   const adminChangePassword = useMutation((api as any).users.adminChangeUserPassword);
   const loginAsUserMutation = useMutation((api as any).users.loginAsUser);
+  const revertUnassignmentsMutation = useMutation((api as any).revertUnassignments.revertOldUnassignments);
+  
+  const revertButtonUsed = useQuery(
+    (api as any).revertUnassignments.hasRevertBeenUsed,
+    currentUser?._id && currentUser.role === ROLES.ADMIN ? {} : "skip"
+  );
 
   const [adminPasswordDialogOpen, setAdminPasswordDialogOpen] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
   const [adminNewPassword, setAdminNewPassword] = useState("");
+  const [isReverting, setIsReverting] = useState(false);
 
   // Email key manager hooks
   const emailKeys = useQuery(
@@ -67,6 +74,32 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Admin Panel</h1>
           <div className="flex items-center gap-2">
+            {!revertButtonUsed && (
+              <Button
+                variant="outline"
+                className="bg-blue-50 hover:bg-blue-100 border-blue-300"
+                onClick={async () => {
+                  const confirmed = window.confirm(
+                    "This will revert all auto-unassignments that happened under the old rules (less than 30 days). This action can only be done once. Continue?"
+                  );
+                  if (!confirmed) return;
+                  
+                  setIsReverting(true);
+                  try {
+                    const result = await revertUnassignmentsMutation({});
+                    toast.success(`Successfully reverted ${result.revertedCount} leads. This button will now disappear.`);
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to revert unassignments");
+                  } finally {
+                    setIsReverting(false);
+                  }
+                }}
+                disabled={isReverting}
+              >
+                <RotateCcw className={`h-4 w-4 mr-2 ${isReverting ? "animate-spin" : ""}`} />
+                {isReverting ? "Reverting..." : "Revert Auto-Unassignments (One-Time)"}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={async () => {

@@ -234,6 +234,13 @@ export default defineSchema({
   })
     .index("by_status", ["status"]),
 
+  systemFlags: defineTable({
+    key: v.string(),
+    value: v.boolean(),
+    usedAt: v.optional(v.number()),
+  })
+    .index("by_key", ["key"]),
+
   whatsappTemplates: defineTable({
     name: v.string(),
     language: v.string(),
