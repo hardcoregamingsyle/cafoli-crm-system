@@ -44,8 +44,11 @@ export default function WhatsAppPage() {
     currentUser && currentUser.role === "admin" ? { currentUserId: currentUser._id, filter: "all" } : "skip"
   );
 
-  // Combine leads based on role
-  const leadsWithMessages = currentUser?.role === "admin" ? allLeads : myLeads;
+  // Combine leads based on role and enrich with assigned user names
+  const leadsWithMessages = useMemo(() => {
+    const rawLeads = currentUser?.role === "admin" ? allLeads : myLeads;
+    return rawLeads;
+  }, [currentUser?.role, allLeads, myLeads]);
 
   // @ts-ignore - Convex type inference limitation
   const messages = useConvexQuery(

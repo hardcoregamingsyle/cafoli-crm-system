@@ -57,7 +57,7 @@ export function LeadList({
                   <div className="text-xs text-gray-500 truncate">{lead.mobileNo || "No phone"}</div>
                   {showAssignment && (
                     <div className="text-xs text-purple-600 truncate mt-0.5 font-medium">
-                      Assigned: {lead.assignedToName || lead.assignedTo || "Unassigned"}
+                      Assigned: {lead.assignedUserName || "Unassigned"}
                     </div>
                   )}
                   {lead.lastMessage && (
