@@ -18,6 +18,7 @@ import type * as emailKeys from "../emailKeys.js";
 import type * as emails from "../emails.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
+import type * as leadActivity from "../leadActivity.js";
 import type * as leads from "../leads.js";
 import type * as masterdata from "../masterdata.js";
 import type * as migrate from "../migrate.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   emails: typeof emails;
   files: typeof files;
   http: typeof http;
+  leadActivity: typeof leadActivity;
   leads: typeof leads;
   masterdata: typeof masterdata;
   migrate: typeof migrate;

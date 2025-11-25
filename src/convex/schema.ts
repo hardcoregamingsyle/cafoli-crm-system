@@ -104,6 +104,8 @@ export default defineSchema({
     lastActivityTime: v.optional(v.number()),
     unreadCount: v.optional(v.number()),
     lastMessage: v.optional(v.string()),
+    firstAssignmentDate: v.optional(v.number()),
+    reassignmentCount: v.optional(v.number()),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])
