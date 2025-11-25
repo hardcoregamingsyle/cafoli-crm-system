@@ -1,4 +1,4 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 
 // One-time migration to revert unassignments that happened under old rules
 // This should be run manually once to fix leads that were unassigned too early
@@ -118,7 +118,7 @@ export const markRevertAsUsed = internalMutation({
   },
 });
 
-export const hasRevertBeenUsed = internalQuery({
+export const hasRevertBeenUsed = query({
   args: {},
   handler: async (ctx) => {
     const flag = await ctx.db
