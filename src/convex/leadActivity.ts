@@ -30,15 +30,11 @@ export const processInactiveLeads = internalMutation({
         // First assignment: 24 hours
         inactivityThreshold = 24 * 60 * 60 * 1000;
       } else {
-        // Subsequent assignments: based on heat and status
+        // Subsequent assignments: 30 days for all leads except mature
         if (lead.heat === "matured") {
           continue; // Mature leads never auto-unassign
-        } else if (lead.heat === "hot") {
-          inactivityThreshold = 20 * 24 * 60 * 60 * 1000; // 20 days
-        } else if (lead.status === "yet_to_decide") {
-          inactivityThreshold = 17 * 24 * 60 * 60 * 1000; // 17 days
         } else {
-          inactivityThreshold = 15 * 24 * 60 * 60 * 1000; // 15 days default
+          inactivityThreshold = 30 * 24 * 60 * 60 * 1000; // 30 days for all
         }
       }
       

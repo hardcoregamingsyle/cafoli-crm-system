@@ -1,1 +1,1 @@
-rm src/components/whatsapp/CreateTemplateDialog.tsx
+npx convex run revertUnassignments:revertOldUnassignments

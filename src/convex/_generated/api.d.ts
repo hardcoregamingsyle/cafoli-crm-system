@@ -23,6 +23,7 @@ import type * as leads from "../leads.js";
 import type * as masterdata from "../masterdata.js";
 import type * as migrate from "../migrate.js";
 import type * as notifications from "../notifications.js";
+import type * as revertUnassignments from "../revertUnassignments.js";
 import type * as sms from "../sms.js";
 import type * as smsTracking from "../smsTracking.js";
 import type * as users from "../users.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   masterdata: typeof masterdata;
   migrate: typeof migrate;
   notifications: typeof notifications;
+  revertUnassignments: typeof revertUnassignments;
   sms: typeof sms;
   smsTracking: typeof smsTracking;
   users: typeof users;
