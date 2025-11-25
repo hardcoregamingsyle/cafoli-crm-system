@@ -8,6 +8,7 @@ interface LeadListProps {
   onSelectLead: (id: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  showAssignment?: boolean;
 }
 
 export function LeadList({
@@ -16,6 +17,7 @@ export function LeadList({
   onSelectLead,
   searchQuery,
   setSearchQuery,
+  showAssignment,
 }: LeadListProps) {
   return (
     <Card className="md:col-span-1 flex flex-col overflow-hidden h-full">
@@ -53,6 +55,11 @@ export function LeadList({
                     {lead.name || "Unnamed Lead"}
                   </div>
                   <div className="text-xs text-gray-500 truncate">{lead.mobileNo || "No phone"}</div>
+                  {showAssignment && (
+                    <div className="text-xs text-purple-600 truncate mt-0.5 font-medium">
+                      Assigned: {lead.assignedToName || lead.assignedTo || "Unassigned"}
+                    </div>
+                  )}
                   {lead.lastMessage && (
                     <div className={`text-xs truncate mt-1 ${lead.unreadCount > 0 ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                       {String(lead.lastMessage)}

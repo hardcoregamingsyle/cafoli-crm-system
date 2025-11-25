@@ -374,6 +374,7 @@ export default function WhatsAppPage() {
             onSelectLead={setSelectedLeadId}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            showAssignment={currentUser?.role === "admin"}
           />
 
           <ChatArea
@@ -397,6 +398,7 @@ export default function WhatsAppPage() {
             replyingTo={replyingTo}
             setReplyingTo={setReplyingTo}
             onSendTemplate={handleSendTemplateWrapper}
+            currentUser={currentUser}
           />
         </div>
       </div>

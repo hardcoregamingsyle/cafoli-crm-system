@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile, Reply, X } from "lucide-react";
+import { Send, MessageSquare, Check, CheckCheck, Paperclip, Image, Video, FileText, Music, Smile, Reply, X, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TemplatesDialog } from "./TemplatesDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface ChatAreaProps {
   selectedLeadId: string | null;
@@ -29,6 +32,7 @@ interface ChatAreaProps {
   replyingTo: any | null;
   setReplyingTo: (msg: any | null) => void;
   onSendTemplate: (template: any) => void;
+  currentUser: any;
 }
 
 export function ChatArea({
@@ -52,10 +56,17 @@ export function ChatArea({
   replyingTo,
   setReplyingTo,
   onSendTemplate,
+  currentUser,
 }: ChatAreaProps) {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+
+  const comments = useQuery((api as any).comments.getLeadComments, 
+    selectedLeadId && currentUser 
+      ? { leadId: selectedLeadId, currentUserId: currentUser._id } 
+      : "skip"
+  ) || [];
 
   // Close reaction picker when clicking outside
   useEffect(() => {
@@ -164,26 +175,69 @@ export function ChatArea({
               {lead?.mobileNo}
             </div>
           </div>
-          {selectedLeadId && (
-            <>
-              <Button
-                onClick={() => setIsTemplatesOpen(true)}
-                variant="outline"
-                size="sm"
-                className="ml-2"
-              >
-                Templates
-              </Button>
-              <TemplatesDialog 
-                open={isTemplatesOpen} 
-                onOpenChange={setIsTemplatesOpen}
-                onSendTemplate={(template) => {
-                  onSendTemplate(template);
-                  setIsTemplatesOpen(false);
-                }}
-              />
-            </>
-          )}
+          <div className="flex items-center gap-2">
+            {selectedLeadId && (
+              <>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Lead Info">
+                      <Info className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent>
+                    <SheetHeader>
+                      <SheetTitle>Lead Details</SheetTitle>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-6">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Subject</h3>
+                        <p className="text-sm bg-gray-50 p-2 rounded">{lead?.subject || "No subject"}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Message</h3>
+                        <p className="text-sm bg-gray-50 p-2 rounded whitespace-pre-wrap">{lead?.message || "No message"}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Comments</h3>
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                          {comments.length === 0 ? (
+                            <p className="text-sm text-gray-400 italic">No comments yet</p>
+                          ) : (
+                            comments.map((c: any) => (
+                              <div key={c._id} className="bg-blue-50 p-3 rounded-lg text-sm border border-blue-100">
+                                <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
+                                  <span className="font-semibold text-blue-700">{c.userName}</span>
+                                  <span>{new Date(c.timestamp).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-gray-700">{c.content}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                <Button
+                  onClick={() => setIsTemplatesOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="ml-2"
+                >
+                  Templates
+                </Button>
+                <TemplatesDialog 
+                  open={isTemplatesOpen} 
+                  onOpenChange={setIsTemplatesOpen}
+                  onSendTemplate={(template) => {
+                    onSendTemplate(template);
+                    setIsTemplatesOpen(false);
+                  }}
+                />
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto p-4 bg-[#e5ddd5]">
