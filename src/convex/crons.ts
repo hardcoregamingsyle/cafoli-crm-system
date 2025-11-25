@@ -11,6 +11,14 @@ crons.interval(
   {}
 );
 
+// Reset email API key daily counts at midnight
+crons.cron(
+  "reset email daily counts",
+  "0 0 * * *",
+  (internal as any).emailKeys.resetDailyCounts,
+  {}
+);
+
 // Shortly after midnight: process queued emails using fresh limits
 crons.cron(
   "process email queue after reset",
