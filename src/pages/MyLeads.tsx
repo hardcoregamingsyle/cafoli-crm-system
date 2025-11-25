@@ -420,16 +420,16 @@ export default function MyLeadsPage() {
                   <AccordionContent>
                     <div className="grid md:grid-cols-3 gap-4 py-3">
                       <div>
+                        <div className="text-xs text-gray-500">Created At</div>
+                        <div className="text-sm">{new Date(lead._creationTime).toLocaleString()}</div>
+                      </div>
+                      <div>
                         <div className="text-xs text-gray-500">Mobile No.</div>
                         <div className="text-sm">{lead.mobileNo}</div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Email</div>
                         <div className="text-sm break-all">{lead.email}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500">State</div>
-                        <div className="text-sm">{lead.state}</div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Alt. Mobile</div>
