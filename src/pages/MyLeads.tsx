@@ -409,6 +409,9 @@ export default function MyLeadsPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
                       <div className="text-sm">
                         <div className="font-medium">{lead.name} <span className="text-gray-500">• {lead.subject}</span></div>
+                        <div className="text-xs text-gray-500 my-0.5">
+                          {new Date(lead._creationTime).toLocaleString()} <span className="mx-1">•</span> Source: <span className="capitalize">{lead.source || "Unknown"}</span>
+                        </div>
                         <div className="text-xs text-gray-600 line-clamp-1">{lead.message}</div>
                       </div>
                       <div className="flex items-center gap-2">
