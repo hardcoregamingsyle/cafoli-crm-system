@@ -3,13 +3,13 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Check for inactive leads every 6 hours
-crons.interval(
-  "check inactive leads",
-  { hours: 6 },
-  internal.leadActivity.checkInactiveLeads,
-  {}
-);
+// Auto-unassign feature disabled
+// crons.interval(
+//   "check inactive leads",
+//   { hours: 6 },
+//   internal.leadActivity.checkInactiveLeads,
+//   {}
+// );
 
 // Reset email API key daily counts at midnight
 crons.cron(
