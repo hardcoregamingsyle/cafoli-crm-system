@@ -1459,3 +1459,58 @@ export const updateLeadHeat = mutation({
     return true;
   },
 });
+
+export const deleteLeadsWithPlaceholderEmail = mutation({
+  args: {
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    // Find all leads with placeholder email
+    const allLeads = await ctx.db.query("leads").collect();
+    const leadsToDelete = allLeads.filter(
+      (lead) => lead.email && lead.email.toLowerCase() === "unknown@example.com"
+    );
+
+    let deletedCount = 0;
+
+    for (const lead of leadsToDelete) {
+      // Delete associated WhatsApp messages
+      const whatsappMessages = await ctx.db
+        .query("whatsappMessages")
+        .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+        .collect();
+      
+      for (const message of whatsappMessages) {
+        await ctx.db.delete(message._id);
+      }
+
+      // Delete associated comments
+      const comments = await ctx.db
+        .query("comments")
+        .withIndex("leadId", (q) => q.eq("leadId", lead._id))
+        .collect();
+      
+      for (const comment of comments) {
+        await ctx.db.delete(comment._id);
+      }
+
+      // Delete the lead
+      await ctx.db.delete(lead._id);
+      deletedCount++;
+    }
+
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: "DELETE_PLACEHOLDER_EMAIL_LEADS",
+      details: `Admin deleted ${deletedCount} leads with placeholder email (unknown@example.com)`,
+      timestamp: Date.now(),
+    });
+
+    return { deletedCount };
+  },
+});
