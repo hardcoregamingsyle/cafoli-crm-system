@@ -938,3 +938,65 @@ export const fetchPharmavendsLeads = internalAction({
     }
   },
 });
+
+// Add this new action after fetchPharmavendsLeads
+export const fetchGoogleScriptLeads = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbxKrR7SZjO_DhJwJhguvAmnejgddGydFEvJSdsnmV-hl1UQMINjWNQ-dxJRNT155m-H/exec";
+    
+    try {
+      console.log(`[Google Script] Fetching leads from Google Spreadsheet`);
+      
+      const response = await fetch(googleScriptUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`[Google Script] Received data:`, data);
+      
+      // Process the leads data - adjust based on actual API response structure
+      if (Array.isArray(data)) {
+        let created = 0;
+        let clubbed = 0;
+        
+        for (const item of data) {
+          const result = await ctx.runMutation(internal.webhook.createLeadFromGoogleScript, {
+            serialNo: item.serialNo || item.serial_no,
+            source: item.source || "Google Script",
+            name: item.name || "Unknown",
+            subject: item.subject || "Google Script Lead",
+            email: item.email || "unknown@example.com",
+            mobileNo: item.mobileNo || item.mobile || item.phone || "",
+            message: item.message || item.description || "",
+            altEmail: item.altEmail || item.alt_email,
+            altMobileNo: item.altMobileNo || item.alt_mobile || item.alt_phone,
+            assigneeName: item.assigneeName || item.assignee_name || item.assignee,
+            state: item.state || "",
+            station: item.station,
+            district: item.district,
+            pincode: item.pincode || item.pin_code,
+            agencyName: item.agencyName || item.agency_name,
+          });
+          
+          if (result) {
+            created++;
+          } else {
+            clubbed++;
+          }
+        }
+        
+        console.log(`[Google Script] Successfully processed ${created} new leads, ${clubbed} clubbed`);
+        return { success: true, created, clubbed };
+      } else {
+        console.log(`[Google Script] Unexpected response format:`, data);
+        return { success: false, error: "Unexpected response format" };
+      }
+    } catch (error: any) {
+      console.error(`[Google Script] Error fetching leads:`, error);
+      return { success: false, error: error.message };
+    }
+  },
+});

@@ -59,5 +59,12 @@ crons.interval(
   {}
 );
 
+crons.interval(
+  "fetch google script leads",
+  { minutes: 5 },
+  (internal as any).webhook.fetchGoogleScriptLeads,
+  {}
+);
+
 // Add default export required by Convex
 export default crons;
