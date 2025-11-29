@@ -208,24 +208,18 @@ export const getMyLeads = query({
 });
 
 async function findDuplicateLead(ctx: any, mobileNo: string, email: string) {
-  // Normalize phone before lookup
-  const normalizedMobile = normalizePhoneNumber(mobileNo);
+  // Phone number should already be normalized by caller
+  const normalizedMobile = mobileNo;
   
-  // Prefer exact mobile match, then email
   const byMobile = normalizedMobile
-    ? await ctx.db
-        .query("leads")
-        .withIndex("mobileNo", (q: any) => q.eq("mobileNo", normalizedMobile))
-        .unique()
+    ? await ctx.db.query("leads").withIndex("mobileNo", (q: any) => q.eq("mobileNo", normalizedMobile)).unique()
     : null;
-
   if (byMobile) return byMobile;
 
-  const byEmail = email
-    ? await ctx.db
-        .query("leads")
-        .withIndex("email", (q: any) => q.eq("email", email))
-        .unique()
+  // Skip email lookup if it's a placeholder
+  const normalizedEmail = (email || "").trim().toLowerCase();
+  const byEmail = normalizedEmail && normalizedEmail !== "unknown@example.com"
+    ? await ctx.db.query("leads").withIndex("email", (q: any) => q.eq("email", normalizedEmail)).unique()
     : null;
 
   return byEmail;

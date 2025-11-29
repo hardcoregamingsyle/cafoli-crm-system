@@ -139,12 +139,16 @@ export function ChatArea({
       );
     }
 
-    if (mediaType === "audio") {
+    if (mediaType === "audio" || mediaType === "voice" || mediaType === "ptt") {
       return (
         <div className="mt-2">
           <audio controls className="w-full">
-            <source src={mediaUrl} />
+            <source src={mediaUrl} type={msg.mimeType || "audio/ogg"} />
+            Your browser does not support the audio element.
           </audio>
+          {mediaType === "voice" || mediaType === "ptt" ? (
+            <p className="text-xs text-gray-500 mt-1">🎤 Voice message</p>
+          ) : null}
         </div>
       );
     }
