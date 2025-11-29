@@ -135,6 +135,7 @@ export default function AllLeadsPage() {
   const updateLeadDetails = useMutation((api as any).leads.updateLeadDetails);
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
   const normalizePhoneNumbers = useMutation((api as any).migrate.normalizeAllPhoneNumbers);
+  const deleteLeadsWithPlaceholderEmail = useMutation((api as any).leads.deleteLeadsWithPlaceholderEmail);
 
   // Add: state for normalization process
   const [isNormalizing, setIsNormalizing] = useState(false);
@@ -663,16 +664,22 @@ export default function AllLeadsPage() {
                 variant="outline" 
                 onClick={async () => {
                   if (isNormalizing) return;
-                  const confirm = window.confirm("Normalize all phone numbers in the database? This will update all leads and WhatsApp messages.");
+                  const confirm = window.confirm("Normalize all phone numbers and delete leads with placeholder emails (unknown@example.com)? This will update all leads and WhatsApp messages.");
                   if (!confirm) return;
                   
                   try {
                     setIsNormalizing(true);
-                    const result = await normalizePhoneNumbers({});
-                    toast.success(`Normalized ${result.updatedCount} phone numbers with ${result.errorCount} errors`);
+                    
+                    // First, delete placeholder email leads
+                    const deleteResult = await deleteLeadsWithPlaceholderEmail({ currentUserId: currentUser._id });
+                    
+                    // Then normalize phone numbers
+                    const normalizeResult = await normalizePhoneNumbers({});
+                    
+                    toast.success(`Deleted ${deleteResult.deletedCount} placeholder leads. Normalized ${normalizeResult.updatedCount} phone numbers with ${normalizeResult.errorCount} errors.`);
                     window.location.reload();
                   } catch (error: any) {
-                    toast.error(error?.message || "Failed to normalize phone numbers");
+                    toast.error(error?.message || "Failed to normalize and clean up");
                   } finally {
                     setIsNormalizing(false);
                   }
