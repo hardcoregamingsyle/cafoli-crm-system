@@ -448,11 +448,14 @@ export const importFromWebhookLogs = mutation({
 
     const limit = args.limit ?? 500;
 
-    // Load latest WEBHOOK_LOG entries
-    const all = await ctx.db.query("auditLogs").collect();
-    const logs = all
+    // Load latest WEBHOOK_LOG entries with pagination to avoid hitting document read limits
+    const logs = await ctx.db
+      .query("auditLogs")
+      .order("desc")
+      .take(Math.min(limit * 3, 5000)); // Take up to 3x limit or 5000 max to filter from
+    
+    const webhookLogs = logs
       .filter((l) => l.action === "WEBHOOK_LOG")
-      .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
 
     let created = 0;
@@ -486,7 +489,7 @@ export const importFromWebhookLogs = mutation({
       return byEmail;
     };
 
-    for (const log of logs) {
+    for (const log of webhookLogs) {
       try {
         const str = String(log.details ?? "");
         if (!str) {
