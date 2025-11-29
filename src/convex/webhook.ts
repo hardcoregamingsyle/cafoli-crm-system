@@ -449,12 +449,13 @@ export const importFromWebhookLogs = mutation({
     const limit = args.limit ?? 500;
 
     // Load latest WEBHOOK_LOG entries with pagination to avoid hitting document read limits
-    const logs = await ctx.db
+    // Use a more conservative approach to avoid document read limits
+    const allLogs = await ctx.db
       .query("auditLogs")
       .order("desc")
-      .take(Math.min(limit * 3, 5000)); // Take up to 3x limit or 5000 max to filter from
+      .take(Math.min(limit * 2, 2000)); // Reduced from 5000 to 2000 to stay well under limits
     
-    const webhookLogs = logs
+    const webhookLogs = allLogs
       .filter((l) => l.action === "WEBHOOK_LOG")
       .slice(0, limit);
 
@@ -477,13 +478,18 @@ export const importFromWebhookLogs = mutation({
     };
 
     const findDuplicateLead = async (mobileNo: string, email: string) => {
-      const byMobile = mobileNo
-        ? await ctx.db.query("leads").withIndex("mobileNo", (q) => q.eq("mobileNo", mobileNo)).unique()
+      // Normalize phone before lookup
+      const normalizedMobile = normalizePhoneNumber(mobileNo);
+      
+      const byMobile = normalizedMobile
+        ? await ctx.db.query("leads").withIndex("mobileNo", (q) => q.eq("mobileNo", normalizedMobile)).unique()
         : null;
       if (byMobile) return byMobile;
 
-      const byEmail = email
-        ? await ctx.db.query("leads").withIndex("email", (q) => q.eq("email", email)).unique()
+      // Skip email lookup if it's a placeholder
+      const normalizedEmail = (email || "").trim().toLowerCase();
+      const byEmail = normalizedEmail && normalizedEmail !== "unknown@example.com"
+        ? await ctx.db.query("leads").withIndex("email", (q) => q.eq("email", normalizedEmail)).unique()
         : null;
 
       return byEmail;
@@ -514,8 +520,10 @@ export const importFromWebhookLogs = mutation({
         const name = fallback(r, ["SENDER_NAME", "name", "fullName"], "Unknown");
         const subject = fallback(r, ["SUBJECT", "subject"], "Lead from IndiaMART");
         const message = fallback(r, ["QUERY_MESSAGE", "message", "msg", "body"], "");
-        const mobileNo = fallback(r, ["SENDER_MOBILE", "SENDER_PHONE", "mobileNo", "mobile", "phone"], "");
-        const email = fallback(r, ["SENDER_EMAIL", "email"], "unknown@example.com");
+        const rawMobileNo = fallback(r, ["SENDER_MOBILE", "SENDER_PHONE", "mobileNo", "mobile", "phone"], "");
+        const mobileNo = normalizePhoneNumber(rawMobileNo);
+        const rawEmail = fallback(r, ["SENDER_EMAIL", "email"], "unknown@example.com");
+        const email = (rawEmail || "").trim().toLowerCase();
         const altMobileNo = fallback(r, ["SENDER_MOBILE_ALT", "SENDER_PHONE_ALT", "altMobileNo", "altMobile", "altPhone"], "");
         const altEmail = fallback(r, ["SENDER_EMAIL_ALT", "altEmail"], "");
         const state = fallback(r, ["SENDER_STATE", "state", "region"], "Unknown");
