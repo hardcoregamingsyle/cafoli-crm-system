@@ -51,10 +51,18 @@ export function getLeadHighlight(lead: any): LeadHighlight | null {
 
 export function sortLeadsForMyLeads(leads: any[]): any[] {
   return [...leads].sort((a, b) => {
+    // Prioritize clubbed leads first
+    const aClubbed = a.clubbedLeadIds && a.clubbedLeadIds.length > 0 ? 1 : 0;
+    const bClubbed = b.clubbedLeadIds && b.clubbedLeadIds.length > 0 ? 1 : 0;
+    
+    if (aClubbed !== bClubbed) {
+      return bClubbed - aClubbed; // Clubbed leads first
+    }
+    
     const aHighlight = getLeadHighlight(a);
     const bHighlight = getLeadHighlight(b);
     
-    // Sort by highlight priority first
+    // Sort by highlight priority
     if (aHighlight && bHighlight) {
       if (aHighlight.priority !== bHighlight.priority) {
         return aHighlight.priority - bHighlight.priority;
