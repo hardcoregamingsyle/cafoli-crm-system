@@ -209,8 +209,8 @@ export default function MyLeadsPage() {
   };
 
   if (!currentUser) return <Layout><div /></Layout>;
-  if (currentUser.role === ROLES.ADMIN) {
-    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>Admins don't have access to My Leads.</CardContent></Card></div></Layout>;
+  if (currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.STAFF) {
+    return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don't have access to this page.</CardContent></Card></div></Layout>;
   }
 
   return (
@@ -472,15 +472,15 @@ export default function MyLeadsPage() {
 
                     <div className="grid md:grid-cols-3 gap-4 py-2">
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Name {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Name {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.name || ""}
                             placeholder="Enter name"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -501,15 +501,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Subject {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Subject {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.subject || ""}
                             placeholder="Enter subject"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -530,15 +530,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Message {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Message {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.message || ""}
                             placeholder="Enter message"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -562,15 +562,15 @@ export default function MyLeadsPage() {
 
                     <div className="grid md:grid-cols-5 gap-4 py-2">
                       <div className="md:col-span-2 space-y-1">
-                        <div className="text-xs text-gray-500">Agency Name {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Agency Name {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.agencyName || ""}
                             placeholder="Enter agency name"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -591,15 +591,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Pincode {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Pincode {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.pincode || ""}
                             placeholder="Enter pincode"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -620,15 +620,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">State {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">State {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.state || ""}
                             placeholder="Enter state"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -649,15 +649,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">District {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">District {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.district || ""}
                             placeholder="Enter district"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -678,15 +678,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Station {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Station {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.station || ""}
                             placeholder="Enter station"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -710,15 +710,15 @@ export default function MyLeadsPage() {
 
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Mobile No. {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Mobile No. {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.mobileNo || ""}
                             placeholder="Enter mobile"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -739,15 +739,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Alt Mobile No. {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Alt Mobile No. {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altMobileNo || ""}
                             placeholder="Enter alt mobile"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -768,15 +768,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Email {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Email {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.email || ""}
                             placeholder="Enter email"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -797,15 +797,15 @@ export default function MyLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Alt Email {currentUser.role === ROLES.MANAGER ? "(Manual Input)" : ""}</div>
+                        <div className="text-xs text-gray-500">Alt Email {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altEmail || ""}
                             placeholder="Enter alt email"
                             onChange={(e) => ((e.currentTarget as any)._val = e.currentTarget.value)}
-                            disabled={currentUser.role !== ROLES.MANAGER}
+                            disabled={currentUser.role !== ROLES.MANAGER && currentUser.role !== ROLES.ADMIN}
                           />
-                          {currentUser.role === ROLES.MANAGER && (
+                          {(currentUser.role === ROLES.MANAGER || currentUser.role === ROLES.ADMIN) && (
                             <Button
                               variant="outline"
                               size="sm"
