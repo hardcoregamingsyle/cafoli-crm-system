@@ -967,9 +967,21 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
       <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
         {comments.length === 0 && <div className="text-xs text-gray-400">No comments yet</div>}
         {comments.map((c: any) => (
-          <div key={c._id} className="text-xs">
-            <span className="font-medium">{c.userName}</span>: {c.content}
-            <span className="text-gray-400"> • {new Date(c.timestamp).toLocaleString()}</span>
+          <div 
+            key={c._id} 
+            className={`text-xs p-2 rounded ${c.isSystemComment ? 'bg-yellow-200 font-medium' : ''}`}
+          >
+            {c.isSystemComment ? (
+              <>
+                {c.content}
+                <span className="text-gray-600 ml-2">• {new Date(c.timestamp).toLocaleString()}</span>
+              </>
+            ) : (
+              <>
+                <span className="font-medium">{c.userName}</span>: {c.content}
+                <span className="text-gray-400"> • {new Date(c.timestamp).toLocaleString()}</span>
+              </>
+            )}
           </div>
         ))}
       </div>

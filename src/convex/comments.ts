@@ -30,7 +30,10 @@ export const getLeadComments = query({
         
         // Check if this is a system-generated comment
         const isSystemComment = comment.content === "The Lead was Posted again" || 
-                                (comment.content?.startsWith("Duplicate leads clubbed") ?? false);
+                                (comment.content?.startsWith("Duplicate leads clubbed") ?? false) ||
+                                (comment.content?.startsWith("Lead marked as") ?? false) ||
+                                (comment.content?.startsWith("Lead assigned") ?? false) ||
+                                (comment.content?.startsWith("Follow-up") ?? false);
         
         return {
           ...comment,
