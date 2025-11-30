@@ -390,6 +390,7 @@ export default function AllLeadsPage() {
     setSelectedStatuses([]);
     setSelectedSources([]);
     setSelectedHeats([]);
+    setShowNoFollowup(false);
   };
 
   return (
@@ -422,9 +423,9 @@ export default function AllLeadsPage() {
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
                     <Badge variant="secondary" className="ml-2">
-                      {selectedStatuses.length + selectedSources.length + selectedHeats.length}
+                      {selectedStatuses.length + selectedSources.length + selectedHeats.length + (showNoFollowup ? 1 : 0)}
                     </Badge>
                   )}
                 </Button>
@@ -557,8 +558,25 @@ export default function AllLeadsPage() {
                     </div>
                   </div>
 
+                  {/* No Followup Filter */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Followup Status</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="no-followup"
+                          checked={showNoFollowup}
+                          onCheckedChange={(checked) => setShowNoFollowup(!!checked)}
+                        />
+                        <Label htmlFor="no-followup" className="cursor-pointer">
+                          No Followup Set
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Clear All Button */}
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
                     <Button 
                       variant="outline" 
                       className="w-full"
