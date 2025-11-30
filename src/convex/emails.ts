@@ -22,9 +22,10 @@ export const sendRelevant = internalAction({
       "Email: info@cafoli.in\n" +
       "Phone No: +91 9518447302";
 
-    // 1) Try to pick an available key from DB
+    // 1) Try to pick an available key from DB (admin-configured keys)
     const availableKey: any = await ctx.runQuery((internal as any).emailKeys.getAvailableKey, {});
     let apiKey: string | null = availableKey?.apiKey ?? null;
+    let usingDbKey = !!apiKey;
 
     // 2) Fallback to single BREVO_API_KEY from env if no DB key available
     if (!apiKey) {
@@ -33,17 +34,19 @@ export const sendRelevant = internalAction({
         process.env.BREVO_API_TOKEN ||
         null;
       if (!envKey) {
-        console.error("No Brevo API key found in database or environment variables");
+        console.error("❌ No Brevo API key found. Please configure API keys in /admin panel or set BREVO_API_KEY environment variable");
         // No keys available: enqueue
         await ctx.runMutation((internal as any).emailKeys.enqueueEmail, {
           to: args.to,
           subject,
           text,
         });
-        return { queued: true, reason: "No available API key - check BREVO_API_KEY environment variable" };
+        return { queued: true, reason: "No available API key - configure in /admin panel" };
       }
       apiKey = envKey;
-      console.log("Using Brevo API key from environment variables");
+      console.log("⚠️ Using Brevo API key from environment variables (fallback). Configure keys in /admin panel for better management.");
+    } else {
+      console.log(`✅ Using admin-configured API key: ${availableKey.name} (${availableKey.sentToday ?? 0}/${availableKey.dailyLimit ?? 295} sent today)`);
     }
 
     // Brevo payload and request
@@ -76,14 +79,15 @@ export const sendRelevant = internalAction({
       return { queued: true, reason: `Brevo error: ${res.status} ${res.statusText} - ${errText}` };
     }
 
-    console.log(`Email sent successfully to ${args.to}`);
+    console.log(`✅ Email sent successfully to ${args.to}`);
 
     // Success: increment key usage if we used a DB-managed key
-    if (availableKey?._id) {
+    if (usingDbKey && availableKey?._id) {
       await ctx.runMutation((internal as any).emailKeys.incrementKeySent, {
         keyId: availableKey._id,
         by: 1,
       });
+      console.log(`📊 Updated usage count for key: ${availableKey.name}`);
     }
 
     try {
@@ -108,6 +112,7 @@ export const processQueue = internalAction({
       // Select a key for each send; if none available, stop early
       const key: any = await ctx.runQuery((internal as any).emailKeys.getAvailableKey, {});
       let apiKey: string | null = key?.apiKey ?? null;
+      let usingDbKey = !!apiKey;
 
       if (!apiKey) {
         const envKey =
@@ -115,6 +120,7 @@ export const processQueue = internalAction({
           process.env.BREVO_API_TOKEN ||
           null;
         if (!envKey) {
+          console.log("⚠️ No API keys available for queue processing. Configure keys in /admin panel.");
           // No keys at all; skip processing further
           break;
         }
@@ -150,7 +156,7 @@ export const processQueue = internalAction({
 
         // Mark sent + increment key usage if DB key
         await ctx.runMutation((internal as any).emailKeys.markSent, { id: item._id });
-        if (key?._id) {
+        if (usingDbKey && key?._id) {
           await ctx.runMutation((internal as any).emailKeys.incrementKeySent, {
             keyId: key._id,
             by: 1,
