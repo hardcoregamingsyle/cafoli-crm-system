@@ -6,6 +6,8 @@ import { v } from "convex/values";
 // RCS API Configuration
 const RCS_API_KEY = "3b96bc50-3174-4b8f-9b31-6fce90f20fd8";
 const RCS_BASE_URL = "https://rcsapi.pinnacle.in/api"; // Updated from documentation
+const DEFAULT_BOT_ID = "68e8ae8d0b7e7503eb77361c";
+const DEFAULT_TEMPLATE_ID = "BestManufacturers";
 
 function normalizeIndianPhone(input: string): string {
   const digits = input.replace(/[^\d]/g, "");
@@ -45,18 +47,16 @@ export const sendTextMessage = action({
       );
     }
 
-    // RCS API requires botId - if not provided, this will fail
-    if (!args.botId) {
-      console.error("❌ RCS botId is required but not provided");
-      throw new Error("RCS botId is required for sending messages");
-    }
+    // Use provided botId or default
+    const botId = args.botId || DEFAULT_BOT_ID;
+    const templateId = args.templateId || DEFAULT_TEMPLATE_ID;
 
     const payload: any = {
       category: "promotional",
       messages: [
         {
           to: `+${phone}`,
-          templateId: args.templateId || "",
+          templateId: templateId,
           variables: [],
         }
       ]
@@ -68,7 +68,7 @@ export const sendTextMessage = action({
         headers: {
           "Content-Type": "application/json",
           "apikey": RCS_API_KEY,
-          "botid": args.botId,
+          "botid": botId,
         },
         body: JSON.stringify(payload),
       });
@@ -107,8 +107,8 @@ export const sendTextMessage = action({
 export const sendRichMessage = action({
   args: {
     to: v.string(),
-    botId: v.string(),
-    templateId: v.string(),
+    botId: v.optional(v.string()),
+    templateId: v.optional(v.string()),
     variables: v.optional(v.array(v.object({
       key: v.string(),
       value: v.string(),
@@ -124,12 +124,16 @@ export const sendRichMessage = action({
       );
     }
 
+    // Use provided botId/templateId or defaults
+    const botId = args.botId || DEFAULT_BOT_ID;
+    const templateId = args.templateId || DEFAULT_TEMPLATE_ID;
+
     const payload: any = {
       category: "promotional",
       messages: [
         {
           to: `+${phone}`,
-          templateId: args.templateId,
+          templateId: templateId,
           variables: args.variables || [],
         }
       ]
@@ -141,7 +145,7 @@ export const sendRichMessage = action({
         headers: {
           "Content-Type": "application/json",
           "apikey": RCS_API_KEY,
-          "botid": args.botId,
+          "botid": botId,
         },
         body: JSON.stringify(payload),
       });
