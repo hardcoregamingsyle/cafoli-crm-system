@@ -67,14 +67,11 @@ export default function CampaignsPage() {
         workflow: { blocks: [], connections: [] },
       });
 
-      toast.success("Campaign created");
+      toast.success("Campaign created successfully");
       setCreateDialogOpen(false);
       setSelectLeadsDialogOpen(false);
       setCampaignName("");
       setSelectedLeads([]);
-      
-      // Navigate to campaign builder (to be implemented)
-      toast.info("Campaign builder coming soon - workflow canvas will open here");
     } catch (e: any) {
       toast.error(e?.message || "Failed to create campaign");
     }
