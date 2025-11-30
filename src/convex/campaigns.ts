@@ -5,25 +5,20 @@ import { ROLES } from "./schema";
 export const createCampaign = mutation({
   args: {
     currentUserId: v.id("users"),
-    subject: v.string(),
-    content: v.string(),
-    senderPrefix: v.string(),
-    recipientType: v.union(v.literal("my_leads"), v.literal("all_leads"), v.literal("custom")),
+    name: v.string(),
     recipientIds: v.array(v.id("leads")),
-    attachments: v.optional(v.array(v.id("_storage"))),
+    workflow: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.currentUserId);
-    if (!user || (user.role !== ROLES.ADMIN && user.role !== ROLES.MANAGER)) {
+    if (!user) {
       throw new Error("Unauthorized");
     }
 
     const campaignId = await ctx.db.insert("campaigns", {
-      name: args.subject,
-      subject: args.subject,
-      body: args.content,
-      content: args.content,
+      name: args.name,
       recipientIds: args.recipientIds,
+      workflow: args.workflow || { blocks: [], connections: [] },
       status: "draft",
       createdBy: args.currentUserId,
       createdAt: Date.now(),
@@ -37,12 +32,10 @@ export const updateCampaign = mutation({
   args: {
     currentUserId: v.id("users"),
     campaignId: v.id("campaigns"),
-    subject: v.optional(v.string()),
-    content: v.optional(v.string()),
-    senderPrefix: v.optional(v.string()),
-    recipientType: v.optional(v.union(v.literal("my_leads"), v.literal("all_leads"), v.literal("custom"))),
+    name: v.optional(v.string()),
     recipientIds: v.optional(v.array(v.id("leads"))),
-    attachments: v.optional(v.array(v.id("_storage"))),
+    workflow: v.optional(v.any()),
+    status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.currentUserId);
@@ -56,12 +49,10 @@ export const updateCampaign = mutation({
     }
 
     const updates: any = {};
-    if (args.subject !== undefined) updates.subject = args.subject;
-    if (args.content !== undefined) updates.content = args.content;
-    if (args.senderPrefix !== undefined) updates.senderPrefix = args.senderPrefix;
-    if (args.recipientType !== undefined) updates.recipientType = args.recipientType;
+    if (args.name !== undefined) updates.name = args.name;
     if (args.recipientIds !== undefined) updates.recipientIds = args.recipientIds;
-    if (args.attachments !== undefined) updates.attachments = args.attachments;
+    if (args.workflow !== undefined) updates.workflow = args.workflow;
+    if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.campaignId, updates);
   },
@@ -89,41 +80,19 @@ export const deleteCampaign = mutation({
 
 export const getCampaigns = query({
   args: {
-    currentUserId: v.union(v.id("users"), v.string()),
+    currentUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    try {
-      // Validate that we have a non-empty ID
-      if (!args.currentUserId || typeof args.currentUserId === 'string' && args.currentUserId.trim() === '') {
-        console.error("Empty or invalid currentUserId in getCampaigns");
-        return [];
-      }
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user) return [];
 
-      // Handle invalid ID format gracefully
-      let user;
-      try {
-        user = await ctx.db.get(args.currentUserId as any);
-      } catch (e) {
-        console.error("Invalid user ID format in getCampaigns:", args.currentUserId, e);
-        return [];
-      }
-      
-      if (!user) {
-        console.error("User not found in getCampaigns:", args.currentUserId);
-        return [];
-      }
-
-      if ((user as any).role === ROLES.ADMIN) {
-        return await ctx.db.query("campaigns").collect();
-      } else {
-        return await ctx.db
-          .query("campaigns")
-          .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId as any))
-          .collect();
-      }
-    } catch (error) {
-      console.error("Error in getCampaigns:", error);
-      return [];
+    if (user.role === ROLES.ADMIN) {
+      return await ctx.db.query("campaigns").collect();
+    } else {
+      return await ctx.db
+        .query("campaigns")
+        .withIndex("by_createdBy", (q) => q.eq("createdBy", args.currentUserId))
+        .collect();
     }
   },
 });
@@ -150,44 +119,22 @@ export const getCampaignById = query({
 
 export const getLeadsForCampaign = query({
   args: {
-    currentUserId: v.union(v.id("users"), v.string()),
+    currentUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    try {
-      // Validate that we have a non-empty ID
-      if (!args.currentUserId || typeof args.currentUserId === 'string' && args.currentUserId.trim() === '') {
-        console.error("Empty or invalid currentUserId in getLeadsForCampaign");
-        return [];
-      }
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user) return [];
 
-      // Handle invalid ID format gracefully
-      let user;
-      try {
-        user = await ctx.db.get(args.currentUserId as any);
-      } catch (e) {
-        console.error("Invalid user ID format in getLeadsForCampaign:", args.currentUserId, e);
-        return [];
-      }
-      
-      if (!user) {
-        console.error("User not found in getLeadsForCampaign:", args.currentUserId);
-        return [];
-      }
-
-      if ((user as any).role === ROLES.ADMIN) {
-        return await ctx.db.query("leads").collect();
-      } else if ((user as any).role === ROLES.MANAGER) {
-        return await ctx.db
-          .query("leads")
-          .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId as any))
-          .collect();
-      }
-
-      return [];
-    } catch (error) {
-      console.error("Error in getLeadsForCampaign:", error);
-      return [];
+    if (user.role === ROLES.ADMIN) {
+      return await ctx.db.query("leads").collect();
+    } else if (user.role === ROLES.MANAGER || user.role === ROLES.STAFF) {
+      return await ctx.db
+        .query("leads")
+        .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId))
+        .collect();
     }
+
+    return [];
   },
 });
 
@@ -208,12 +155,7 @@ export const startCampaign = mutation({
     }
 
     await ctx.db.patch(args.campaignId, {
-      status: "sending",
-    });
-
-    // Schedule the actual sending as an action
-    await ctx.scheduler.runAfter(0, "campaigns:sendCampaignEmails" as any, {
-      campaignId: args.campaignId,
+      status: "active",
     });
 
     return { success: true };

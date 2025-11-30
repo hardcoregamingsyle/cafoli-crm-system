@@ -182,15 +182,17 @@ export default defineSchema({
 
   campaigns: defineTable({
     name: v.string(),
-    subject: v.string(),
-    body: v.string(),
     createdBy: v.id("users"),
     createdAt: v.number(),
-    status: v.optional(v.string()),
-    recipientIds: v.optional(v.array(v.id("leads"))),
-    content: v.optional(v.string()),
+    status: v.string(), // "draft", "active", "paused", "completed"
+    recipientIds: v.array(v.id("leads")),
+    workflow: v.any(), // JSON structure for the workflow blocks
+    subject: v.optional(v.string()), // Legacy field
+    body: v.optional(v.string()), // Legacy field
+    content: v.optional(v.string()), // Legacy field
   })
-    .index("by_createdBy", ["createdBy"]),
+    .index("by_createdBy", ["createdBy"])
+    .index("by_status", ["status"]),
 
   pincodeMappings: defineTable({
     pincode: v.string(),
