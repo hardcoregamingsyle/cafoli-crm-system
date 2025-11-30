@@ -60,6 +60,7 @@ export default function AllLeadsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
+  const [showNoFollowup, setShowNoFollowup] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -301,6 +302,11 @@ export default function AllLeadsPage() {
       if (selectedHeats.length > 0) {
         const leadHeat = lead?.heat || "";
         if (!selectedHeats.includes(leadHeat)) return false;
+      }
+
+      // No Followup filter
+      if (showNoFollowup) {
+        if (lead?.nextFollowup) return false;
       }
 
       // ... keep existing enforcedHeatRoute filter logic
