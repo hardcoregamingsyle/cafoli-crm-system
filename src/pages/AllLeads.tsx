@@ -185,6 +185,9 @@ export default function AllLeadsPage() {
   
   if (!currentUser) return <Layout><div /></Layout>;
   if (!canView) return <Layout><div className="max-w-4xl mx-auto"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent>You don't have access to this page.</CardContent></Card></div></Layout>;
+  
+  // Both Admin and Manager can edit all fields
+  const canEdit = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
 
   // Debug: Compare server-side count vs UI count (same deployment as webhook HTTP)
   const [serverCount, setServerCount] = useState<number | null>(null);
@@ -792,9 +795,9 @@ export default function AllLeadsPage() {
                   <AccordionContent>
                     {/* Editable Name/Subject/Message block */}
                     <div className="grid md:grid-cols-3 gap-4 py-2">
-                      {/* Name (Manual Input) */}
+                      {/* Name (Manual Input) - Both Admin and Manager can edit */}
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Name (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Name {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.name || ""}
@@ -824,9 +827,9 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
 
-                      {/* Subject (Manual Input) */}
+                      {/* Subject (Manual Input) - Both Admin and Manager can edit */}
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Subject (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Subject {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.subject || ""}
@@ -856,9 +859,9 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
 
-                      {/* Message (Manual Input) */}
+                      {/* Message (Manual Input) - Both Admin and Manager can edit */}
                       <div className="space-y-1 md:col-span-1">
-                        <div className="text-xs text-gray-500">Message (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Message {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.message || ""}
@@ -900,7 +903,7 @@ export default function AllLeadsPage() {
                     {/* Agency Name (Manual Input), Pincode (Manual Input) — State (Manual Input) — District (Manual Input) — Station */}
                     <div className="grid md:grid-cols-5 gap-4 py-2">
                       <div className="md:col-span-2 space-y-1">
-                        <div className="text-xs text-gray-500">Agency Name (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Agency Name {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.agencyName || ""}
@@ -930,7 +933,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Pincode (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Pincode {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.pincode || ""}
@@ -960,7 +963,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">State (Manual Input)</div>
+                        <div className="text-xs text-gray-500">State {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.state || ""}
@@ -990,7 +993,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">District (Manual Input)</div>
+                        <div className="text-xs text-gray-500">District {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.district || ""}
@@ -1020,7 +1023,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Station (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Station {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.station || ""}
@@ -1191,7 +1194,7 @@ export default function AllLeadsPage() {
                     {/* Contacts */}
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Mobile No. (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Mobile No. {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.mobileNo || ""}
@@ -1221,7 +1224,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Alt Mobile No. (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Alt Mobile No. {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altMobileNo || ""}
@@ -1251,7 +1254,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Email (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Email {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.email || ""}
@@ -1281,7 +1284,7 @@ export default function AllLeadsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-500">Alt Email (Manual Input)</div>
+                        <div className="text-xs text-gray-500">Alt Email {canEdit ? "(Manual Input)" : ""}</div>
                         <div className="flex items-center gap-2">
                           <Input
                             defaultValue={lead.altEmail || ""}
