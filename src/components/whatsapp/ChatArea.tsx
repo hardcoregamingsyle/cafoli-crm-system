@@ -119,10 +119,25 @@ export function ChatArea({
     const mediaType = msg.mediaType;
     const mediaUrl = msg.mediaUrl;
 
+    // If no mediaUrl, don't render anything
+    if (!mediaUrl) {
+      console.warn('[ChatArea] Media message has no URL:', msg);
+      return null;
+    }
+
     if (mediaType === "image") {
       return (
         <div className="mt-2">
-          <img src={mediaUrl} alt="Shared image" className="max-w-full rounded-lg" />
+          <img 
+            src={mediaUrl} 
+            alt="Shared image" 
+            className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity" 
+            onClick={() => window.open(mediaUrl, '_blank')}
+            onError={(e) => {
+              console.error('[ChatArea] Failed to load image:', mediaUrl);
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
           {msg.caption && <p className="text-sm mt-1">{msg.caption}</p>}
         </div>
       );
@@ -133,6 +148,7 @@ export function ChatArea({
         <div className="mt-2">
           <video controls className="max-w-full rounded-lg">
             <source src={mediaUrl} />
+            Your browser does not support the video element.
           </video>
           {msg.caption && <p className="text-sm mt-1">{msg.caption}</p>}
         </div>
@@ -331,8 +347,14 @@ export function ChatArea({
                         </div>
                       )}
 
-                      <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
+                      {/* Only show text if there's actual text content and it's not just a media placeholder */}
+                      {msg.message && !msg.message.match(/^\[(IMAGE|VIDEO|AUDIO|DOCUMENT|STICKER|VOICE)\]$/i) && (
+                        <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
+                      )}
+                      
+                      {/* Render media if present */}
                       {renderMediaMessage(msg)}
+                      
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-[10px] text-gray-500">
                           {new Date(msg.timestamp).toLocaleTimeString([], { 
