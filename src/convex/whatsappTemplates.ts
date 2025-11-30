@@ -17,11 +17,8 @@ export const createTemplate = mutation({
     const user = await ctx.db.get(args.currentUserId);
     if (!user) throw new Error("User not found");
 
-    // If admin, we mark as "processing" and send to Meta immediately.
-    // If not admin, we mark as "pending_approval" (internal).
-    
-    const isAdmin = user.role === ROLES.ADMIN;
-    const initialStatus = isAdmin ? "processing" : "pending_approval";
+    // All templates are now submitted directly to Meta for approval
+    const initialStatus = "processing";
 
     const templateId = await ctx.db.insert("whatsappTemplates", {
       name: args.name,
@@ -34,12 +31,10 @@ export const createTemplate = mutation({
       createdBy: args.currentUserId,
     });
 
-    if (isAdmin) {
-      // Schedule the action to submit to Meta immediately
-      await ctx.scheduler.runAfter(0, internal.whatsappTemplateActions.submitTemplateToMeta, {
-        templateId,
-      });
-    }
+    // Schedule the action to submit to Meta immediately for all users
+    await ctx.scheduler.runAfter(0, internal.whatsappTemplateActions.submitTemplateToMeta, {
+      templateId,
+    });
 
     return templateId;
   },

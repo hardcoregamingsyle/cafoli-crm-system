@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown, Upload, X } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ interface TemplateButton {
 export default function CreateTemplatePage() {
   const { currentUser } = useCrmAuth();
   const createTemplate = useMutation(api.whatsappTemplates.createTemplate);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editTemplateId = searchParams.get("edit");
@@ -49,10 +50,20 @@ export default function CreateTemplatePage() {
   // New fields
   const [headerType, setHeaderType] = useState<HeaderType>("NONE");
   const [headerText, setHeaderText] = useState("");
+  const [headerMediaFile, setHeaderMediaFile] = useState<File | null>(null);
+  const [headerMediaUrl, setHeaderMediaUrl] = useState<string>("");
+  const [headerMediaStorageId, setHeaderMediaStorageId] = useState<string>("");
   const [footerText, setFooterText] = useState("");
   const [buttons, setButtons] = useState<TemplateButton[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Get download URL for uploaded media
+  const getFileUrl = useQuery(
+    api.files.getDownloadUrl, 
+    headerMediaStorageId ? { storageId: headerMediaStorageId as any } : "skip"
+  );
 
   // Load template data when editing
   useEffect(() => {
@@ -73,10 +84,16 @@ export default function CreateTemplatePage() {
           if (headerComp.format === "TEXT") {
             // Handle both text field and example if present
             setHeaderText(headerComp.text || (headerComp.example?.header_text?.[0] || ""));
+          } else if (headerComp.format === "IMAGE" || headerComp.format === "VIDEO" || headerComp.format === "DOCUMENT") {
+            // For media headers, check if there's an example URL
+            if (headerComp.example?.header_handle?.[0]) {
+              setHeaderMediaUrl(headerComp.example.header_handle[0]);
+            }
           }
         } else {
           setHeaderType("NONE");
           setHeaderText("");
+          setHeaderMediaUrl("");
         }
         
         const bodyComp = templateToEdit.components.find((c: any) => c.type === "BODY");
@@ -139,6 +156,60 @@ export default function CreateTemplatePage() {
       setSubCategory("CUSTOM");
       setButtons([]);
     }
+  };
+
+  // Handle media file upload
+  const handleMediaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type based on header type
+    const validTypes: Record<string, string[]> = {
+      IMAGE: ["image/jpeg", "image/png"],
+      VIDEO: ["video/mp4"],
+      DOCUMENT: ["application/pdf"]
+    };
+
+    if (headerType !== "NONE" && headerType !== "TEXT") {
+      const allowed = validTypes[headerType];
+      if (!allowed.includes(file.type)) {
+        toast.error(`Invalid file type. Please upload a ${allowed.join(" or ")} file.`);
+        return;
+      }
+    }
+
+    setIsUploadingMedia(true);
+    try {
+      // Generate upload URL
+      const uploadUrl = await generateUploadUrl();
+      
+      // Upload the file
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!result.ok) {
+        throw new Error("Failed to upload file");
+      }
+
+      const { storageId } = await result.json();
+      
+      setHeaderMediaFile(file);
+      setHeaderMediaStorageId(storageId);
+      toast.success("Media uploaded successfully");
+    } catch (error: any) {
+      toast.error("Failed to upload media: " + error.message);
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    setHeaderMediaFile(null);
+    setHeaderMediaUrl("");
+    setHeaderMediaStorageId("");
   };
 
   const handleAddButton = (type: TemplateButton["type"]) => {
@@ -253,6 +324,17 @@ export default function CreateTemplatePage() {
         };
         if (headerType === "TEXT") {
           headerComponent.text = headerText;
+        } else if (headerType === "IMAGE" || headerType === "VIDEO" || headerType === "DOCUMENT") {
+          // For media headers, include example with the uploaded URL
+          const mediaUrl = getFileUrl || headerMediaUrl;
+          if (mediaUrl) {
+            headerComponent.example = {
+              header_handle: [mediaUrl]
+            };
+          } else {
+            toast.error(`Please upload a ${headerType.toLowerCase()} file for the header`);
+            return;
+          }
         }
         components.push(headerComponent);
       }
@@ -309,11 +391,7 @@ export default function CreateTemplatePage() {
         currentUserId: currentUser._id,
       });
 
-      if (currentUser.role === "admin") {
-        toast.success("Template submitted to Meta for approval");
-      } else {
-        toast.success("Template created successfully (Pending Internal Approval)");
-      }
+      toast.success("Template submitted to Meta for approval");
       navigate("/whatsapp");
     } catch (error: any) {
       toast.error(error.message || "Failed to create template");
@@ -467,6 +545,62 @@ export default function CreateTemplatePage() {
                             placeholder="Enter header text"
                             maxLength={60}
                           />
+                        </div>
+                      )}
+                      {(headerType === "IMAGE" || headerType === "VIDEO" || headerType === "DOCUMENT") && (
+                        <div className="grid gap-2">
+                          <Label>Upload {headerType}</Label>
+                          {!headerMediaFile ? (
+                            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                              <input
+                                type="file"
+                                id="media-upload"
+                                className="hidden"
+                                accept={
+                                  headerType === "IMAGE" ? "image/jpeg,image/png" :
+                                  headerType === "VIDEO" ? "video/mp4" :
+                                  "application/pdf"
+                                }
+                                onChange={handleMediaFileChange}
+                                disabled={isUploadingMedia}
+                              />
+                              <label htmlFor="media-upload" className="cursor-pointer">
+                                <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                <p className="text-sm text-gray-600">
+                                  {isUploadingMedia ? "Uploading..." : `Click to upload ${headerType.toLowerCase()}`}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {headerType === "IMAGE" && "JPEG or PNG"}
+                                  {headerType === "VIDEO" && "MP4 format"}
+                                  {headerType === "DOCUMENT" && "PDF format"}
+                                </p>
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="border rounded-lg p-4 flex items-center justify-between bg-gray-50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-100 rounded flex items-center justify-center">
+                                  {headerType === "IMAGE" && "🖼️"}
+                                  {headerType === "VIDEO" && "🎥"}
+                                  {headerType === "DOCUMENT" && "📄"}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{headerMediaFile.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {(headerMediaFile.size / 1024).toFixed(2)} KB
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleRemoveMedia}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -654,18 +788,30 @@ export default function CreateTemplatePage() {
                           <div className="w-full p-2 font-bold text-gray-800">{headerText || "{{Header}}"}</div>
                         )}
                         {headerType === "IMAGE" && (
-                          <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400">
-                            <span className="text-xs">IMAGE</span>
+                          <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
+                            {(getFileUrl || headerMediaUrl) ? (
+                              <img src={getFileUrl || headerMediaUrl} alt="Header" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs">IMAGE</span>
+                            )}
                           </div>
                         )}
                         {headerType === "VIDEO" && (
                           <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-400">
-                            <span className="text-xs">VIDEO</span>
+                            {(getFileUrl || headerMediaUrl) ? (
+                              <video src={getFileUrl || headerMediaUrl} className="w-full h-full object-cover" controls />
+                            ) : (
+                              <span className="text-xs">VIDEO</span>
+                            )}
                           </div>
                         )}
                         {headerType === "DOCUMENT" && (
                           <div className="w-full h-16 bg-gray-200 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 m-2 rounded">
-                            <span className="text-xs">DOCUMENT</span>
+                            {headerMediaFile ? (
+                              <span className="text-xs">{headerMediaFile.name}</span>
+                            ) : (
+                              <span className="text-xs">DOCUMENT</span>
+                            )}
                           </div>
                         )}
                       </div>
