@@ -46,7 +46,7 @@ export default function CampaignsPage() {
   const availableLeads = useQuery(
     (api as any).campaigns.getLeadsForCampaign,
     authReady && currentUser?._id ? { currentUserId: currentUser._id } : "skip"
-  );
+  ) ?? [];
 
   const createCampaign = useMutation((api as any).campaigns.createCampaign);
   const deleteCampaign = useMutation((api as any).campaigns.deleteCampaign);
@@ -117,8 +117,9 @@ export default function CampaignsPage() {
 
   // Get unique sources from available leads
   const uniqueSources = useMemo(() => {
+    if (!availableLeads || availableLeads.length === 0) return [];
     const sources = new Set<string>();
-    (availableLeads ?? []).forEach((lead: any) => {
+    availableLeads.forEach((lead: any) => {
       if (lead?.source) {
         sources.add(lead.source);
       }
@@ -127,7 +128,8 @@ export default function CampaignsPage() {
   }, [availableLeads]);
 
   const filteredLeads = useMemo(() => {
-    let leads = availableLeads || [];
+    if (!availableLeads || availableLeads.length === 0) return [];
+    let leads = availableLeads;
     
     // Search filter
     if (searchTerm) {
