@@ -82,6 +82,32 @@ export const sendNotification = mutation({
   },
 });
 
+// Notify all admins about a previously irrelevant lead
+export const notifyAdminsAboutIrrelevantLead = mutation({
+  args: {
+    leadId: v.id("leads"),
+    leadName: v.string(),
+    markedByUserName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get all admin users
+    const allUsers = await ctx.db.query("users").collect();
+    const admins = allUsers.filter(u => u.role === ROLES.ADMIN);
+    
+    // Send notification to each admin
+    for (const admin of admins) {
+      await ctx.db.insert("notifications", {
+        userId: admin._id,
+        title: "Previously Irrelevant Lead Returned",
+        message: `Lead "${args.leadName}" was previously marked as irrelevant by ${args.markedByUserName}. This lead has returned and requires admin assignment.`,
+        read: false,
+        type: "irrelevant_lead_returned",
+        relatedLeadId: args.leadId,
+      });
+    }
+  },
+});
+
 // Get unread notification count
 export const getUnreadCount = query({
   args: { currentUserId: v.optional(v.id("users")) },

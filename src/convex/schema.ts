@@ -109,6 +109,10 @@ export default defineSchema({
     lastMessageStatus: v.optional(v.string()),
     firstAssignmentDate: v.optional(v.number()),
     reassignmentCount: v.optional(v.number()),
+    markedIrrelevantBy: v.optional(v.id("users")),
+    markedIrrelevantAt: v.optional(v.number()),
+    requiresAdminAssignment: v.optional(v.boolean()),
+    wasPreviouslyIrrelevant: v.optional(v.boolean()),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])

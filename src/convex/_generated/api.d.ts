@@ -20,6 +20,7 @@ import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as leadActivity from "../leadActivity.js";
 import type * as leads from "../leads.js";
+import type * as leadsAdminView from "../leadsAdminView.js";
 import type * as masterdata from "../masterdata.js";
 import type * as migrate from "../migrate.js";
 import type * as notifications from "../notifications.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   leadActivity: typeof leadActivity;
   leads: typeof leads;
+  leadsAdminView: typeof leadsAdminView;
   masterdata: typeof masterdata;
   migrate: typeof migrate;
   notifications: typeof notifications;
