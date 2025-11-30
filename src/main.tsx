@@ -25,6 +25,7 @@ import ReportPage from "@/pages/Report.tsx";
 import WhatsAppPage from "@/pages/WhatsApp.tsx";
 import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
 import AllLeadsAdminViewPage from "@/pages/AllLeadsAdminView.tsx";
+import ComposeEmailPage from "@/pages/ComposeEmail.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -92,6 +93,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/all-leads-adv/cold" element={<AllLeadsAdminViewPage />} />
             <Route path="/all-leads-adv/mature" element={<AllLeadsAdminViewPage />} />
             <Route path="/all-leads-adv/nofollowset" element={<AllLeadsAdminViewPage />} />
+            <Route path="/compose-email" element={<ComposeEmailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ConvexProviderWrapper>

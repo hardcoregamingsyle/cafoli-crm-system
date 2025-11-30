@@ -14,6 +14,7 @@ import type * as auth_emailOtp from "../auth/emailOtp.js";
 import type * as campaigns from "../campaigns.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
+import type * as customEmails from "../customEmails.js";
 import type * as emailKeys from "../emailKeys.js";
 import type * as emails from "../emails.js";
 import type * as files from "../files.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   campaigns: typeof campaigns;
   comments: typeof comments;
   crons: typeof crons;
+  customEmails: typeof customEmails;
   emailKeys: typeof emailKeys;
   emails: typeof emails;
   files: typeof files;

@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation, QueryCtx } from "./_generated/server";
+import { query, mutation, internalQuery, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ROLES, roleValidator } from "./schema";
 
@@ -381,5 +381,12 @@ export const loginAsUser = mutation({
     });
     
     return targetUser;
+  },
+});
+
+export const getUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    return await ctx.db.get(userId);
   },
 });
