@@ -5,7 +5,7 @@ import { v } from "convex/values";
 
 // RCS API Configuration
 const RCS_API_KEY = "3b96bc50-3174-4b8f-9b31-6fce90f20fd8";
-const RCS_BASE_URL = "https://api.rcs.com/v1"; // Update with actual base URL from your documentation
+const RCS_BASE_URL = "https://rcsapi.pinnacle.in/api"; // Updated from documentation
 
 function normalizeIndianPhone(input: string): string {
   const digits = input.replace(/[^\d]/g, "");
@@ -32,6 +32,8 @@ export const sendTextMessage = action({
   args: {
     to: v.string(),
     message: v.string(),
+    botId: v.optional(v.string()),
+    templateId: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
     const phoneRaw = String(args.to ?? "").trim();
@@ -43,19 +45,30 @@ export const sendTextMessage = action({
       );
     }
 
-    const payload = {
-      to: `+${phone}`,
-      message: args.message,
-      type: "text",
+    // RCS API requires botId - if not provided, this will fail
+    if (!args.botId) {
+      console.error("❌ RCS botId is required but not provided");
+      throw new Error("RCS botId is required for sending messages");
+    }
+
+    const payload: any = {
+      category: "promotional",
+      messages: [
+        {
+          to: `+${phone}`,
+          templateId: args.templateId || "",
+          variables: [],
+        }
+      ]
     };
 
     try {
-      const res = await fetch(`${RCS_BASE_URL}/messages/send`, {
+      const res = await fetch(`${RCS_BASE_URL}/v1/send-message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${RCS_API_KEY}`,
-          "Accept": "application/json",
+          "apikey": RCS_API_KEY,
+          "botid": args.botId,
         },
         body: JSON.stringify(payload),
       });
@@ -81,7 +94,7 @@ export const sendTextMessage = action({
         response: responseData, 
         provider: "rcs", 
         to: `+${phone}`,
-        messageId: responseData?.messageId || responseData?.id || null
+        messageId: responseData?.data?.[0]?.uniqueId || null
       };
     } catch (err: any) {
       console.error(`❌ RCS send failed: ${err?.message || "Unknown error"}`);
@@ -94,9 +107,12 @@ export const sendTextMessage = action({
 export const sendRichMessage = action({
   args: {
     to: v.string(),
-    message: v.string(),
-    mediaUrl: v.optional(v.string()),
-    mediaType: v.optional(v.union(v.literal("image"), v.literal("video"), v.literal("document"))),
+    botId: v.string(),
+    templateId: v.string(),
+    variables: v.optional(v.array(v.object({
+      key: v.string(),
+      value: v.string(),
+    }))),
   },
   handler: async (_ctx, args) => {
     const phoneRaw = String(args.to ?? "").trim();
@@ -109,25 +125,23 @@ export const sendRichMessage = action({
     }
 
     const payload: any = {
-      to: `+${phone}`,
-      message: args.message,
-      type: "rich",
+      category: "promotional",
+      messages: [
+        {
+          to: `+${phone}`,
+          templateId: args.templateId,
+          variables: args.variables || [],
+        }
+      ]
     };
 
-    if (args.mediaUrl && args.mediaType) {
-      payload.media = {
-        url: args.mediaUrl,
-        type: args.mediaType,
-      };
-    }
-
     try {
-      const res = await fetch(`${RCS_BASE_URL}/messages/send`, {
+      const res = await fetch(`${RCS_BASE_URL}/v1/send-message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${RCS_API_KEY}`,
-          "Accept": "application/json",
+          "apikey": RCS_API_KEY,
+          "botid": args.botId,
         },
         body: JSON.stringify(payload),
       });
@@ -153,7 +167,7 @@ export const sendRichMessage = action({
         response: responseData, 
         provider: "rcs", 
         to: `+${phone}`,
-        messageId: responseData?.messageId || responseData?.id || null
+        messageId: responseData?.data?.[0]?.uniqueId || null
       };
     } catch (err: any) {
       console.error(`❌ RCS send failed: ${err?.message || "Unknown error"}`);

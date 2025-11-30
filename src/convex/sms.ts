@@ -31,6 +31,8 @@ export const sendRCS = action({
   args: {
     to: v.string(),
     message: v.string(),
+    botId: v.optional(v.string()),
+    templateId: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
     const phoneRaw = String(args.to ?? "").trim();
@@ -42,23 +44,33 @@ export const sendRCS = action({
       );
     }
 
-    // RCS API configuration
+    // RCS API configuration - Updated from documentation
     const RCS_API_KEY = "3b96bc50-3174-4b8f-9b31-6fce90f20fd8";
-    const RCS_BASE_URL = "https://api.rcs.com/v1"; // Update with actual base URL from documentation
+    const RCS_BASE_URL = "https://rcsapi.pinnacle.in/api";
     
+    if (!args.botId) {
+      console.error("❌ RCS botId is required but not provided");
+      throw new Error("RCS botId is required for sending messages");
+    }
+
     const payload = {
-      to: `+${phone}`,
-      message: args.message,
-      type: "text"
+      category: "promotional",
+      messages: [
+        {
+          to: `+${phone}`,
+          templateId: args.templateId || "",
+          variables: [],
+        }
+      ]
     };
 
     try {
-      const res = await fetch(`${RCS_BASE_URL}/messages/send`, {
+      const res = await fetch(`${RCS_BASE_URL}/v1/send-message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${RCS_API_KEY}`,
-          "Accept": "application/json"
+          "apikey": RCS_API_KEY,
+          "botid": args.botId,
         },
         body: JSON.stringify(payload),
       });
