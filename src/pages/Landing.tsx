@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowRight, Users, TrendingUp, Bell, Shield, FileText } from "lucide-react";
 
 export default function Landing() {
