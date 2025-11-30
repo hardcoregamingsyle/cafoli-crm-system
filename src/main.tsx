@@ -24,6 +24,7 @@ import Migrate from "./pages/Migrate.tsx";
 import ReportPage from "@/pages/Report.tsx";
 import WhatsAppPage from "@/pages/WhatsApp.tsx";
 import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
+import AllLeadsAdminViewPage from "@/pages/AllLeadsAdminView.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -82,6 +83,15 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/report" element={<ReportPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/whatsapp/create-template" element={<CreateTemplatePage />} />
+            <Route path="/all-leads-adv" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/irrelevant" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/relevant" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/yetodecide" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/overdue" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/hot" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/cold" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/mature" element={<AllLeadsAdminViewPage />} />
+            <Route path="/all-leads-adv/nofollowset" element={<AllLeadsAdminViewPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ConvexProviderWrapper>

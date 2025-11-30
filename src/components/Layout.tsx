@@ -624,6 +624,12 @@ export function Layout({ children }: LayoutProps) {
       roles: [ROLES.ADMIN, ROLES.MANAGER] 
     },
     { 
+      label: "All Leads Admin View", 
+      path: "/all-leads-adv", 
+      icon: Settings,
+      roles: [ROLES.ADMIN] 
+    },
+    { 
       label: "My Leads", 
       path: "/leads", 
       icon: FileText,
