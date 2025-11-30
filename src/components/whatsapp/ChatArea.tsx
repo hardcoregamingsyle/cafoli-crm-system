@@ -119,10 +119,14 @@ export function ChatArea({
     const mediaType = msg.mediaType;
     const mediaUrl = msg.mediaUrl;
 
-    // If no mediaUrl, don't render anything
+    // If no mediaUrl, show a loading/placeholder message
     if (!mediaUrl) {
       console.warn('[ChatArea] Media message has no URL:', msg);
-      return null;
+      return (
+        <div className="mt-2 p-3 bg-gray-100 rounded text-sm text-gray-500 italic">
+          📎 Media loading...
+        </div>
+      );
     }
 
     if (mediaType === "image") {
@@ -347,13 +351,13 @@ export function ChatArea({
                         </div>
                       )}
 
+                      {/* Render media if present */}
+                      {renderMediaMessage(msg)}
+                      
                       {/* Only show text if there's actual text content and it's not just a media placeholder */}
                       {msg.message && !msg.message.match(/^\[(IMAGE|VIDEO|AUDIO|DOCUMENT|STICKER|VOICE)\]$/i) && (
                         <div className="text-sm break-words text-gray-900 whitespace-pre-wrap">{String(msg.message)}</div>
                       )}
-                      
-                      {/* Render media if present */}
-                      {renderMediaMessage(msg)}
                       
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-[10px] text-gray-500">
