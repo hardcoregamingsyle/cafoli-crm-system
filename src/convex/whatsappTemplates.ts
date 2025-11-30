@@ -35,9 +35,8 @@ export const createTemplate = mutation({
     });
 
     if (isAdmin) {
-      // Schedule the action to submit to Meta
-      // Cast to any to avoid type error if api types aren't updated yet
-      await ctx.scheduler.runAfter(0, (internal as any).whatsappTemplateActions.submitTemplateToMeta, {
+      // Schedule the action to submit to Meta immediately
+      await ctx.scheduler.runAfter(0, internal.whatsappTemplateActions.submitTemplateToMeta, {
         templateId,
       });
     }

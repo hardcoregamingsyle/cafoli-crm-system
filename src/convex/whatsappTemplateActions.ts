@@ -1,10 +1,10 @@
 "use node";
 
-import { action } from "./_generated/server";
+import { internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-export const submitTemplateToMeta = action({
+export const submitTemplateToMeta = internalAction({
   args: {
     templateId: v.id("whatsappTemplates"),
   },
@@ -159,15 +159,10 @@ export const deleteTemplate = action({
         });
       } catch (err) {
         console.error("Error fetching template internal:", err);
-        // If we can't verify it exists, we can't safely delete it from Meta or DB
-        // But if the error is "Document not found", we can assume it's gone.
-        // However, runQuery usually throws if the function throws.
-        // Let's assume if this fails, we abort.
         throw new Error("Failed to verify template existence: " + (err as any).message);
       }
 
       if (!template) {
-        // If template is already gone from DB, consider it success
         console.log("Template not found in database, might be already deleted");
         return { success: true };
       }
@@ -198,11 +193,9 @@ export const deleteTemplate = action({
 
         if (!response.ok) {
           console.error("[WhatsApp] Template deletion from Meta failed:", data);
-          // If template doesn't exist on Meta (already deleted), we can still delete from DB
           if (data.error?.code === 100 || data.error?.message?.includes("does not exist")) {
             console.log("[WhatsApp] Template not found on Meta, deleting from DB only");
           } else {
-            // Log but don't block DB deletion if it's a permission issue or something else
             console.warn("Failed to delete from Meta, but proceeding to delete from DB:", data.error?.message);
           }
         } else {
@@ -222,7 +215,6 @@ export const deleteTemplate = action({
       }
     } catch (error: any) {
       console.error("[WhatsApp] Delete template error:", error);
-      // Return a structured error if possible, or throw a clean error
       throw new Error(`Failed to delete template: ${error.message}`);
     }
   },
