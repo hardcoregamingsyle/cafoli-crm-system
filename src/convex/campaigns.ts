@@ -120,21 +120,36 @@ export const getCampaignById = query({
 export const getLeadsForCampaign = query({
   args: {
     currentUserId: v.id("users"),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.currentUserId);
-    if (!user) return [];
+    if (!user) return { leads: [], hasMore: false, nextCursor: null };
+
+    const limit = args.limit || 1000;
+    let query;
 
     if (user.role === ROLES.ADMIN) {
-      return await ctx.db.query("leads").collect();
+      query = ctx.db.query("leads");
     } else if (user.role === ROLES.MANAGER || user.role === ROLES.STAFF) {
-      return await ctx.db
+      query = ctx.db
         .query("leads")
-        .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId))
-        .collect();
+        .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId));
+    } else {
+      return { leads: [], hasMore: false, nextCursor: null };
     }
 
-    return [];
+    // Apply pagination
+    const results = await query
+      .order("desc")
+      .paginate({ numItems: limit, cursor: args.cursor || null });
+
+    return {
+      leads: results.page,
+      hasMore: !results.isDone,
+      nextCursor: results.continueCursor,
+    };
   },
 });
 

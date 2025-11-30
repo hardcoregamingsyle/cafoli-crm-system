@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PlusCircle, Play, Trash2, Mail, MessageSquare, MessageCircle, Clock, GitBranch, Search, Filter } from "lucide-react";
 import { LEAD_STATUS } from "@/convex/schema";
@@ -32,6 +32,12 @@ export default function CampaignsPage() {
   const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
 
+  // Pagination states
+  const [allLeads, setAllLeads] = useState<any[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   useEffect(() => {
     initializeAuth();
     const timer = setTimeout(() => setAuthReady(true), 50);
@@ -43,10 +49,56 @@ export default function CampaignsPage() {
     authReady && currentUser?._id ? { currentUserId: currentUser._id } : "skip"
   );
 
-  const availableLeads = useQuery(
+  const leadsResponse = useQuery(
     (api as any).campaigns.getLeadsForCampaign,
-    authReady && currentUser?._id ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
+    authReady && currentUser?._id ? { 
+      currentUserId: currentUser._id,
+      limit: 1000,
+      cursor: null
+    } : "skip"
+  );
+
+  // Initialize leads when first loaded
+  useEffect(() => {
+    if (leadsResponse) {
+      setAllLeads(leadsResponse.leads || []);
+      setNextCursor(leadsResponse.nextCursor || null);
+      setHasMore(leadsResponse.hasMore || false);
+    }
+  }, [leadsResponse]);
+
+  const loadMoreLeads = useCallback(async () => {
+    if (!hasMore || isLoadingMore || !nextCursor || !currentUser?._id) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const response = await (api as any).campaigns.getLeadsForCampaign({
+        currentUserId: currentUser._id,
+        limit: 1000,
+        cursor: nextCursor,
+      });
+      
+      if (response) {
+        setAllLeads(prev => [...prev, ...(response.leads || [])]);
+        setNextCursor(response.nextCursor || null);
+        setHasMore(response.hasMore || false);
+      }
+    } catch (error) {
+      console.error("Failed to load more leads:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, nextCursor, currentUser?._id]);
+
+  // Scroll handler for infinite scroll
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const bottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
+    
+    if (bottom && hasMore && !isLoadingMore) {
+      loadMoreLeads();
+    }
+  }, [hasMore, isLoadingMore, loadMoreLeads]);
 
   const createCampaign = useMutation((api as any).campaigns.createCampaign);
   const deleteCampaign = useMutation((api as any).campaigns.deleteCampaign);
@@ -115,21 +167,21 @@ export default function CampaignsPage() {
     }
   };
 
-  // Get unique sources from available leads
+  // Get unique sources from all leads
   const uniqueSources = useMemo(() => {
-    if (!availableLeads || availableLeads.length === 0) return [];
+    if (!allLeads || allLeads.length === 0) return [];
     const sources = new Set<string>();
-    availableLeads.forEach((lead: any) => {
+    allLeads.forEach((lead: any) => {
       if (lead?.source) {
         sources.add(lead.source);
       }
     });
     return Array.from(sources).sort();
-  }, [availableLeads]);
+  }, [allLeads]);
 
   const filteredLeads = useMemo(() => {
-    if (!availableLeads || availableLeads.length === 0) return [];
-    let leads = availableLeads;
+    if (!allLeads || allLeads.length === 0) return [];
+    let leads = allLeads;
     
     // Search filter
     if (searchTerm) {
@@ -171,7 +223,7 @@ export default function CampaignsPage() {
     }
 
     return leads;
-  }, [availableLeads, searchTerm, selectedStatuses, selectedSources, selectedHeats]);
+  }, [allLeads, searchTerm, selectedStatuses, selectedSources, selectedHeats]);
 
   // Toggle functions for filters
   const toggleStatus = (status: string) => {
@@ -473,7 +525,10 @@ export default function CampaignsPage() {
                 </Sheet>
               </div>
               
-              <div className="border rounded-lg max-h-96 overflow-y-auto">
+              <div 
+                className="border rounded-lg max-h-96 overflow-y-auto"
+                onScroll={handleScroll}
+              >
                 {filteredLeads.map((lead: any) => (
                   <div key={lead._id} className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0">
                     <Checkbox
@@ -496,7 +551,17 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                 ))}
-                {filteredLeads.length === 0 && (
+                {isLoadingMore && (
+                  <div className="p-4 text-center text-gray-500">
+                    Loading more leads...
+                  </div>
+                )}
+                {!hasMore && allLeads.length > 0 && (
+                  <div className="p-4 text-center text-gray-400 text-sm">
+                    All leads loaded ({allLeads.length} total)
+                  </div>
+                )}
+                {filteredLeads.length === 0 && !isLoadingMore && (
                   <div className="p-8 text-center text-gray-500">
                     No leads match your filters
                   </div>
