@@ -113,6 +113,7 @@ export default defineSchema({
     markedIrrelevantAt: v.optional(v.number()),
     requiresAdminAssignment: v.optional(v.boolean()),
     wasPreviouslyIrrelevant: v.optional(v.boolean()),
+    batchId: v.optional(v.id("leadBatches")),
   })
     .index("email", ["email"])
     .index("by_status", ["status"])
@@ -120,7 +121,18 @@ export default defineSchema({
     .index("assignedTo", ["assignedTo"])
     .index("by_assignedTo_and_assignedDate", ["assignedTo", "assignedDate"])
     .index("by_lastActivityTime", ["lastActivityTime"])
-    .index("by_heat", ["heat"]),
+    .index("by_heat", ["heat"])
+    .index("by_batchId", ["batchId"]),
+
+  leadBatches: defineTable({
+    batchNumber: v.number(),
+    currentCount: v.number(),
+    maxSize: v.number(),
+    status: v.string(), // "active", "full"
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_batchNumber", ["batchNumber"]),
 
   whatsappMessages: defineTable({
     leadId: v.optional(v.id("leads")),

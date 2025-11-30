@@ -20,6 +20,7 @@ import type * as emails from "../emails.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as leadActivity from "../leadActivity.js";
+import type * as leadBatches from "../leadBatches.js";
 import type * as leads from "../leads.js";
 import type * as leadsAdminView from "../leadsAdminView.js";
 import type * as masterdata from "../masterdata.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   http: typeof http;
   leadActivity: typeof leadActivity;
+  leadBatches: typeof leadBatches;
   leads: typeof leads;
   leadsAdminView: typeof leadsAdminView;
   masterdata: typeof masterdata;

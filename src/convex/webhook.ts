@@ -239,7 +239,10 @@ export const createLeadFromGoogleScript = internalMutation({
       return false;
     }
 
-    // Insert new lead with normalized phone
+    // Get or create active batch
+    const batchId = await ctx.runMutation(internal.leadBatches.getOrCreateActiveBatch, {});
+
+    // Insert new lead with normalized phone and batch assignment
     await ctx.db.insert("leads", {
       serialNo: args.serialNo,
       source: args.source || "google_script",
@@ -259,7 +262,11 @@ export const createLeadFromGoogleScript = internalMutation({
       status: "yet_to_decide",
       lastActivityTime: Date.now(),
       unreadCount: 0,
+      batchId: batchId,
     });
+
+    // Increment batch count
+    await ctx.runMutation(internal.leadBatches.incrementBatchCount, { batchId });
 
     // NEW: Send welcome email immediately if email is valid
     try {
@@ -390,7 +397,10 @@ export const createLeadFromSource = internalMutation({
       return false;
     }
 
-    // Insert new lead with normalized phone
+    // Get or create active batch
+    const batchId = await ctx.runMutation(internal.leadBatches.getOrCreateActiveBatch, {});
+
+    // Insert new lead with normalized phone and batch assignment
     await ctx.db.insert("leads", {
       name: args.name,
       subject: args.subject,
@@ -404,7 +414,11 @@ export const createLeadFromSource = internalMutation({
       source: args.source,
       lastActivityTime: Date.now(),
       unreadCount: 0,
+      batchId: batchId,
     });
+
+    // Increment batch count
+    await ctx.runMutation(internal.leadBatches.incrementBatchCount, { batchId });
 
     // NEW: Send welcome email immediately if email is valid
     try {
@@ -623,7 +637,7 @@ export const storeWhatsAppMessage = internalMutation({
     replyToBody: v.optional(v.string()),
     replyToSender: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; leadId?: any; created: boolean; irrelevant?: boolean }> => {
     // Normalize phone number using the shared helper
     const normalizedPhone = normalizePhoneNumber(args.phoneNumber);
 
@@ -733,7 +747,10 @@ export const storeWhatsAppMessage = internalMutation({
     if (!matchingLead) {
       console.log(`[WhatsApp] Creating new lead for phone: ${normalizedPhone}`);
       
-      const newLeadId = await ctx.db.insert("leads", {
+      // Get or create active batch
+      const batchId: any = await ctx.runMutation(internal.leadBatches.getOrCreateActiveBatch, {});
+      
+      const newLeadId: any = await ctx.db.insert("leads", {
         name: `WhatsApp Customer ${normalizedPhone.slice(-4)}`,
         email: "unknown@example.com",
         mobileNo: normalizedPhone,
@@ -744,10 +761,14 @@ export const storeWhatsAppMessage = internalMutation({
         source: "whatsapp",
         lastActivityTime: Date.now(),
         unreadCount: 1,
+        batchId: batchId,
       });
 
+      // Increment batch count
+      await ctx.runMutation(internal.leadBatches.incrementBatchCount, { batchId });
+
       // Fetch the newly created lead
-      const newLead = await ctx.db.get(newLeadId);
+      const newLead: any = await ctx.db.get(newLeadId);
       if (!newLead) {
         throw new Error("Failed to retrieve newly created lead");
       }

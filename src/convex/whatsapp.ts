@@ -634,7 +634,7 @@ export const markAsRead = action({
     // 2. Mark as read on WhatsApp (if credentials exist)
     if (token && phoneId && unreadMessages.length > 0) {
       await Promise.all(
-        unreadMessages.map(async (msg) => {
+        unreadMessages.map(async (msg: any) => {
           if (!msg.messageId) return;
           try {
             await fetch(
