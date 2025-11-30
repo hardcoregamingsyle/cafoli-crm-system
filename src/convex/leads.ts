@@ -31,7 +31,7 @@ function normalizePhoneNumber(phone: string): string {
 // Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
-    filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"))),
+    filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"), v.literal("no_followup"))),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
   },
@@ -96,6 +96,8 @@ export const getAllLeads = query({
             leads = all.filter((l) => l.assignedTo !== undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else if (args.filter === "unassigned") {
             leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
+          } else if (args.filter === "no_followup") {
+            leads = all.filter((l) => !l.nextFollowup && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else {
             leads = all.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
           }
@@ -137,6 +139,7 @@ export const getMyLeads = query({
   args: {
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     limit: v.optional(v.number()),
+    filter: v.optional(v.union(v.literal("all"), v.literal("no_followup"))),
   },
   handler: async (ctx, args) => {
     try {
@@ -189,6 +192,11 @@ export const getMyLeads = query({
 
       // Filter out not relevant leads
       leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+
+      // Apply no_followup filter if specified
+      if (args.filter === "no_followup") {
+        leads = leads.filter((l) => !l.nextFollowup);
+      }
 
       const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
 
@@ -507,6 +515,18 @@ export const setNextFollowup = mutation({
     // Check permissions
     if (currentUser.role !== ROLES.ADMIN && lead.assignedTo !== currentUser._id) {
       throw new Error("You can only set followup for leads assigned to you");
+    }
+    
+    // Validate followup time
+    const now = Date.now();
+    const maxFutureTime = now + (31 * 24 * 60 * 60 * 1000); // 31 days from now
+    
+    if (args.followupTime <= now) {
+      throw new Error("Followup date must be in the future");
+    }
+    
+    if (args.followupTime > maxFutureTime) {
+      throw new Error("Followup date cannot be more than 31 days in the future");
     }
     
     await ctx.db.patch(args.leadId, { nextFollowup: args.followupTime });
