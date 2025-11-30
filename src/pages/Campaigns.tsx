@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { PlusCircle, Play, Trash2, Mail, MessageSquare, MessageCircle, Clock, GitBranch, Search } from "lucide-react";
+import { PlusCircle, Play, Trash2, Mail, MessageSquare, MessageCircle, Clock, GitBranch, Search, Filter } from "lucide-react";
+import { LEAD_STATUS } from "@/convex/schema";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 type BlockType = "whatsapp" | "email" | "sms" | "wait" | "query_repeat" | "query_email" | "query_sms" | "query_whatsapp";
 
@@ -23,6 +25,12 @@ export default function CampaignsPage() {
   const [campaignName, setCampaignName] = useState("");
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Filter states
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     initializeAuth();
@@ -107,15 +115,86 @@ export default function CampaignsPage() {
     }
   };
 
-  const filteredLeads = (availableLeads || []).filter((lead: any) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      lead.name?.toLowerCase().includes(search) ||
-      lead.email?.toLowerCase().includes(search) ||
-      lead.mobileNo?.includes(search)
+  // Get unique sources from available leads
+  const uniqueSources = useMemo(() => {
+    const sources = new Set<string>();
+    (availableLeads ?? []).forEach((lead: any) => {
+      if (lead?.source) {
+        sources.add(lead.source);
+      }
+    });
+    return Array.from(sources).sort();
+  }, [availableLeads]);
+
+  const filteredLeads = useMemo(() => {
+    let leads = availableLeads || [];
+    
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      leads = leads.filter((lead: any) => {
+        return (
+          lead.name?.toLowerCase().includes(search) ||
+          lead.email?.toLowerCase().includes(search) ||
+          lead.mobileNo?.includes(search) ||
+          lead.agencyName?.toLowerCase().includes(search) ||
+          lead.state?.toLowerCase().includes(search) ||
+          lead.district?.toLowerCase().includes(search)
+        );
+      });
+    }
+
+    // Status filter
+    if (selectedStatuses.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadStatus = lead?.status || LEAD_STATUS.YET_TO_DECIDE;
+        return selectedStatuses.includes(leadStatus);
+      });
+    }
+
+    // Source filter
+    if (selectedSources.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadSource = lead?.source || "";
+        return selectedSources.includes(leadSource);
+      });
+    }
+
+    // Heat filter
+    if (selectedHeats.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadHeat = lead?.heat || "";
+        return selectedHeats.includes(leadHeat);
+      });
+    }
+
+    return leads;
+  }, [availableLeads, searchTerm, selectedStatuses, selectedSources, selectedHeats]);
+
+  // Toggle functions for filters
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
     );
-  });
+  };
+
+  const toggleSource = (source: string) => {
+    setSelectedSources(prev => 
+      prev.includes(source) ? prev.filter(s => s !== source) : [...prev, source]
+    );
+  };
+
+  const toggleHeat = (heat: string) => {
+    setSelectedHeats(prev => 
+      prev.includes(heat) ? prev.filter(h => h !== heat) : [...prev, heat]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedStatuses([]);
+    setSelectedSources([]);
+    setSelectedHeats([]);
+  };
 
   const blockTypes = [
     { type: "whatsapp" as BlockType, label: "Send WhatsApp", icon: MessageCircle, color: "bg-green-500" },
@@ -222,20 +301,176 @@ export default function CampaignsPage() {
 
         {/* Select Leads Dialog */}
         <Dialog open={selectLeadsDialogOpen} onOpenChange={setSelectLeadsDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Select Leads for Campaign</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <Input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, email, or mobile..."
-                  className="pl-10"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by name, email, mobile, agency..."
+                    className="pl-10"
+                  />
+                </div>
+                <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline">
+                      <Filter className="mr-2 h-4 w-4" />
+                      Filter
+                      {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                        <Badge variant="secondary" className="ml-2">
+                          {selectedStatuses.length + selectedSources.length + selectedHeats.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                    <SheetHeader>
+                      <SheetTitle>Filter Leads</SheetTitle>
+                      <SheetDescription>
+                        Select multiple filters to refine your lead selection
+                      </SheetDescription>
+                    </SheetHeader>
+                    
+                    <div className="mt-6 space-y-6">
+                      {/* Status Filters */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold">Status</h3>
+                          {selectedStatuses.length > 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedStatuses([])}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="filter-status-relevant"
+                              checked={selectedStatuses.includes(LEAD_STATUS.RELEVANT)}
+                              onCheckedChange={() => toggleStatus(LEAD_STATUS.RELEVANT)}
+                            />
+                            <Label htmlFor="filter-status-relevant" className="cursor-pointer">
+                              Relevant
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="filter-status-yet-to-decide"
+                              checked={selectedStatuses.includes(LEAD_STATUS.YET_TO_DECIDE)}
+                              onCheckedChange={() => toggleStatus(LEAD_STATUS.YET_TO_DECIDE)}
+                            />
+                            <Label htmlFor="filter-status-yet-to-decide" className="cursor-pointer">
+                              Yet to Decide
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Source Filters */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold">Lead Source</h3>
+                          {selectedSources.length > 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedSources([])}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          {uniqueSources.map((source) => (
+                            <div key={source} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`filter-source-${source}`}
+                                checked={selectedSources.includes(source)}
+                                onCheckedChange={() => toggleSource(source)}
+                              />
+                              <Label htmlFor={`filter-source-${source}`} className="cursor-pointer capitalize">
+                                {source}
+                              </Label>
+                            </div>
+                          ))}
+                          {uniqueSources.length === 0 && (
+                            <p className="text-sm text-gray-500">No sources available</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Heat Filters */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold">Lead Type</h3>
+                          {selectedHeats.length > 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedHeats([])}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="filter-heat-hot"
+                              checked={selectedHeats.includes("hot")}
+                              onCheckedChange={() => toggleHeat("hot")}
+                            />
+                            <Label htmlFor="filter-heat-hot" className="cursor-pointer">
+                              Hot
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="filter-heat-cold"
+                              checked={selectedHeats.includes("cold")}
+                              onCheckedChange={() => toggleHeat("cold")}
+                            />
+                            <Label htmlFor="filter-heat-cold" className="cursor-pointer">
+                              Cold
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="filter-heat-matured"
+                              checked={selectedHeats.includes("matured")}
+                              onCheckedChange={() => toggleHeat("matured")}
+                            />
+                            <Label htmlFor="filter-heat-matured" className="cursor-pointer">
+                              Mature
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Clear All Button */}
+                      {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0) && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={clearFilters}
+                        >
+                          Clear All Filters
+                        </Button>
+                      )}
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
+              
               <div className="border rounded-lg max-h-96 overflow-y-auto">
                 {filteredLeads.map((lead: any) => (
                   <div key={lead._id} className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0">
@@ -251,11 +486,21 @@ export default function CampaignsPage() {
                     />
                     <div className="flex-1">
                       <div className="font-medium">{lead.name}</div>
-                      <div className="text-sm text-gray-500">{lead.email} • {lead.mobileNo}</div>
+                      <div className="text-sm text-gray-500">
+                        {lead.email} • {lead.mobileNo}
+                        {lead.source && <span className="ml-2 capitalize">• {lead.source}</span>}
+                        {lead.heat && <Badge variant="outline" className="ml-2 capitalize">{lead.heat}</Badge>}
+                      </div>
                     </div>
                   </div>
                 ))}
+                {filteredLeads.length === 0 && (
+                  <div className="p-8 text-center text-gray-500">
+                    No leads match your filters
+                  </div>
+                )}
               </div>
+              
               <div className="flex justify-between items-center text-sm text-gray-600">
                 <span>{selectedLeads.length} leads selected</span>
                 <Button
