@@ -26,14 +26,74 @@ function normalizeIndianPhone(input: string) {
   return digits;
 }
 
+// RCS SMS sending action
+export const sendRCS = action({
+  args: {
+    to: v.string(),
+    message: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const phoneRaw = String(args.to ?? "").trim();
+    const phone = normalizeIndianPhone(phoneRaw);
+    
+    if (!(phone && phone.length === 12 && phone.startsWith("91"))) {
+      throw new Error(
+        "Invalid phone number. Provide a valid Indian number (10 digits or starting with +91)."
+      );
+    }
+
+    // RCS API configuration
+    const RCS_API_KEY = "3b96bc50-3174-4b8f-9b31-6fce90f20fd8";
+    const RCS_BASE_URL = "https://api.rcs.com/v1"; // Update with actual base URL from documentation
+    
+    const payload = {
+      to: `+${phone}`,
+      message: args.message,
+      type: "text"
+    };
+
+    try {
+      const res = await fetch(`${RCS_BASE_URL}/messages/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${RCS_API_KEY}`,
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseText = await res.text().catch(() => "");
+      
+      if (!res.ok) {
+        console.error(`RCS API error: HTTP ${res.status} ${res.statusText} - ${responseText}`);
+        throw new Error(`RCS API error: HTTP ${res.status} ${res.statusText} - ${responseText}`);
+      }
+      
+      console.log(`✅ RCS message sent successfully to ${phone}`);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = { response: responseText };
+      }
+      
+      return { ok: true, response: responseData, provider: "rcs", to: phone };
+    } catch (err: any) {
+      console.error(`❌ RCS send failed: ${err?.message || "Unknown error"}`);
+      throw new Error(err?.message || "Failed to send RCS message");
+    }
+  },
+});
+
+// Legacy NimbusIT SMS sending action (kept for backward compatibility)
 export const send = action({
   args: {
     to: v.string(),
-    message: v.string(), // kept for compatibility, but ignored
+    message: v.string(),
   },
   handler: async (_ctx, args) => {
-    // Removed dependency on SMS_API_KEY; using hardcoded credentials per request
-
     const phoneRaw = String(args.to ?? "").trim();
     const phone = normalizeIndianPhone(phoneRaw);
     if (!(phone && phone.length === 12 && phone.startsWith("91"))) {
@@ -42,7 +102,7 @@ export const send = action({
       );
     }
 
-    // Hardcoded message and credentials as provided (with surrounding quotes preserved)
+    // Hardcoded message and credentials as provided
     const hardcodedMessage =
       "\"Tetra Pack ORS Inhalers, Derma, Gynae, Pedia. 1500+ Product's Pharma Franchise Mfg by Akums, Synokem, Windlas https://cafoli.in Contact 9518447302\"";
 
@@ -62,9 +122,6 @@ export const send = action({
       if (!res.ok) {
         throw new Error(`SMS API error: HTTP ${res.status} ${res.statusText} - ${text}`);
       }
-      
-      // Note: We cannot update lastActivityTime here directly as actions don't have db access
-      // The frontend should call a mutation after successful SMS send to update lastActivityTime
       
       return { ok: true, response: text, provider: "nimbusit", to: phone };
     } catch (err: any) {

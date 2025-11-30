@@ -24,6 +24,7 @@ import type * as leadsAdminView from "../leadsAdminView.js";
 import type * as masterdata from "../masterdata.js";
 import type * as migrate from "../migrate.js";
 import type * as notifications from "../notifications.js";
+import type * as rcsSms from "../rcsSms.js";
 import type * as revertUnassignments from "../revertUnassignments.js";
 import type * as sms from "../sms.js";
 import type * as smsTracking from "../smsTracking.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   masterdata: typeof masterdata;
   migrate: typeof migrate;
   notifications: typeof notifications;
+  rcsSms: typeof rcsSms;
   revertUnassignments: typeof revertUnassignments;
   sms: typeof sms;
   smsTracking: typeof smsTracking;
