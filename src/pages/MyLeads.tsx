@@ -426,8 +426,8 @@ export default function MyLeadsPage() {
               {(filteredLeads ?? []).map((lead: any) => {
                 const highlight = getLeadHighlight(lead);
                 return (
-                <AccordionItem key={String(lead._id)} value={String(lead._id)}>
-                  <AccordionTrigger className={`text-left ${highlight ? highlight.color : ""}`}>
+                <AccordionItem key={String(lead._id)} value={String(lead._id)} className={highlight ? highlight.borderColor : ""}>
+                  <AccordionTrigger className="text-left">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-2">
                       <div className="text-sm">
                         <div className="font-medium">{lead.name} <span className="text-gray-500">• {lead.subject}</span></div>

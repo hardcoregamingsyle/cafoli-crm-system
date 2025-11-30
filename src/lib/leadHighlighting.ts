@@ -1,7 +1,7 @@
 // Lead highlighting and sorting utilities
 
 export interface LeadHighlight {
-  color: string;
+  borderColor: string;
   priority: number;
 }
 
@@ -25,7 +25,7 @@ export function getLeadHighlight(lead: any): LeadHighlight | null {
     }
     
     if (inactivityThreshold > 0 && daysSinceActivity >= inactivityThreshold) {
-      return { color: "bg-orange-500", priority: 0 };
+      return { borderColor: "border-l-4 border-l-orange-500", priority: 0 };
     }
   }
   
@@ -36,13 +36,13 @@ export function getLeadHighlight(lead: any): LeadHighlight | null {
     
     if (timeUntilFollowup < 0) {
       // Overdue
-      return { color: "bg-red-500", priority: 1 };
+      return { borderColor: "border-l-4 border-l-red-500", priority: 1 };
     } else if (minutesUntilFollowup <= 15) {
       // 15 minutes or less
-      return { color: "bg-yellow-400", priority: 2 };
+      return { borderColor: "border-l-4 border-l-yellow-400", priority: 2 };
     } else if (minutesUntilFollowup <= 30) {
       // 30 minutes or less
-      return { color: "bg-green-400", priority: 3 };
+      return { borderColor: "border-l-4 border-l-green-400", priority: 3 };
     }
   }
   
