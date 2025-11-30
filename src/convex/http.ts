@@ -135,6 +135,26 @@ async function apiipLookup(ip: string): Promise<any | null> {
   }
 }
 
+// Add this helper function near the top after imports
+async function processInboundMedia(ctx: any, mediaId: string, _mediaType: string, mimeType?: string) {
+  try {
+    // Download the media from WhatsApp
+    const mediaResult = await ctx.runAction(internal.whatsappMedia.downloadWhatsAppMedia, {
+      mediaId,
+    });
+
+    if (mediaResult.success && mediaResult.url) {
+      return {
+        mediaUrl: mediaResult.url,
+        mimeType: mediaResult.mimeType || mimeType,
+      };
+    }
+  } catch (error) {
+    console.error("[Webhook] Failed to download media:", error);
+  }
+  return null;
+}
+
 // Log webhooks for debugging/recordkeeping
 http.route({
   path: "/api/webhook/logs",
@@ -274,6 +294,28 @@ http.route({
                     messageText = `[Button Reply] ${interactive.button_reply.title}`;
                   } else if (interactive.type === "list_reply") {
                     messageText = `[List Reply] ${interactive.list_reply.title}`;
+                  }
+                } else if (messageType === "image" || messageType === "video" || messageType === "audio" || 
+                          messageType === "document" || messageType === "sticker" || messageType === "voice") {
+                  
+                  const mediaId = message[messageType]?.id;
+                  const caption = message[messageType]?.caption || message.caption;
+                  const mimeType = message[messageType]?.mime_type;
+                  
+                  if (mediaId) {
+                    // Download the media to get a viewable URL
+                    const mediaData = await processInboundMedia(ctx, mediaId, messageType, mimeType);
+                    
+                    await ctx.runMutation(internal.webhook.storeWhatsAppMessage, {
+                      phoneNumber: phoneNumber,
+                      message: caption || `[${messageType.toUpperCase()}]`,
+                      messageId: messageId,
+                      mediaType: messageType,
+                      mediaUrl: mediaData?.mediaUrl,
+                      mediaId: mediaId,
+                      mimeType: mediaData?.mimeType || mimeType,
+                      caption: caption,
+                    });
                   }
                 } else {
                   messageText = `[${messageType}]`;
