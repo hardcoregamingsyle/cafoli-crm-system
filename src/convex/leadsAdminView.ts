@@ -14,7 +14,7 @@ export const getIrrelevantLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
-      .collect();
+      .take(1000);
 
     // Enrich with user info
     const enrichedLeads = await Promise.all(
@@ -60,7 +60,7 @@ export const getRelevantLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.RELEVANT))
-      .collect();
+      .take(1000);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
@@ -78,7 +78,7 @@ export const getYetToDecideLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.YET_TO_DECIDE))
-      .collect();
+      .take(1000);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
