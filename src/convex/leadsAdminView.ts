@@ -39,7 +39,12 @@ export const getIrrelevantLeads = query({
       })
     );
 
-    return enrichedLeads;
+    // Sort by marked date (most recently marked first)
+    return enrichedLeads.sort((a, b) => {
+      const aTime = a.markedIrrelevantAt || a._creationTime;
+      const bTime = b.markedIrrelevantAt || b._creationTime;
+      return bTime - aTime;
+    });
   },
 });
 
@@ -95,7 +100,14 @@ export const getOverdueLeads = query({
       (lead) => lead.nextFollowup && lead.nextFollowup < now
     );
 
-    return await enrichLeadsWithUserInfo(ctx, overdueLeads);
+    // Sort overdue leads by how overdue they are (most overdue first)
+    const sortedOverdue = overdueLeads.sort((a, b) => {
+      const aOverdue = a.nextFollowup || 0;
+      const bOverdue = b.nextFollowup || 0;
+      return aOverdue - bOverdue;
+    });
+
+    return await enrichLeadsWithUserInfo(ctx, sortedOverdue);
   },
 });
 
@@ -163,9 +175,9 @@ export const getNoFollowupLeads = query({
   },
 });
 
-// Helper function to enrich leads with user information
+// Helper function to enrich leads with user information and sort them
 async function enrichLeadsWithUserInfo(ctx: any, leads: any[]) {
-  return await Promise.all(
+  const enriched = await Promise.all(
     leads.map(async (lead) => {
       let assignedUserName = undefined;
       if (lead.assignedTo) {
@@ -179,4 +191,7 @@ async function enrichLeadsWithUserInfo(ctx: any, leads: any[]) {
       };
     })
   );
+
+  // Sort by creation time (newest first)
+  return enriched.sort((a, b) => b._creationTime - a._creationTime);
 }
