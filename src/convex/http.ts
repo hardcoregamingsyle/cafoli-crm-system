@@ -139,7 +139,7 @@ async function apiipLookup(ip: string): Promise<any | null> {
 async function processInboundMedia(ctx: any, mediaId: string, _mediaType: string, mimeType?: string) {
   try {
     // Download the media from WhatsApp
-    const mediaResult = await ctx.runAction(internal.whatsappMedia.downloadWhatsAppMedia, {
+    const mediaResult = await ctx.runAction(internal.whatsappMediaActions.downloadWhatsAppMediaAction, {
       mediaId,
     });
 
@@ -303,17 +303,17 @@ http.route({
                   const mimeType = message[messageType]?.mime_type;
                   
                   if (mediaId) {
-                    // Download the media to get a viewable URL
-                    const mediaData = await processInboundMedia(ctx, mediaId, messageType, mimeType);
+                    // Fetch media URL from WhatsApp (not the full file, just the URL)
+                    const mediaResult = await processInboundMedia(ctx, mediaId, messageType, mimeType);
                     
                     await ctx.runMutation(internal.webhook.storeWhatsAppMessage, {
                       phoneNumber: phoneNumber,
                       message: caption || `[${messageType.toUpperCase()}]`,
                       messageId: messageId,
                       mediaType: messageType,
-                      mediaUrl: mediaData?.mediaUrl,
                       mediaId: mediaId,
-                      mimeType: mediaData?.mimeType || mimeType,
+                      mediaUrl: mediaResult?.mediaUrl,
+                      mimeType: mediaResult?.mimeType || mimeType,
                       caption: caption,
                     });
                   }

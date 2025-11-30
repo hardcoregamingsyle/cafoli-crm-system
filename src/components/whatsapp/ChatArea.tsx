@@ -119,9 +119,9 @@ export function ChatArea({
     const mediaType = msg.mediaType;
     const mediaUrl = msg.mediaUrl;
 
-    // If no mediaUrl, show a loading/placeholder message
+    // If no mediaUrl, show loading/error state
     if (!mediaUrl) {
-      console.warn('[ChatArea] Media message has no URL:', msg);
+      console.warn('[ChatArea] Media message has no mediaUrl:', msg);
       return (
         <div className="mt-2 p-3 bg-gray-100 rounded text-sm text-gray-500 italic">
           📎 Media loading...
