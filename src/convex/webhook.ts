@@ -656,6 +656,79 @@ export const storeWhatsAppMessage = internalMutation({
       }
     );
 
+    // Handle messages from irrelevant leads - notify admins
+    if (matchingLead && matchingLead.status === "not_relevant") {
+      console.log(`[WhatsApp] Message received from irrelevant lead: ${matchingLead._id}`);
+      
+      // Store the message
+      await ctx.db.insert("whatsappMessages", {
+        leadId: matchingLead._id,
+        phoneNumber: normalizedPhone,
+        message: args.message,
+        direction: "inbound",
+        messageId: args.messageId,
+        status: "received",
+        timestamp: Date.now(),
+        metadata: args.metadata,
+        mediaType: args.mediaType,
+        mediaUrl: args.mediaUrl,
+        mediaId: args.mediaId,
+        mimeType: args.mimeType,
+        caption: args.caption,
+        replyToMessageId: args.replyToMessageId,
+        replyToBody: replyToBody,
+        replyToSender: replyToSender,
+      });
+
+      // Update lastActivityTime and unread count
+      const currentUnread = matchingLead.unreadCount || 0;
+      await ctx.db.patch(matchingLead._id, {
+        lastActivityTime: Date.now(),
+        unreadCount: currentUnread + 1,
+        lastMessage: args.message,
+      });
+
+      // Notify all admins about message from irrelevant lead
+      const adminUsers = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", ROLES.ADMIN))
+        .collect();
+
+      for (const admin of adminUsers) {
+        await ctx.db.insert("notifications", {
+          userId: admin._id,
+          title: "Message from Irrelevant Lead",
+          message: `A message was received from an irrelevant lead: ${normalizedPhone}`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: matchingLead._id,
+        });
+      }
+
+      // Notify assigned user if exists
+      if (matchingLead.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId: matchingLead.assignedTo,
+          title: "Message from Irrelevant Lead",
+          message: `A message was received from your irrelevant lead: ${normalizedPhone}`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: matchingLead._id,
+        });
+      }
+
+      // Add comment to lead
+      const loggingUserId = await ensureLoggingUserId(ctx);
+      await ctx.db.insert("comments", {
+        leadId: matchingLead._id,
+        userId: loggingUserId,
+        content: `WhatsApp message received from irrelevant lead: ${args.message}`,
+        timestamp: Date.now(),
+      });
+
+      return { success: true, leadId: matchingLead._id, created: false, irrelevant: true };
+    }
+
     // If no matching lead found, create a new one
     if (!matchingLead) {
       console.log(`[WhatsApp] Creating new lead for phone: ${normalizedPhone}`);
