@@ -340,9 +340,13 @@ export const createLead = mutation({
     try {
       const email = (args.email || "").trim().toLowerCase();
       if (email && email !== "unknown@example.com") {
+        console.log(`Scheduling welcome email to: ${email}`);
         await ctx.scheduler.runAfter(0, (internal as any).emails.sendRelevant, { to: email });
+      } else {
+        console.log(`Skipping email send - invalid or placeholder email: ${email}`);
       }
-    } catch {
+    } catch (error) {
+      console.error("Error scheduling welcome email:", error);
       // Do not block creation on email errors
     }
 

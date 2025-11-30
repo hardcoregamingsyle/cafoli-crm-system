@@ -33,15 +33,17 @@ export const sendRelevant = internalAction({
         process.env.BREVO_API_TOKEN ||
         null;
       if (!envKey) {
+        console.error("No Brevo API key found in database or environment variables");
         // No keys available: enqueue
         await ctx.runMutation((internal as any).emailKeys.enqueueEmail, {
           to: args.to,
           subject,
           text,
         });
-        return { queued: true, reason: "No available API key" };
+        return { queued: true, reason: "No available API key - check BREVO_API_KEY environment variable" };
       }
       apiKey = envKey;
+      console.log("Using Brevo API key from environment variables");
     }
 
     // Brevo payload and request
@@ -64,6 +66,7 @@ export const sendRelevant = internalAction({
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      console.error(`Brevo API error: ${res.status} ${res.statusText}`, errText);
       // If sending failed (e.g., quota), enqueue and return
       await ctx.runMutation((internal as any).emailKeys.enqueueEmail, {
         to: args.to,
@@ -72,6 +75,8 @@ export const sendRelevant = internalAction({
       });
       return { queued: true, reason: `Brevo error: ${res.status} ${res.statusText} - ${errText}` };
     }
+
+    console.log(`Email sent successfully to ${args.to}`);
 
     // Success: increment key usage if we used a DB-managed key
     if (availableKey?._id) {
