@@ -722,8 +722,48 @@ export default function AllLeadsPage() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {displayedLeadsSorted.map((lead: any) => (
-                <AccordionItem key={String(lead._id)} value={String(lead._id)}>
+              {displayedLeadsSorted.map((lead: any) => {
+                // Get highlight status similar to MyLeads page
+                const now = Date.now();
+                let highlightClass = "";
+                
+                // Check for inactivity highlighting (highest priority)
+                if (lead.assignedTo && lead.lastActivityTime) {
+                  const timeSinceActivity = now - lead.lastActivityTime;
+                  const daysSinceActivity = timeSinceActivity / (24 * 60 * 60 * 1000);
+                  
+                  let inactivityThreshold = 0;
+                  if (lead.status === "relevant") {
+                    inactivityThreshold = 3;
+                  } else if (lead.status === "yet_to_decide") {
+                    inactivityThreshold = 2;
+                  } else if (lead.heat === "matured") {
+                    inactivityThreshold = 15;
+                  } else if (lead.heat === "hot") {
+                    inactivityThreshold = 5;
+                  }
+                  
+                  if (inactivityThreshold > 0 && daysSinceActivity >= inactivityThreshold) {
+                    highlightClass = "bg-orange-100 border-l-4 border-orange-500";
+                  }
+                }
+                
+                // Check for followup highlighting
+                if (!highlightClass && lead.nextFollowup) {
+                  const timeUntilFollowup = lead.nextFollowup - now;
+                  const minutesUntilFollowup = timeUntilFollowup / (60 * 1000);
+                  
+                  if (timeUntilFollowup < 0) {
+                    highlightClass = "bg-red-100 border-l-4 border-red-500";
+                  } else if (minutesUntilFollowup <= 15) {
+                    highlightClass = "bg-yellow-100 border-l-4 border-yellow-400";
+                  } else if (minutesUntilFollowup <= 30) {
+                    highlightClass = "bg-green-100 border-l-4 border-green-400";
+                  }
+                }
+                
+                return (
+                <AccordionItem key={String(lead._id)} value={String(lead._id)} className={highlightClass}>
                   <AccordionTrigger className="text-left">
                     <div className="flex flex-col w-full gap-2">
                       {/* Top line: Name — Source — Assigned To (read-only) */}
@@ -1297,7 +1337,8 @@ export default function AllLeadsPage() {
                     )}
                   </AccordionContent>
                 </AccordionItem>
-              ))}
+              );
+              })}
             </Accordion>
           </CardContent>
         </Card>
@@ -1317,9 +1358,21 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
       <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
         {comments.length === 0 && <div className="text-xs text-gray-400">No comments yet</div>}
         {comments.map((c: any) => (
-          <div key={c._id} className="text-xs">
-            <span className="font-medium">{c.userName}</span>: {c.content}
-            <span className="text-gray-400"> • {new Date(c.timestamp).toLocaleString()}</span>
+          <div 
+            key={c._id} 
+            className={`text-xs ${c.isSystemComment ? 'bg-yellow-100 p-2 rounded border-l-4 border-yellow-400' : ''}`}
+          >
+            {c.isSystemComment ? (
+              <>
+                <div className="font-medium text-gray-700">{c.content}</div>
+                <span className="text-gray-400 text-[10px]">{new Date(c.timestamp).toLocaleString()}</span>
+              </>
+            ) : (
+              <>
+                <span className="font-medium">{c.userName}</span>: {c.content}
+                <span className="text-gray-400"> • {new Date(c.timestamp).toLocaleString()}</span>
+              </>
+            )}
           </div>
         ))}
       </div>

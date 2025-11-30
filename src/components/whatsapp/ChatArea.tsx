@@ -231,12 +231,30 @@ export function ChatArea({
                             <p className="text-sm text-gray-400 italic">No comments yet</p>
                           ) : (
                             comments.map((c: any) => (
-                              <div key={c._id} className="bg-blue-50 p-3 rounded-lg text-sm border border-blue-100">
-                                <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
-                                  <span className="font-semibold text-blue-700">{c.userName}</span>
-                                  <span>{new Date(c.timestamp).toLocaleDateString()}</span>
-                                </div>
-                                <p className="text-gray-700">{c.content}</p>
+                              <div 
+                                key={c._id} 
+                                className={`p-3 rounded-lg text-sm border ${
+                                  c.isSystemComment 
+                                    ? 'bg-yellow-50 border-yellow-200' 
+                                    : 'bg-blue-50 border-blue-100'
+                                }`}
+                              >
+                                {c.isSystemComment ? (
+                                  <>
+                                    <p className="text-gray-700 font-medium">{c.content}</p>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {new Date(c.timestamp).toLocaleDateString()}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
+                                      <span className="font-semibold text-blue-700">{c.userName}</span>
+                                      <span>{new Date(c.timestamp).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-gray-700">{c.content}</p>
+                                  </>
+                                )}
                               </div>
                             ))
                           )}

@@ -22,13 +22,20 @@ export const getLeadComments = query({
       .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
       .collect();
     
-    // Get user names for comments
+    // Get user names for comments, but mark system comments
     const commentsWithUser = await Promise.all(
       comments.map(async (comment) => {
         const user = await ctx.db.get(comment.userId);
+        const userName = user?.name || user?.username || "Unknown";
+        
+        // Check if this is a system-generated comment
+        const isSystemComment = comment.content === "The Lead was Posted again" || 
+                                (comment.content?.startsWith("Duplicate leads clubbed") ?? false);
+        
         return {
           ...comment,
-          userName: user?.name || user?.username || "Unknown",
+          userName: isSystemComment ? null : userName,
+          isSystemComment,
         };
       })
     );
