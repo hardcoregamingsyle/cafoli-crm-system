@@ -94,7 +94,8 @@ export const getOverdueLeads = query({
     }
 
     const now = Date.now();
-    const allLeads = await ctx.db.query("leads").collect();
+    // Use index and limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     
     const overdueLeads = allLeads.filter(
       (lead) => lead.nextFollowup && lead.nextFollowup < now
@@ -120,7 +121,8 @@ export const getHotLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    const allLeads = await ctx.db.query("leads").collect();
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const hotLeads = allLeads.filter((lead) => lead.heat === "hot");
 
     return await enrichLeadsWithUserInfo(ctx, hotLeads);
@@ -136,7 +138,8 @@ export const getColdLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    const allLeads = await ctx.db.query("leads").collect();
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const coldLeads = allLeads.filter((lead) => lead.heat === "cold");
 
     return await enrichLeadsWithUserInfo(ctx, coldLeads);
@@ -152,7 +155,8 @@ export const getMatureLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    const allLeads = await ctx.db.query("leads").collect();
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const matureLeads = allLeads.filter((lead) => lead.heat === "matured" || lead.heat === "mature");
 
     return await enrichLeadsWithUserInfo(ctx, matureLeads);
@@ -168,7 +172,8 @@ export const getNoFollowupLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    const allLeads = await ctx.db.query("leads").collect();
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const noFollowupLeads = allLeads.filter((lead) => !lead.nextFollowup);
 
     return await enrichLeadsWithUserInfo(ctx, noFollowupLeads);

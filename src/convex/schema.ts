@@ -119,7 +119,8 @@ export default defineSchema({
     .index("mobileNo", ["mobileNo"])
     .index("assignedTo", ["assignedTo"])
     .index("by_assignedTo_and_assignedDate", ["assignedTo", "assignedDate"])
-    .index("by_lastActivityTime", ["lastActivityTime"]),
+    .index("by_lastActivityTime", ["lastActivityTime"])
+    .index("by_heat", ["heat"]),
 
   whatsappMessages: defineTable({
     leadId: v.optional(v.id("leads")),
