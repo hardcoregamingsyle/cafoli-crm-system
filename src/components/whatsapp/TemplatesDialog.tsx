@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect } from "react";
 import { Loader2, Send, Edit, RefreshCw, Search, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useAction } from "convex/react";
 import { toast } from "sonner";

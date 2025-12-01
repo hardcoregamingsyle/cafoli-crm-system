@@ -8,7 +8,7 @@ import { LeadList } from "@/components/whatsapp/LeadList";
 import { ChatArea } from "@/components/whatsapp/ChatArea";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 // @ts-ignore - TS2589: Known Convex type inference limitation
 const getMyLeadsQuery: any = (() => api.leads.getMyLeads)();

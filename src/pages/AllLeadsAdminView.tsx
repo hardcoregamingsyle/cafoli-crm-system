@@ -1,6 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";

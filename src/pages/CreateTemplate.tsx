@@ -11,7 +11,7 @@ import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown, Upload, X } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
