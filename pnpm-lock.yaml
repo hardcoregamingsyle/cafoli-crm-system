@@ -13,7 +13,7 @@ importers:
         version: 0.37.4
       '@convex-dev/auth':
         specifier: ^0.0.90
-        version: 0.0.90(@auth/core@0.37.4)(convex@1.29.3(react@18.3.1))(react@18.3.1)
+        version: 0.0.90(@auth/core@0.37.4)(convex@1.30.0(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-accordion':
         specifier: ^1.2.11
         version: 1.2.12(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -117,8 +117,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       convex:
-        specifier: ^1.29.3
-        version: 1.29.3(react@18.3.1)
+        specifier: ^1.30.0
+        version: 1.30.0(react@18.3.1)
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -2159,8 +2159,8 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
-  convex@1.29.3:
-    resolution: {integrity: sha512-tg5TXzMjpNk9m50YRtdp6US+t7ckxE4E+7DNKUCjJ2MupQs2RBSPF/z5SNN4GUmQLSfg0eMILDySzdAvjTrhnw==}
+  convex@1.30.0:
+    resolution: {integrity: sha512-YvFFxLg3bICP7u5hSVxW6BUYgI4LkWJHdim+9XrXUkdyOziloiQ21EbSCq6NNG2ycba2x7hsgxUKCGAhJmkv1g==}
     engines: {node: '>=18.0.0', npm: '>=7.0.0'}
     hasBin: true
     peerDependencies:
@@ -3481,12 +3481,12 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@convex-dev/auth@0.0.90(@auth/core@0.37.4)(convex@1.29.3(react@18.3.1))(react@18.3.1)':
+  '@convex-dev/auth@0.0.90(@auth/core@0.37.4)(convex@1.30.0(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@auth/core': 0.37.4
       '@oslojs/crypto': 1.0.1
       '@oslojs/encoding': 1.1.0
-      convex: 1.29.3(react@18.3.1)
+      convex: 1.30.0(react@18.3.1)
       cookie: 1.0.2
       is-network-error: 1.3.0
       jose: 5.10.0
@@ -5157,7 +5157,7 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex@1.29.3(react@18.3.1):
+  convex@1.30.0(react@18.3.1):
     dependencies:
       esbuild: 0.25.4
       prettier: 3.5.3
