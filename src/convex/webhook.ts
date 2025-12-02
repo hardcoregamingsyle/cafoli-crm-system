@@ -987,48 +987,67 @@ export const fetchPharmavendsLeads = internalAction({
       const data = await response.json();
       console.log(`[Pharmavends] Received data:`, data);
       
-      // Process the leads data - adjust based on actual API response structure
-      if (Array.isArray(data)) {
-        const leads = data.map((item: any) => ({
-          name: item.name || item.company_name || "Unknown",
-          subject: item.subject || "Pharmavends Lead",
-          message: item.message || item.description || "",
-          mobileNo: item.mobile || item.phone || "",
-          email: item.email || "unknown@example.com",
-          state: item.state || "",
-          source: "Pharmavends API",
-          district: item.district || "",
-          pincode: item.pincode || "",
-          agencyName: item.agency_name || "",
-        }));
-        
-        if (leads.length > 0) {
-          // Get an admin user to run the mutation
-          const adminUsers = await ctx.runQuery((internal as any).users.listUsers, {});
-          const adminUser = adminUsers.find((u: any) => u.role === "admin");
-          
-          if (!adminUser) {
-            throw new Error("No admin user found to process leads");
-          }
-          
-          await ctx.runMutation((internal as any).leads.bulkCreateLeads, {
-            leads,
-            currentUserId: adminUser._id,
-          });
-          
-          console.log(`[Pharmavends] Successfully imported ${leads.length} leads`);
-          return { success: true, count: leads.length };
-        } else {
-          console.log(`[Pharmavends] No new leads found`);
-          return { success: true, count: 0 };
-        }
-      } else {
-        console.log(`[Pharmavends] Unexpected response format:`, data);
-        return { success: false, error: "Unexpected response format" };
+      const purchasedLeads = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any)?.purchased_leads)
+          ? (data as any).purchased_leads
+          : [];
+      
+      if (!purchasedLeads.length) {
+        console.log(`[Pharmavends] No purchased leads found in response`);
+        return { success: true, count: 0 };
       }
-    } catch (error: any) {
-      console.error(`[Pharmavends] Error fetching leads:`, error);
-      return { success: false, error: error.message };
+      
+      const leads = purchasedLeads
+        .map((item: any) => {
+          const phone =
+            item.ContactNo ||
+            item.contactNo ||
+            item.contact ||
+            item.contact_no ||
+            item.WhatsApp ||
+            item.whatsapp ||
+            item.phone ||
+            "";
+          
+          return {
+            name: item.name || item.companyname || item.company_name || "Unknown",
+            subject: item.subject || "Pharmavends Lead",
+            message: item.Description || item.description || "",
+            mobileNo: phone,
+            email: item.email || "unknown@example.com",
+            state: item.State || item.state || "",
+            district: item.Location || item.location || "",
+            pincode: item.Pincode || item.pincode || "",
+            agencyName: item.companyname || item.company_name || "",
+            source: "Pharmavends API",
+          };
+        })
+        .filter((lead: any) => lead.mobileNo || lead.email);
+      
+      if (!leads.length) {
+        console.log(`[Pharmavends] Purchased leads missing contact info`);
+        return { success: true, count: 0 };
+      }
+      
+      // Get an admin user to run the mutation
+      const adminUsers = await ctx.runQuery((internal as any).users.listUsers, {});
+      const adminUser = adminUsers.find((u: any) => u.role === "admin");
+      
+      if (!adminUser) {
+        throw new Error("No admin user found to process leads");
+      }
+      
+      await ctx.runMutation((internal as any).leads.bulkCreateLeads, {
+        leads,
+        currentUserId: adminUser._id,
+      });
+      
+      console.log(`[Pharmavends] Successfully imported ${leads.length} leads`);
+      return { success: true, count: leads.length };
+    } else {
+      console.log(`[Pharmavends] Unexpected response format:`, data);
+      return { success: false, error: "Unexpected response format" };
     }
   },
 });
