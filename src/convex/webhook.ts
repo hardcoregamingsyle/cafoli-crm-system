@@ -1045,9 +1045,9 @@ export const fetchPharmavendsLeads = internalAction({
       
       console.log(`[Pharmavends] Successfully imported ${leads.length} leads`);
       return { success: true, count: leads.length };
-    } else {
-      console.log(`[Pharmavends] Unexpected response format:`, data);
-      return { success: false, error: "Unexpected response format" };
+    } catch (error: any) {
+      console.error(`[Pharmavends] Error processing leads:`, error);
+      return { success: false, error: error.message || "Unknown error" };
     }
   },
 });
