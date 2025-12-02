@@ -1030,14 +1030,11 @@ export const fetchPharmavendsLeads = internalAction({
         return { success: true, count: 0 };
       }
       
-      // Get an admin user to run the mutation
-      const adminUsers = await ctx.runQuery((internal as any).users.listUsers, {});
-      const adminUser = adminUsers.find((u: any) => u.role === "admin");
-      
+      const adminUser = await ctx.runQuery(internal.users.getAnyAdminUser, {});
       if (!adminUser) {
         throw new Error("No admin user found to process leads");
       }
-      
+
       await ctx.runMutation((internal as any).leads.bulkCreateLeads, {
         leads,
         currentUserId: adminUser._id,

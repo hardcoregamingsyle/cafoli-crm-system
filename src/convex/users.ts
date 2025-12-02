@@ -384,6 +384,17 @@ export const loginAsUser = mutation({
   },
 });
 
+export const getAnyAdminUser = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const admins = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", ROLES.ADMIN))
+      .take(1);
+    return admins[0] ?? null;
+  },
+});
+
 export const getUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
