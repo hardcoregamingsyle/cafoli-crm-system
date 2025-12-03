@@ -121,7 +121,7 @@ export const getLeadsForCampaign = query({
   args: {
     currentUserId: v.id("users"),
     limit: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    cursor: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.currentUserId);
@@ -143,7 +143,7 @@ export const getLeadsForCampaign = query({
     // Apply pagination
     const results = await query
       .order("desc")
-      .paginate({ numItems: limit, cursor: args.cursor || null });
+      .paginate({ numItems: limit, cursor: args.cursor });
 
     return {
       leads: results.page,
