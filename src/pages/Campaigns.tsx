@@ -108,6 +108,64 @@ export default function CampaignsPage() {
   const deleteCampaign = useMutation((api as any).campaigns.deleteCampaign);
   const startCampaign = useMutation((api as any).campaigns.startCampaign);
 
+  // Get unique sources from all leads
+  const uniqueSources = useMemo(() => {
+    if (!allLeads || allLeads.length === 0) return [];
+    const sources = new Set<string>();
+    allLeads.forEach((lead: any) => {
+      if (lead?.source) {
+        sources.add(lead.source);
+      }
+    });
+    return Array.from(sources).sort();
+  }, [allLeads]);
+
+  const filteredLeads = useMemo(() => {
+    if (!allLeads || allLeads.length === 0) return [];
+    let leads = allLeads;
+    
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      leads = leads.filter((lead: any) => {
+        return (
+          lead.name?.toLowerCase().includes(search) ||
+          lead.email?.toLowerCase().includes(search) ||
+          lead.mobileNo?.includes(search) ||
+          lead.agencyName?.toLowerCase().includes(search) ||
+          lead.state?.toLowerCase().includes(search) ||
+          lead.district?.toLowerCase().includes(search)
+        );
+      });
+    }
+
+    // Status filter
+    if (selectedStatuses.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadStatus = lead?.status || LEAD_STATUS.YET_TO_DECIDE;
+        return selectedStatuses.includes(leadStatus);
+      });
+    }
+
+    // Source filter
+    if (selectedSources.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadSource = lead?.source || "";
+        return selectedSources.includes(leadSource);
+      });
+    }
+
+    // Heat filter
+    if (selectedHeats.length > 0) {
+      leads = leads.filter((lead: any) => {
+        const leadHeat = lead?.heat || "";
+        return selectedHeats.includes(leadHeat);
+      });
+    }
+
+    return leads;
+  }, [allLeads, searchTerm, selectedStatuses, selectedSources, selectedHeats]);
+
   if (!authReady || !currentUser) {
     return <Layout><div>Loading...</div></Layout>;
   }
@@ -170,64 +228,6 @@ export default function CampaignsPage() {
       toast.error(e?.message || "Failed to start campaign");
     }
   };
-
-  // Get unique sources from all leads
-  const uniqueSources = useMemo(() => {
-    if (!allLeads || allLeads.length === 0) return [];
-    const sources = new Set<string>();
-    allLeads.forEach((lead: any) => {
-      if (lead?.source) {
-        sources.add(lead.source);
-      }
-    });
-    return Array.from(sources).sort();
-  }, [allLeads]);
-
-  const filteredLeads = useMemo(() => {
-    if (!allLeads || allLeads.length === 0) return [];
-    let leads = allLeads;
-    
-    // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      leads = leads.filter((lead: any) => {
-        return (
-          lead.name?.toLowerCase().includes(search) ||
-          lead.email?.toLowerCase().includes(search) ||
-          lead.mobileNo?.includes(search) ||
-          lead.agencyName?.toLowerCase().includes(search) ||
-          lead.state?.toLowerCase().includes(search) ||
-          lead.district?.toLowerCase().includes(search)
-        );
-      });
-    }
-
-    // Status filter
-    if (selectedStatuses.length > 0) {
-      leads = leads.filter((lead: any) => {
-        const leadStatus = lead?.status || LEAD_STATUS.YET_TO_DECIDE;
-        return selectedStatuses.includes(leadStatus);
-      });
-    }
-
-    // Source filter
-    if (selectedSources.length > 0) {
-      leads = leads.filter((lead: any) => {
-        const leadSource = lead?.source || "";
-        return selectedSources.includes(leadSource);
-      });
-    }
-
-    // Heat filter
-    if (selectedHeats.length > 0) {
-      leads = leads.filter((lead: any) => {
-        const leadHeat = lead?.heat || "";
-        return selectedHeats.includes(leadHeat);
-      });
-    }
-
-    return leads;
-  }, [allLeads, searchTerm, selectedStatuses, selectedSources, selectedHeats]);
 
   // Toggle functions for filters
   const toggleStatus = (status: string) => {
