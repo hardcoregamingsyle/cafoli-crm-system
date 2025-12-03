@@ -1,6 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,7 @@ export default function CampaignsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const convex = useConvex();
 
   useEffect(() => {
     initializeAuth();
@@ -68,18 +69,21 @@ export default function CampaignsPage() {
   }, [leadsResponse]);
 
   const loadMoreLeads = useCallback(async () => {
-    if (!hasMore || isLoadingMore || !nextCursor || !currentUser?._id) return;
-    
+    if (!convex || !hasMore || isLoadingMore || !nextCursor || !currentUser?._id) return;
+
     setIsLoadingMore(true);
     try {
-      const response = await (api as any).campaigns.getLeadsForCampaign({
-        currentUserId: currentUser._id,
-        limit: 1000,
-        cursor: nextCursor,
-      });
-      
+      const response = await convex.query(
+        (api as any).campaigns.getLeadsForCampaign,
+        {
+          currentUserId: currentUser._id,
+          limit: 1000,
+          cursor: nextCursor,
+        },
+      );
+
       if (response) {
-        setAllLeads(prev => [...prev, ...(response.leads || [])]);
+        setAllLeads((prev) => [...prev, ...(response.leads || [])]);
         setNextCursor(response.nextCursor || null);
         setHasMore(response.hasMore || false);
       }
@@ -88,7 +92,7 @@ export default function CampaignsPage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoadingMore, nextCursor, currentUser?._id]);
+  }, [convex, hasMore, isLoadingMore, nextCursor, currentUser?._id]);
 
   // Scroll handler for infinite scroll
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
