@@ -1073,28 +1073,41 @@ export const fetchGoogleScriptLeads = internalAction({
         let clubbed = 0;
         
         for (const item of data) {
-          const result = await ctx.runMutation(internal.webhook.createLeadFromGoogleScript, {
-            serialNo: item.serialNo || item.serial_no,
-            source: item.source || "Google Script",
-            name: item.name || "Unknown",
-            subject: item.subject || "Google Script Lead",
-            email: item.email || "unknown@example.com",
-            mobileNo: item.mobileNo || item.mobile || item.phone || "",
-            message: item.message || item.description || "",
-            altEmail: item.altEmail || item.alt_email,
-            altMobileNo: item.altMobileNo || item.alt_mobile || item.alt_phone,
-            assigneeName: item.assigneeName || item.assignee_name || item.assignee,
-            state: item.state || "",
-            station: item.station,
-            district: item.district,
-            pincode: item.pincode || item.pin_code,
-            agencyName: item.agencyName || item.agency_name,
-          });
-          
-          if (result) {
-            created++;
-          } else {
-            clubbed++;
+          try {
+            // Helper to safely convert to string or undefined
+            const safeString = (val: any) => (val !== undefined && val !== null && val !== "") ? String(val) : undefined;
+            const safeStringReq = (val: any, def: string) => (val !== undefined && val !== null && val !== "") ? String(val) : def;
+            const safeNumber = (val: any) => {
+              if (val === undefined || val === null || val === "") return undefined;
+              const n = Number(val);
+              return isNaN(n) ? undefined : n;
+            };
+
+            const result = await ctx.runMutation(internal.webhook.createLeadFromGoogleScript, {
+              serialNo: safeNumber(item.serialNo || item.serial_no),
+              source: safeStringReq(item.source, "Google Script"),
+              name: safeStringReq(item.name, "Unknown"),
+              subject: safeStringReq(item.subject, "Google Script Lead"),
+              email: safeStringReq(item.email, "unknown@example.com"),
+              mobileNo: safeStringReq(item.mobileNo || item.mobile || item.phone, ""),
+              message: safeStringReq(item.message || item.description, ""),
+              altEmail: safeString(item.altEmail || item.alt_email),
+              altMobileNo: safeString(item.altMobileNo || item.alt_mobile || item.alt_phone),
+              assigneeName: safeString(item.assigneeName || item.assignee_name || item.assignee),
+              state: safeStringReq(item.state, ""),
+              station: safeString(item.station),
+              district: safeString(item.district),
+              pincode: safeString(item.pincode || item.pin_code),
+              agencyName: safeString(item.agencyName || item.agency_name),
+            });
+            
+            if (result) {
+              created++;
+            } else {
+              clubbed++;
+            }
+          } catch (err) {
+            console.error(`[Google Script] Error processing item:`, item, err);
           }
         }
         
