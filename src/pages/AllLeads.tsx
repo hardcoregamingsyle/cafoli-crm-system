@@ -59,6 +59,7 @@ export default function AllLeadsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showNoFollowup, setShowNoFollowup] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -74,7 +75,13 @@ export default function AllLeadsPage() {
   
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  
+
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
   // Wrap queries with error handling to catch invalid user IDs
   let leads, users, assignable, myLeads, notRelevantLeads;
   
@@ -136,6 +143,8 @@ export default function AllLeadsPage() {
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
   const normalizePhoneNumbers = useMutation((api as any).migrate.normalizeAllPhoneNumbers);
   const deleteLeadsWithPlaceholderEmail = useMutation((api as any).leads.deleteLeadsWithPlaceholderEmail);
+  const assignTagToLead = useMutation((api as any).leadTags.assignTagToLead);
+  const removeTagFromLead = useMutation((api as any).leadTags.removeTagFromLead);
 
   // Add: state for normalization process
   const [isNormalizing, setIsNormalizing] = useState(false);
@@ -306,6 +315,15 @@ export default function AllLeadsPage() {
         if (!selectedHeats.includes(leadHeat)) return false;
       }
 
+      // Tag filter
+      if (selectedTags.length > 0) {
+        const leadTags = lead?.tags || [];
+        const hasMatchingTag = selectedTags.some((tagId) =>
+          leadTags.some((t: any) => String(t._id) === tagId)
+        );
+        if (!hasMatchingTag) return false;
+      }
+
       // No Followup filter
       if (showNoFollowup) {
         if (lead?.nextFollowup) return false;
@@ -329,7 +347,7 @@ export default function AllLeadsPage() {
       const bHeat = heatOrder[String(b?.heat || "").toLowerCase()] ?? 3;
       return aHeat - bHeat;
     });
-  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, enforcedHeatRoute]);
+  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, selectedTags, showNoFollowup, enforcedHeatRoute]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
@@ -394,10 +412,17 @@ export default function AllLeadsPage() {
     );
   };
 
+  const toggleTag = (tagId: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]
+    );
+  };
+
   const clearFilters = () => {
     setSelectedStatuses([]);
     setSelectedSources([]);
     setSelectedHeats([]);
+    setSelectedTags([]);
     setShowNoFollowup(false);
   };
 
@@ -431,9 +456,9 @@ export default function AllLeadsPage() {
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || selectedTags.length > 0 || showNoFollowup) && (
                     <Badge variant="secondary" className="ml-2">
-                      {selectedStatuses.length + selectedSources.length + selectedHeats.length + (showNoFollowup ? 1 : 0)}
+                      {selectedStatuses.length + selectedSources.length + selectedHeats.length + selectedTags.length + (showNoFollowup ? 1 : 0)}
                     </Badge>
                   )}
                 </Button>
@@ -566,6 +591,43 @@ export default function AllLeadsPage() {
                     </div>
                   </div>
 
+                  {/* Tag Filters */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Tags</h3>
+                      {selectedTags.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedTags([])}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {(allTags ?? []).map((tag: any) => (
+                        <div key={String(tag._id)} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`tag-${tag._id}`}
+                            checked={selectedTags.includes(String(tag._id))}
+                            onCheckedChange={() => toggleTag(String(tag._id))}
+                          />
+                          <Label htmlFor={`tag-${tag._id}`} className="cursor-pointer flex items-center gap-2">
+                            <div
+                              className="w-4 h-4 rounded-full border"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            {tag.name}
+                          </Label>
+                        </div>
+                      ))}
+                      {(allTags ?? []).length === 0 && (
+                        <p className="text-sm text-gray-500">No tags available</p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* No Followup Filter */}
                   <div className="space-y-3">
                     <h3 className="font-semibold">Followup Status</h3>
@@ -584,7 +646,7 @@ export default function AllLeadsPage() {
                   </div>
 
                   {/* Clear All Button */}
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || selectedTags.length > 0 || showNoFollowup) && (
                     <Button 
                       variant="outline" 
                       className="w-full"
@@ -792,6 +854,37 @@ export default function AllLeadsPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
+                    {/* Add: Tags section at the top */}
+                    <LeadTagsSection
+                      leadId={String(lead._id)}
+                      currentUserId={String(currentUser._id)}
+                      allTags={allTags}
+                      onAssign={async (tagId) => {
+                        try {
+                          await assignTagToLead({
+                            currentUserId: currentUser._id,
+                            leadId: lead._id,
+                            tagId: tagId as any,
+                          });
+                          toast.success("Tag assigned");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Failed to assign tag");
+                        }
+                      }}
+                      onRemove={async (tagId) => {
+                        try {
+                          await removeTagFromLead({
+                            currentUserId: currentUser._id,
+                            leadId: lead._id,
+                            tagId: tagId as any,
+                          });
+                          toast.success("Tag removed");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Failed to remove tag");
+                        }
+                      }}
+                    />
+
                     {/* Editable Name/Subject/Message block */}
                     <div className="grid md:grid-cols-3 gap-4 py-2">
                       {/* Name (Manual Input) - Both Admin and Manager can edit */}
@@ -1346,6 +1439,92 @@ export default function AllLeadsPage() {
         </Card>
       </div>
     </Layout>
+  );
+}
+
+function LeadTagsSection({
+  leadId,
+  currentUserId,
+  allTags,
+  onAssign,
+  onRemove,
+}: {
+  leadId: string;
+  currentUserId: string;
+  allTags: any[];
+  onAssign: (tagId: string) => Promise<void>;
+  onRemove: (tagId: string) => Promise<void>;
+}) {
+  const leadTags = useQuery(
+    (api as any).leadTags.getLeadTags,
+    { currentUserId: currentUserId as any, leadId: leadId as any }
+  ) ?? [];
+
+  const [showTagSelect, setShowTagSelect] = useState(false);
+
+  const availableTags = allTags.filter(
+    (tag) => !leadTags.some((lt: any) => String(lt._id) === String(tag._id))
+  );
+
+  return (
+    <div className="mb-4 space-y-2">
+      <div className="text-xs text-gray-500">Tags</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {leadTags.map((tag: any) => (
+          <Badge
+            key={String(tag._id)}
+            className="flex items-center gap-1 px-2 py-1"
+            style={{ backgroundColor: tag.color, color: "#fff" }}
+          >
+            {tag.name}
+            <button
+              onClick={() => onRemove(String(tag._id))}
+              className="ml-1 hover:opacity-70"
+            >
+              ×
+            </button>
+          </Badge>
+        ))}
+        {showTagSelect ? (
+          <Select
+            onValueChange={async (val) => {
+              await onAssign(val);
+              setShowTagSelect(false);
+            }}
+            onOpenChange={(open) => {
+              if (!open) setShowTagSelect(false);
+            }}
+            open={showTagSelect}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select tag" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTags.map((tag: any) => (
+                <SelectItem key={String(tag._id)} value={String(tag._id)}>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTagSelect(true)}
+            disabled={availableTags.length === 0}
+          >
+            + Add Tag
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 

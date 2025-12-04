@@ -46,6 +46,14 @@ export default function AdminPage() {
     currentUser?._id && currentUser.role === ROLES.ADMIN ? {} : "skip"
   );
 
+  // Lead Tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser?._id ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+  const createTag = useMutation((api as any).leadTags.createTag);
+  const deleteTag = useMutation((api as any).leadTags.deleteTag);
+
   const [adminPasswordDialogOpen, setAdminPasswordDialogOpen] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
   const [adminNewPassword, setAdminNewPassword] = useState("");
@@ -136,6 +144,60 @@ export default function AdminPage() {
             </Button>
           </div>
         </div>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+          <CardHeader><CardTitle>Lead Tags</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <TagForm
+              onSave={async (data) => {
+                try {
+                  await createTag({
+                    currentUserId: currentUser._id,
+                    name: data.name.trim(),
+                    color: data.color,
+                  });
+                  toast.success("Tag created");
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to create tag");
+                }
+              }}
+            />
+
+            <div className="space-y-2">
+              {(allTags ?? []).length === 0 ? (
+                <div className="text-sm text-gray-600">No tags yet. Create one above.</div>
+              ) : (
+                (allTags ?? []).map((tag: any) => (
+                  <div key={String(tag._id)} className="flex items-center justify-between border p-3 rounded-md">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-6 h-6 rounded-full border-2"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="font-medium">{tag.name}</span>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        const ok = window.confirm(`Delete tag "${tag.name}"?`);
+                        if (!ok) return;
+                        try {
+                          await deleteTag({ currentUserId: currentUser._id, tagId: tag._id });
+                          toast.success("Tag deleted");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Failed to delete tag");
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader><CardTitle>Create User</CardTitle></CardHeader>
@@ -609,6 +671,67 @@ function EmailKeyRow({
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function TagForm({
+  onSave,
+}: {
+  onSave: (data: { name: string; color: string }) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("#3b82f6");
+
+  const colorOptions = [
+    "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
+    "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
+    "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
+    "#ec4899", "#f43f5e"
+  ];
+
+  return (
+    <div className="grid md:grid-cols-3 gap-2">
+      <Input
+        placeholder="Tag Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          className="w-12 h-10 rounded border cursor-pointer"
+        />
+        <div className="flex flex-wrap gap-1">
+          {colorOptions.slice(0, 8).map((c) => (
+            <button
+              key={c}
+              className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform"
+              style={{ backgroundColor: c }}
+              onClick={() => setColor(c)}
+            />
+          ))}
+        </div>
+      </div>
+      <Button
+        onClick={async () => {
+          if (!name.trim()) {
+            toast.error("Tag name is required");
+            return;
+          }
+          try {
+            await onSave({ name, color });
+            setName("");
+            setColor("#3b82f6");
+          } catch (e: any) {
+            toast.error(e?.message || "Failed to save");
+          }
+        }}
+      >
+        Create Tag
+      </Button>
     </div>
   );
 }

@@ -291,4 +291,23 @@ export default defineSchema({
     .index("by_uploadedBy", ["uploadedBy"])
     .index("by_type", ["type"])
     .index("by_uploadedAt", ["uploadedAt"]),
+
+  leadTags: defineTable({
+    name: v.string(),
+    color: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_createdBy", ["createdBy"]),
+
+  leadTagAssignments: defineTable({
+    leadId: v.id("leads"),
+    tagId: v.id("leadTags"),
+    assignedBy: v.id("users"),
+    assignedAt: v.number(),
+  })
+    .index("by_leadId", ["leadId"])
+    .index("by_tagId", ["tagId"])
+    .index("by_leadId_and_tagId", ["leadId", "tagId"]),
 });
