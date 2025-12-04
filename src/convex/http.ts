@@ -257,6 +257,25 @@ http.route({
           const changes = entry.changes || [];
 
           for (const change of changes) {
+            // Handle template status updates
+            if (change.field === "message_template_status_update") {
+              const value = change.value;
+              const event = value.event;
+              const messageTemplateId = value.message_template_id;
+              const messageTemplateName = value.message_template_name;
+              const messageTemplateLanguage = value.message_template_language;
+
+              console.log(`[WhatsApp] Template status update: ${messageTemplateName} (${messageTemplateLanguage}) - ${event}`);
+
+              // Update template status in database
+              await ctx.runMutation(internal.whatsappTemplates.updateTemplateStatusByName, {
+                name: messageTemplateName,
+                language: messageTemplateLanguage,
+                status: event, // APPROVED, REJECTED, etc.
+                wabaTemplateId: messageTemplateId?.toString(),
+              });
+            }
+            
             if (change.field === "messages") {
               const value = change.value;
               const messages = value.messages || [];

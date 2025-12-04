@@ -202,3 +202,31 @@ export const updateTemplateMetaStatus = internalMutation({
     await ctx.db.patch(args.templateId, updates);
   },
 });
+
+export const updateTemplateStatusByName = internalMutation({
+  args: {
+    name: v.string(),
+    language: v.string(),
+    status: v.string(),
+    wabaTemplateId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const template = await ctx.db
+      .query("whatsappTemplates")
+      .withIndex("by_name_and_language", (q) => 
+        q.eq("name", args.name).eq("language", args.language)
+      )
+      .first();
+
+    if (template) {
+      const updates: any = { status: args.status.toLowerCase() };
+      if (args.wabaTemplateId) {
+        updates.wabaTemplateId = args.wabaTemplateId;
+      }
+      await ctx.db.patch(template._id, updates);
+      console.log(`[WhatsApp] Updated template ${args.name} status to ${args.status}`);
+    } else {
+      console.warn(`[WhatsApp] Template not found for status update: ${args.name} (${args.language})`);
+    }
+  },
+});
