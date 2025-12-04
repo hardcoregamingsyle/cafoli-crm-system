@@ -16,8 +16,27 @@ import {
   Save, 
   Play,
   ArrowLeft,
-  Trash2
+  Trash2,
+  Settings
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type BlockType = "whatsapp" | "email" | "sms" | "wait" | "query_repeat" | "query_email" | "query_sms" | "query_whatsapp";
 
@@ -59,6 +78,8 @@ export default function CampaignWorkflowEditor() {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [draggingBlock, setDraggingBlock] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configBlockId, setConfigBlockId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +93,11 @@ export default function CampaignWorkflowEditor() {
     authReady && currentUser?._id && campaignId
       ? { currentUserId: currentUser._id, campaignId: campaignId as any }
       : "skip"
+  );
+
+  const whatsappTemplates = useQuery(
+    (api as any).whatsappTemplates.getTemplates,
+    authReady && currentUser?._id ? { currentUserId: currentUser._id } : "skip"
   );
 
   const updateCampaign = useMutation((api as any).campaigns.updateCampaign);
@@ -167,6 +193,21 @@ export default function CampaignWorkflowEditor() {
     setConnectingFrom(null);
   };
 
+  const openConfigDialog = (blockId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfigBlockId(blockId);
+    setConfigDialogOpen(true);
+  };
+
+  const updateBlockConfig = (blockId: string, config: any) => {
+    setWorkflow(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(block =>
+        block.id === blockId ? { ...block, config } : block
+      ),
+    }));
+  };
+
   if (!authReady || !currentUser) {
     return <Layout><div>Loading...</div></Layout>;
   }
@@ -182,6 +223,8 @@ export default function CampaignWorkflowEditor() {
   const getBlockInfo = (type: BlockType) => {
     return blockTypes.find(b => b.type === type) || blockTypes[0];
   };
+
+  const configBlock = workflow.blocks.find(b => b.id === configBlockId);
 
   return (
     <Layout>
@@ -301,19 +344,32 @@ export default function CampaignWorkflowEditor() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <BlockIcon className="w-4 h-4" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 w-5 p-0 text-white hover:bg-white/20"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteBlock(block.id);
-                      }}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 text-white hover:bg-white/20"
+                        onClick={(e) => openConfigDialog(block.id, e)}
+                      >
+                        <Settings className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 text-white hover:bg-white/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteBlock(block.id);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="text-xs font-medium mb-2">{blockInfo.label}</div>
+                  {block.config && Object.keys(block.config).length > 0 && (
+                    <div className="text-xs opacity-75 mb-2">Configured ✓</div>
+                  )}
                   <div className="flex gap-1">
                     <button
                       className="flex-1 bg-white/20 hover:bg-white/30 rounded px-2 py-1 text-xs"
@@ -342,6 +398,206 @@ export default function CampaignWorkflowEditor() {
             )}
           </div>
         </Card>
+
+        {/* Configuration Dialog */}
+        <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Configure {configBlock ? getBlockInfo(configBlock.type).label : "Block"}
+              </DialogTitle>
+              <DialogDescription>
+                Set up the configuration for this workflow block
+              </DialogDescription>
+            </DialogHeader>
+            
+            {configBlock && (
+              <div className="space-y-4">
+                {/* WhatsApp Block Configuration */}
+                {configBlock.type === "whatsapp" && (
+                  <div className="space-y-3">
+                    <Label>Select WhatsApp Template</Label>
+                    <Select
+                      value={configBlock.config?.templateId || ""}
+                      onValueChange={(value) => {
+                        const template = whatsappTemplates?.find((t: any) => t._id === value);
+                        updateBlockConfig(configBlock.id, {
+                          ...configBlock.config,
+                          templateId: value,
+                          templateName: template?.name || "",
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {whatsappTemplates?.filter((t: any) => t.status === "approved").map((template: any) => (
+                          <SelectItem key={template._id} value={template._id}>
+                            {template.name} ({template.language})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {whatsappTemplates?.filter((t: any) => t.status === "approved").length === 0 && (
+                      <p className="text-sm text-gray-500">No approved templates available</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Email Block Configuration */}
+                {configBlock.type === "email" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Email Template</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            useExisting: false,
+                            subject: "",
+                            body: "",
+                          });
+                        }}
+                      >
+                        Create New
+                      </Button>
+                    </div>
+                    
+                    <div>
+                      <Label>Subject</Label>
+                      <Input
+                        value={configBlock.config?.subject || ""}
+                        onChange={(e) => {
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            subject: e.target.value,
+                          });
+                        }}
+                        placeholder="Email subject"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Body</Label>
+                      <Textarea
+                        value={configBlock.config?.body || ""}
+                        onChange={(e) => {
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            body: e.target.value,
+                          });
+                        }}
+                        placeholder="Email body content"
+                        rows={6}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Wait Block Configuration */}
+                {configBlock.type === "wait" && (
+                  <div className="space-y-3">
+                    <Label>Wait Duration</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        max={
+                          configBlock.config?.unit === "seconds" ? 2592000 :
+                          configBlock.config?.unit === "minutes" ? 43200 :
+                          configBlock.config?.unit === "hours" ? 720 : 30
+                        }
+                        value={configBlock.config?.duration || 1}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
+                          const unit = configBlock.config?.unit || "minutes";
+                          
+                          // Calculate max based on unit (30 days = 2592000 seconds)
+                          let max = 30;
+                          if (unit === "seconds") max = 2592000;
+                          if (unit === "minutes") max = 43200;
+                          if (unit === "hours") max = 720;
+                          
+                          const clampedValue = Math.min(Math.max(1, value), max);
+                          
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            duration: clampedValue,
+                          });
+                        }}
+                        className="flex-1"
+                      />
+                      <Select
+                        value={configBlock.config?.unit || "minutes"}
+                        onValueChange={(value) => {
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            unit: value,
+                            duration: 1, // Reset duration when unit changes
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="seconds">Seconds</SelectItem>
+                          <SelectItem value="minutes">Minutes</SelectItem>
+                          <SelectItem value="hours">Hours</SelectItem>
+                          <SelectItem value="days">Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Maximum wait time: 30 days
+                      {configBlock.config?.duration && configBlock.config?.unit && (
+                        <span className="ml-2">
+                          (Current: {configBlock.config.duration} {configBlock.config.unit})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* SMS Block Configuration */}
+                {configBlock.type === "sms" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>SMS Message</Label>
+                      <Textarea
+                        value={configBlock.config?.message || ""}
+                        onChange={(e) => {
+                          updateBlockConfig(configBlock.id, {
+                            ...configBlock.config,
+                            message: e.target.value,
+                          });
+                        }}
+                        placeholder="SMS message content"
+                        rows={4}
+                        maxLength={160}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {(configBlock.config?.message || "").length}/160 characters
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setConfigDialogOpen(false)}>
+                Save Configuration
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
