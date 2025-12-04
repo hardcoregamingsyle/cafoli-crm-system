@@ -301,7 +301,15 @@ export default function CampaignsPage() {
                       Start
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => toast.info("Edit workflow coming soon")}>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      // Navigate to campaign edit or open workflow builder
+                      toast.info(`Editing workflow for: ${campaign.name}`);
+                      // TODO: Implement workflow builder UI
+                    }}
+                  >
                     Edit Workflow
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => handleDeleteCampaign(campaign._id)}>
