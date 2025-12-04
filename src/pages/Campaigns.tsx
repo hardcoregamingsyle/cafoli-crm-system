@@ -1,6 +1,7 @@
 import { Layout } from "@/components/Layout";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useConvex } from "convex/react";
+import { useNavigate } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 type BlockType = "whatsapp" | "email" | "sms" | "wait" | "query_repeat" | "query_email" | "query_sms" | "query_whatsapp";
 
 export default function CampaignsPage() {
+  const navigate = useNavigate();
   const { currentUser, initializeAuth } = useCrmAuth();
   const [authReady, setAuthReady] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -305,9 +307,7 @@ export default function CampaignsPage() {
                     size="sm" 
                     variant="outline" 
                     onClick={() => {
-                      // Navigate to campaign edit or open workflow builder
-                      toast.info(`Editing workflow for: ${campaign.name}`);
-                      // TODO: Implement workflow builder UI
+                      navigate(`/campaigns/edit/${campaign._id}`);
                     }}
                   >
                     Edit Workflow

@@ -26,6 +26,7 @@ import WhatsAppPage from "@/pages/WhatsApp.tsx";
 import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
 import AllLeadsAdminViewPage from "@/pages/AllLeadsAdminView.tsx";
 import ComposeEmailPage from "@/pages/ComposeEmail.tsx";
+import CampaignWorkflowEditorPage from "@/pages/CampaignWorkflowEditor.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -76,6 +77,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/leads" element={<MyLeadsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/campaigns/edit/:campaignId" element={<CampaignWorkflowEditorPage />} />
             <Route path="/campaigns/select/:campaignId" element={<CampaignSelectRecipientsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/webhook/logs" element={<WebhookLogsPage />} />
