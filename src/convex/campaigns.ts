@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ROLES } from "./schema";
+import { ROLES, LEAD_STATUS } from "./schema";
 
 export const createCampaign = mutation({
   args: {
@@ -128,28 +128,73 @@ export const getLeadsForCampaign = query({
     if (!user) return { leads: [], hasMore: false, nextCursor: null };
 
     const limit = args.limit || 1000;
-    let query;
+    let leads: any[] = [];
 
+    // Admin: fetch all leads (excluding not relevant)
     if (user.role === ROLES.ADMIN) {
-      query = ctx.db.query("leads");
-    } else if (user.role === ROLES.MANAGER || user.role === ROLES.STAFF) {
-      query = ctx.db
-        .query("leads")
-        .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId));
-    } else {
+      const all = await ctx.db.query("leads").collect();
+      leads = all.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+      
+      // Sort by lastActivityTime (most recent first), fallback to _creationTime
+      leads.sort((a, b) => {
+        const aTime = a.lastActivityTime ?? a._creationTime;
+        const bTime = b.lastActivityTime ?? b._creationTime;
+        return bTime - aTime;
+      });
+
+      // Manual pagination for admin
+      const startIndex = args.cursor ? parseInt(args.cursor) : 0;
+      const endIndex = startIndex + limit;
+      const page = leads.slice(startIndex, endIndex);
+      const hasMore = endIndex < leads.length;
+      const nextCursor = hasMore ? String(endIndex) : null;
+
+      return {
+        leads: page,
+        hasMore,
+        nextCursor,
+      };
+    } 
+    // Manager/Staff: fetch only assigned leads
+    else if (user.role === ROLES.MANAGER || user.role === ROLES.STAFF) {
+      try {
+        leads = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId))
+          .collect();
+      } catch (error) {
+        console.error("Error querying leads by index:", error);
+        // Fallback to full table scan if index fails
+        const all = await ctx.db.query("leads").collect();
+        leads = all.filter((l) => String(l.assignedTo ?? "") === String(args.currentUserId));
+      }
+
+      // Filter out not relevant leads
+      leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+
+      // Sort by lastActivityTime (most recent first), fallback to _creationTime
+      leads.sort((a, b) => {
+        const aTime = a.lastActivityTime ?? a._creationTime;
+        const bTime = b.lastActivityTime ?? b._creationTime;
+        return bTime - aTime;
+      });
+
+      // Manual pagination
+      const startIndex = args.cursor ? parseInt(args.cursor) : 0;
+      const endIndex = startIndex + limit;
+      const page = leads.slice(startIndex, endIndex);
+      const hasMore = endIndex < leads.length;
+      const nextCursor = hasMore ? String(endIndex) : null;
+
+      return {
+        leads: page,
+        hasMore,
+        nextCursor,
+      };
+    } 
+    else {
       return { leads: [], hasMore: false, nextCursor: null };
     }
-
-    // Apply pagination
-    const results = await query
-      .order("desc")
-      .paginate({ numItems: limit, cursor: args.cursor });
-
-    return {
-      leads: results.page,
-      hasMore: !results.isDone,
-      nextCursor: results.continueCursor,
-    };
   },
 });
 
