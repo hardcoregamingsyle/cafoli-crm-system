@@ -82,6 +82,10 @@ export default function AllLeadsPage() {
     currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
   ) ?? [];
 
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+=======
+
   // Wrap queries with error handling to catch invalid user IDs
   let leads, users, assignable, myLeads, notRelevantLeads;
   
@@ -886,6 +890,22 @@ export default function AllLeadsPage() {
                             toast.error(e?.message || "Failed to remove tag");
                           }
                         }}
+                        onCreateTag={async () => {
+                          const name = prompt("Enter tag name:");
+                          if (!name) return;
+                          const color = prompt("Enter tag color (hex code, e.g., #FF5733):");
+                          if (!color) return;
+                          try {
+                            await createTag({
+                              currentUserId: currentUser._id,
+                              name,
+                              color,
+                            });
+                            toast.success("Tag created");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to create tag");
+                          }
+                        }}
                       />
                     </div>
 
@@ -1454,6 +1474,7 @@ function LeadTagsSection({
   allTags,
   onAssign,
   onRemove,
+  onCreateTag,
 }: {
   leadId: string;
   currentUserId: string;
@@ -1462,13 +1483,14 @@ function LeadTagsSection({
   allTags: any[];
   onAssign: (tagId: string) => Promise<void>;
   onRemove: (tagId: string) => Promise<void>;
+  onCreateTag: () => Promise<void>;
 }) {
   const leadTags = useQuery(
     (api as any).leadTags.getLeadTags,
     { currentUserId: currentUserId as any, leadId: leadId as any }
   ) ?? [];
 
-  const [showTagSelect, setShowTagSelect] = useState(false);
+  const [showTagPopover, setShowTagPopover] = useState(false);
 
   const availableTags = allTags.filter(
     (tag) => !leadTags.some((lt: any) => String(lt._id) === String(tag._id))
@@ -1505,49 +1527,65 @@ function LeadTagsSection({
           </Badge>
         ))}
         {canManageTags && (
-          showTagSelect ? (
-            <Select
-              onValueChange={async (val) => {
-                await onAssign(val);
-                setShowTagSelect(false);
-              }}
-              onOpenChange={(open) => {
-                if (!open) setShowTagSelect(false);
-              }}
-              open={showTagSelect}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select tag" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTags.length === 0 ? (
-                  <div className="px-2 py-1.5 text-sm text-gray-500">No tags available</div>
-                ) : (
-                  availableTags.map((tag: any) => (
-                    <SelectItem key={String(tag._id)} value={String(tag._id)}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full border border-gray-300"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span>{tag.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTagSelect(true)}
-              disabled={availableTags.length === 0}
-              className="text-xs"
-            >
-              + Add Tag
-            </Button>
-          )
+          <Sheet open={showTagPopover} onOpenChange={setShowTagPopover}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+              >
+                + Add Tag
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80">
+              <SheetHeader>
+                <SheetTitle>Add Tag to Lead</SheetTitle>
+                <SheetDescription>
+                  Select an existing tag or create a new one
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 space-y-3">
+                <Button
+                  variant="default"
+                  className="w-full"
+                  onClick={async () => {
+                    await onCreateTag();
+                    setShowTagPopover(false);
+                  }}
+                >
+                  + Create New Tag
+                </Button>
+                <div className="border-t pt-3">
+                  <div className="text-sm font-medium mb-2">Available Tags</div>
+                  {availableTags.length === 0 ? (
+                    <div className="text-sm text-gray-500 text-center py-4">No tags available</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableTags.map((tag: any) => (
+                        <Button
+                          key={String(tag._id)}
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={async () => {
+                            await onAssign(String(tag._id));
+                            setShowTagPopover(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-4 h-4 rounded-full border"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span>{tag.name}</span>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         )}
       </div>
     </div>
