@@ -55,7 +55,7 @@ export default function MyLeadsPage() {
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
 
   // Add tag-related queries and mutations
-  const allTags = useQuery((api as any).leadTags.listTags) ?? [];
+  const allTags = useQuery((api as any).leadTags.getAllTags, currentUser ? { currentUserId: currentUser._id } : "skip") ?? [];
   const leadTagAssignments = useQuery((api as any).leadTags.getLeadTagAssignments, 
     currentUser ? { currentUserId: currentUser._id } : "skip"
   ) ?? [];
