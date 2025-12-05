@@ -63,8 +63,22 @@ export default function AllLeadsPage() {
   const [showNoFollowup, setShowNoFollowup] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const [filter, setFilter] = useState<Filter>("all");
-  const [showNotRelevant, setShowNotRelevant] = useState(false);
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
   // Add: fetch all tags
   const allTags = useQuery(
     (api as any).leadTags.getAllTags,
@@ -76,6 +90,196 @@ export default function AllLeadsPage() {
 
   // Wrap queries with error handling to catch invalid user IDs
   let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+=======
+  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
+
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+=======
+  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
+    if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
+      setFilter("unassigned");
+    }
+  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
+
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+=======
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+=======
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+
+  // Wrap queries with error handling to catch invalid user IDs
+=======
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+    leads = useQuery(
+=======
+  const [filter, setFilter] = useState<Filter>("all");
+  const [showNotRelevant, setShowNotRelevant] = useState(false);
+
+  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
+    if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
+      setFilter("unassigned");
+    }
+  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]);
+
+  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  // Add: fetch all tags
+  const allTags = useQuery(
+    (api as any).leadTags.getAllTags,
+    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+
+  // Add: mutations for tag management
+  const createTag = useMutation((api as any).leadTags.createTag);
+
+  // Wrap queries with error handling to catch invalid user IDs
+  let leads, users, assignable, myLeads, notRelevantLeads;
+  
+  try {
+    leads = useQuery(
 =======
   // Wrap queries with error handling to catch invalid user IDs
 =======
