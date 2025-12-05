@@ -75,6 +75,17 @@ export const deleteTag = mutation({
   },
 });
 
+// Get all lead tag assignments
+export const getLeadTagAssignments = query({
+  args: { currentUserId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user) throw new Error("User not found");
+
+    return await ctx.db.query("leadTagAssignments").collect();
+  },
+});
+
 // Assign a tag to a lead
 export const assignTagToLead = mutation({
   args: {
@@ -102,6 +113,16 @@ export const assignTagToLead = mutation({
 
     if (existing) {
       throw new Error("Tag already assigned to this lead");
+    }
+
+    // Check if lead already has 10 tags (maximum limit)
+    const currentAssignments = await ctx.db
+      .query("leadTagAssignments")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .collect();
+
+    if (currentAssignments.length >= 10) {
+      throw new Error("Maximum of 10 tags per lead reached");
     }
 
     await ctx.db.insert("leadTagAssignments", {
