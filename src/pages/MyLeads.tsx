@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -52,6 +53,14 @@ export default function MyLeadsPage() {
   const assignLead = useMutation((api as any).leads.assignLead);
   const updateLeadDetails = useMutation((api as any).leads.updateLeadDetails);
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
+
+  // Add tag-related queries and mutations
+  const allTags = useQuery((api as any).leadTags.listTags) ?? [];
+  const leadTagAssignments = useQuery((api as any).leadTags.getLeadTagAssignments, 
+    currentUser ? { currentUserId: currentUser._id } : "skip"
+  ) ?? [];
+  const assignTagToLead = useMutation((api as any).leadTags.assignTagToLead);
+  const removeTagFromLead = useMutation((api as any).leadTags.removeTagFromLead);
 
   // Add search state
   const [search, setSearch] = useState("");
@@ -934,6 +943,17 @@ export default function MyLeadsPage() {
                         </div>
                       )}
 
+                      <LeadTagsSection 
+                        leadId={lead._id}
+                        currentUserId={currentUser._id}
+                        allTags={allTags}
+                        leadTagAssignments={leadTagAssignments}
+                        assignTagToLead={assignTagToLead}
+                        removeTagFromLead={removeTagFromLead}
+                        currentUserRole={currentUser.role}
+                        leadAssignedTo={lead.assignedTo}
+                      />
+
                       <CommentsBox leadId={lead._id} currentUserId={currentUser._id} />
                     </div>
 
@@ -953,6 +973,111 @@ export default function MyLeadsPage() {
         </Card>
       </div>
     </Layout>
+  );
+}
+
+function LeadTagsSection({ 
+  leadId, 
+  currentUserId, 
+  allTags, 
+  leadTagAssignments, 
+  assignTagToLead, 
+  removeTagFromLead,
+  currentUserRole,
+  leadAssignedTo
+}: { 
+  leadId: string; 
+  currentUserId: string; 
+  allTags: any[]; 
+  leadTagAssignments: any[]; 
+  assignTagToLead: any; 
+  removeTagFromLead: any;
+  currentUserRole: string;
+  leadAssignedTo?: string;
+}) {
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  
+  const assignedTags = leadTagAssignments.filter((a: any) => String(a.leadId) === String(leadId));
+  const canManageTags = currentUserRole === ROLES.ADMIN || String(leadAssignedTo) === String(currentUserId);
+
+  const handleAddTag = async (tagId: string) => {
+    try {
+      await assignTagToLead({ leadId: leadId as any, tagId: tagId as any, currentUserId: currentUserId as any });
+      toast.success("Tag added");
+      setTagPopoverOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to add tag");
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    try {
+      await removeTagFromLead({ leadId: leadId as any, tagId: tagId as any, currentUserId: currentUserId as any });
+      toast.success("Tag removed");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to remove tag");
+    }
+  };
+
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <div className="text-xs text-gray-500">Tags</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {assignedTags.map((assignment: any) => {
+          const tag = allTags.find((t: any) => String(t._id) === String(assignment.tagId));
+          if (!tag) return null;
+          return (
+            <Badge 
+              key={assignment._id} 
+              className="flex items-center gap-1.5 px-2 py-1"
+              style={{ backgroundColor: tag.color, color: '#fff' }}
+            >
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#fff' }} />
+              <span>{tag.name}</span>
+              {canManageTags && (
+                <button
+                  onClick={() => handleRemoveTag(tag._id)}
+                  className="ml-1 hover:bg-black/20 rounded-full p-0.5"
+                >
+                  ×
+                </button>
+              )}
+            </Badge>
+          );
+        })}
+        {canManageTags && (
+          <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                + Add Tag
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Select a tag</h4>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {allTags
+                    .filter((tag: any) => !assignedTags.some((a: any) => String(a.tagId) === String(tag._id)))
+                    .map((tag: any) => (
+                      <button
+                        key={tag._id}
+                        onClick={() => handleAddTag(tag._id)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded flex items-center gap-2"
+                      >
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                        <span className="text-sm">{tag.name}</span>
+                      </button>
+                    ))}
+                  {allTags.filter((tag: any) => !assignedTags.some((a: any) => String(a.tagId) === String(tag._id))).length === 0 && (
+                    <p className="text-sm text-gray-500 px-3 py-2">All tags assigned</p>
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+    </div>
   );
 }
 
