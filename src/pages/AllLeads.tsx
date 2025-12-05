@@ -854,36 +854,40 @@ export default function AllLeadsPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    {/* Add: Tags section at the top */}
-                    <LeadTagsSection
-                      leadId={String(lead._id)}
-                      currentUserId={String(currentUser._id)}
-                      allTags={allTags}
-                      onAssign={async (tagId) => {
-                        try {
-                          await assignTagToLead({
-                            currentUserId: currentUser._id,
-                            leadId: lead._id,
-                            tagId: tagId as any,
-                          });
-                          toast.success("Tag assigned");
-                        } catch (e: any) {
-                          toast.error(e?.message || "Failed to assign tag");
-                        }
-                      }}
-                      onRemove={async (tagId) => {
-                        try {
-                          await removeTagFromLead({
-                            currentUserId: currentUser._id,
-                            leadId: lead._id,
-                            tagId: tagId as any,
-                          });
-                          toast.success("Tag removed");
-                        } catch (e: any) {
-                          toast.error(e?.message || "Failed to remove tag");
-                        }
-                      }}
-                    />
+                    {/* Tags section at the top */}
+                    <div className="mb-4 pb-4 border-b">
+                      <LeadTagsSection
+                        leadId={String(lead._id)}
+                        currentUserId={String(currentUser._id)}
+                        currentUserRole={currentUser.role}
+                        leadAssignedTo={lead.assignedTo}
+                        allTags={allTags}
+                        onAssign={async (tagId) => {
+                          try {
+                            await assignTagToLead({
+                              currentUserId: currentUser._id,
+                              leadId: lead._id,
+                              tagId: tagId as any,
+                            });
+                            toast.success("Tag assigned");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to assign tag");
+                          }
+                        }}
+                        onRemove={async (tagId) => {
+                          try {
+                            await removeTagFromLead({
+                              currentUserId: currentUser._id,
+                              leadId: lead._id,
+                              tagId: tagId as any,
+                            });
+                            toast.success("Tag removed");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to remove tag");
+                          }
+                        }}
+                      />
+                    </div>
 
                     {/* Editable Name/Subject/Message block */}
                     <div className="grid md:grid-cols-3 gap-4 py-2">
@@ -1445,12 +1449,16 @@ export default function AllLeadsPage() {
 function LeadTagsSection({
   leadId,
   currentUserId,
+  currentUserRole,
+  leadAssignedTo,
   allTags,
   onAssign,
   onRemove,
 }: {
   leadId: string;
   currentUserId: string;
+  currentUserRole: string;
+  leadAssignedTo?: string;
   allTags: any[];
   onAssign: (tagId: string) => Promise<void>;
   onRemove: (tagId: string) => Promise<void>;
@@ -1466,62 +1474,80 @@ function LeadTagsSection({
     (tag) => !leadTags.some((lt: any) => String(lt._id) === String(tag._id))
   );
 
+  // Check if user can add/remove tags (admin or assigned to lead)
+  const canManageTags = currentUserRole === ROLES.ADMIN || String(leadAssignedTo) === String(currentUserId);
+
   return (
-    <div className="mb-4 space-y-2">
-      <div className="text-xs text-gray-500">Tags</div>
+    <div className="space-y-2">
+      <div className="text-sm font-medium text-gray-700">Tags</div>
       <div className="flex flex-wrap items-center gap-2">
+        {leadTags.length === 0 && (
+          <span className="text-xs text-gray-400">No tags assigned</span>
+        )}
         {leadTags.map((tag: any) => (
           <Badge
             key={String(tag._id)}
-            className="flex items-center gap-1 px-2 py-1"
-            style={{ backgroundColor: tag.color, color: "#fff" }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-white border-0"
+            style={{ backgroundColor: tag.color }}
           >
-            {tag.name}
-            <button
-              onClick={() => onRemove(String(tag._id))}
-              className="ml-1 hover:opacity-70"
-            >
-              ×
-            </button>
+            <div
+              className="w-2.5 h-2.5 rounded-full bg-white/30"
+            />
+            <span className="font-medium">{tag.name}</span>
+            {canManageTags && (
+              <button
+                onClick={() => onRemove(String(tag._id))}
+                className="ml-1 hover:opacity-70 font-bold text-sm"
+              >
+                ×
+              </button>
+            )}
           </Badge>
         ))}
-        {showTagSelect ? (
-          <Select
-            onValueChange={async (val) => {
-              await onAssign(val);
-              setShowTagSelect(false);
-            }}
-            onOpenChange={(open) => {
-              if (!open) setShowTagSelect(false);
-            }}
-            open={showTagSelect}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select tag" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableTags.map((tag: any) => (
-                <SelectItem key={String(tag._id)} value={String(tag._id)}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    {tag.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTagSelect(true)}
-            disabled={availableTags.length === 0}
-          >
-            + Add Tag
-          </Button>
+        {canManageTags && (
+          showTagSelect ? (
+            <Select
+              onValueChange={async (val) => {
+                await onAssign(val);
+                setShowTagSelect(false);
+              }}
+              onOpenChange={(open) => {
+                if (!open) setShowTagSelect(false);
+              }}
+              open={showTagSelect}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select tag" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTags.length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-gray-500">No tags available</div>
+                ) : (
+                  availableTags.map((tag: any) => (
+                    <SelectItem key={String(tag._id)} value={String(tag._id)}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full border border-gray-300"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span>{tag.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTagSelect(true)}
+              disabled={availableTags.length === 0}
+              className="text-xs"
+            >
+              + Add Tag
+            </Button>
+          )
         )}
       </div>
     </div>
