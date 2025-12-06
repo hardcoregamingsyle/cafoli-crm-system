@@ -115,21 +115,21 @@ export default function AdminPage() {
               onClick={async () => {
                 try {
                   const ok = window.confirm(
-                    "Are you sure you want to delete ALL Pharmavends leads created in the past 24 hours? This action cannot be undone."
+                    "Are you sure you want to delete ALL unassigned Pharmavends leads? This action cannot be undone."
                   );
                   if (!ok) return;
                   const result = await deletePharmavendsLeadsMutation({ currentUserId: currentUser._id });
                   if (result.deletedCount === 0) {
-                    toast.info("No Pharmavends leads found from the past 24 hours. Check the browser console for details.");
+                    toast.info("No unassigned Pharmavends leads found. Check the browser console for details.");
                   } else {
-                    toast.success(`Deleted ${result.deletedCount} Pharmavends leads from the past 24 hours`);
+                    toast.success(`Deleted ${result.deletedCount} unassigned Pharmavends leads`);
                   }
                 } catch (e: any) {
                   toast.error(e?.message || "Failed to delete Pharmavends leads");
                 }
               }}
             >
-              Delete Pharmavends Leads (Past 24 Hours)
+              Delete Unassigned Pharmavends Leads
             </Button>
             <Button
               variant="outline"
