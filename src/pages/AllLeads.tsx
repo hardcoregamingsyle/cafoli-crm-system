@@ -14,7 +14,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 type Filter = "all" | "assigned" | "unassigned";
@@ -59,313 +60,11 @@ export default function AllLeadsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedHeats, setSelectedHeats] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showNoFollowup, setShowNoFollowup] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
-  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
-  useEffect(() => {
-    if (!authReady || !currentUser) return;
-    if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
-      setFilter("unassigned");
-    }
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-    leads = useQuery(
-=======
   const [filter, setFilter] = useState<Filter>("all");
   const [showNotRelevant, setShowNotRelevant] = useState(false);
-
-  // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
-  useEffect(() => {
-    if (!authReady || !currentUser) return;
-    if (!enforcedHeatRoute && currentUser.role !== ROLES.ADMIN && filter === "all") {
-      setFilter("unassigned");
-    }
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]);
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-    leads = useQuery(
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
   // For non-admins on /all_leads, default to "Unassigned" so assigned leads disappear from this list
   useEffect(() => {
     if (!authReady || !currentUser) return;
@@ -373,198 +72,10 @@ export default function AllLeadsPage() {
       setFilter("unassigned");
     }
   }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
   
-  try {
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
   // Ensure stable, string-only state for the assignee filter to avoid re-render loops
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
   
-  try {
-=======
-  }, [authReady, currentUser?._id, currentUser?.role, enforcedHeatRoute]); // Removed 'filter' from dependencies to prevent loop
-
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-  
-  try {
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Ensure stable, string-only state for the assignee filter to avoid re-render loops
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Add: fetch all tags
-  const allTags = useQuery(
-    (api as any).leadTags.getAllTags,
-    currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-  ) ?? [];
-
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
-=======
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-  // Add: mutations for tag management
-  const createTag = useMutation((api as any).leadTags.createTag);
-
-  // Wrap queries with error handling to catch invalid user IDs
-
-  // Wrap queries with error handling to catch invalid user IDs
-=======
-
   // Wrap queries with error handling to catch invalid user IDs
   let leads, users, assignable, myLeads, notRelevantLeads;
   
@@ -626,8 +137,6 @@ export default function AllLeadsPage() {
   const updateLeadHeat = useMutation((api as any).leads.updateLeadHeat);
   const normalizePhoneNumbers = useMutation((api as any).migrate.normalizeAllPhoneNumbers);
   const deleteLeadsWithPlaceholderEmail = useMutation((api as any).leads.deleteLeadsWithPlaceholderEmail);
-  const assignTagToLead = useMutation((api as any).leadTags.assignTagToLead);
-  const removeTagFromLead = useMutation((api as any).leadTags.removeTagFromLead);
 
   // Add: state for normalization process
   const [isNormalizing, setIsNormalizing] = useState(false);
@@ -798,15 +307,6 @@ export default function AllLeadsPage() {
         if (!selectedHeats.includes(leadHeat)) return false;
       }
 
-      // Tag filter
-      if (selectedTags.length > 0) {
-        const leadTags = lead?.tags || [];
-        const hasMatchingTag = selectedTags.some((tagId) =>
-          leadTags.some((t: any) => String(t._id) === tagId)
-        );
-        if (!hasMatchingTag) return false;
-      }
-
       // No Followup filter
       if (showNoFollowup) {
         if (lead?.nextFollowup) return false;
@@ -830,7 +330,7 @@ export default function AllLeadsPage() {
       const bHeat = heatOrder[String(b?.heat || "").toLowerCase()] ?? 3;
       return aHeat - bHeat;
     });
-  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, selectedTags, showNoFollowup, enforcedHeatRoute]);
+  }, [sourceLeads, search, selectedStatuses, selectedSources, selectedHeats, enforcedHeatRoute]);
 
   // Apply enforced heat from dashboard; exclude leads without a heat
   const filteredLeadsByDashboardHeat = (() => {
@@ -895,17 +395,10 @@ export default function AllLeadsPage() {
     );
   };
 
-  const toggleTag = (tagId: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]
-    );
-  };
-
   const clearFilters = () => {
     setSelectedStatuses([]);
     setSelectedSources([]);
     setSelectedHeats([]);
-    setSelectedTags([]);
     setShowNoFollowup(false);
   };
 
@@ -939,9 +432,9 @@ export default function AllLeadsPage() {
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || selectedTags.length > 0 || showNoFollowup) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
                     <Badge variant="secondary" className="ml-2">
-                      {selectedStatuses.length + selectedSources.length + selectedHeats.length + selectedTags.length + (showNoFollowup ? 1 : 0)}
+                      {selectedStatuses.length + selectedSources.length + selectedHeats.length + (showNoFollowup ? 1 : 0)}
                     </Badge>
                   )}
                 </Button>
@@ -1074,43 +567,6 @@ export default function AllLeadsPage() {
                     </div>
                   </div>
 
-                  {/* Tag Filters */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold">Tags</h3>
-                      {selectedTags.length > 0 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedTags([])}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {(allTags ?? []).map((tag: any) => (
-                        <div key={String(tag._id)} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`tag-${tag._id}`}
-                            checked={selectedTags.includes(String(tag._id))}
-                            onCheckedChange={() => toggleTag(String(tag._id))}
-                          />
-                          <Label htmlFor={`tag-${tag._id}`} className="cursor-pointer flex items-center gap-2">
-                            <div
-                              className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: tag.color }}
-                            />
-                            {tag.name}
-                          </Label>
-                        </div>
-                      ))}
-                      {(allTags ?? []).length === 0 && (
-                        <p className="text-sm text-gray-500">No tags available</p>
-                      )}
-                    </div>
-                  </div>
-
                   {/* No Followup Filter */}
                   <div className="space-y-3">
                     <h3 className="font-semibold">Followup Status</h3>
@@ -1129,7 +585,7 @@ export default function AllLeadsPage() {
                   </div>
 
                   {/* Clear All Button */}
-                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || selectedTags.length > 0 || showNoFollowup) && (
+                  {(selectedStatuses.length > 0 || selectedSources.length > 0 || selectedHeats.length > 0 || showNoFollowup) && (
                     <Button 
                       variant="outline" 
                       className="w-full"
@@ -1337,57 +793,6 @@ export default function AllLeadsPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    {/* Tags section at the top */}
-                    <div className="mb-4 pb-4 border-b">
-                      <LeadTagsSection
-                        leadId={String(lead._id)}
-                        currentUserId={String(currentUser._id)}
-                        currentUserRole={currentUser.role}
-                        leadAssignedTo={lead.assignedTo}
-                        allTags={allTags}
-                        onAssign={async (tagId) => {
-                          try {
-                            await assignTagToLead({
-                              currentUserId: currentUser._id,
-                              leadId: lead._id,
-                              tagId: tagId as any,
-                            });
-                            toast.success("Tag assigned");
-                          } catch (e: any) {
-                            toast.error(e?.message || "Failed to assign tag");
-                          }
-                        }}
-                        onRemove={async (tagId) => {
-                          try {
-                            await removeTagFromLead({
-                              currentUserId: currentUser._id,
-                              leadId: lead._id,
-                              tagId: tagId as any,
-                            });
-                            toast.success("Tag removed");
-                          } catch (e: any) {
-                            toast.error(e?.message || "Failed to remove tag");
-                          }
-                        }}
-                        onCreateTag={async () => {
-                          const name = prompt("Enter tag name:");
-                          if (!name) return;
-                          const color = prompt("Enter tag color (hex code, e.g., #FF5733):");
-                          if (!color) return;
-                          try {
-                            await createTag({
-                              currentUserId: currentUser._id,
-                              name,
-                              color,
-                            });
-                            toast.success("Tag created");
-                          } catch (e: any) {
-                            toast.error(e?.message || "Failed to create tag");
-                          }
-                        }}
-                      />
-                    </div>
-
                     {/* Editable Name/Subject/Message block */}
                     <div className="grid md:grid-cols-3 gap-4 py-2">
                       {/* Name (Manual Input) - Both Admin and Manager can edit */}
@@ -1942,132 +1347,6 @@ export default function AllLeadsPage() {
         </Card>
       </div>
     </Layout>
-  );
-}
-
-function LeadTagsSection({
-  leadId,
-  currentUserId,
-  currentUserRole,
-  leadAssignedTo,
-  allTags,
-  onAssign,
-  onRemove,
-  onCreateTag,
-}: {
-  leadId: string;
-  currentUserId: string;
-  currentUserRole: string;
-  leadAssignedTo?: string;
-  allTags: any[];
-  onAssign: (tagId: string) => Promise<void>;
-  onRemove: (tagId: string) => Promise<void>;
-  onCreateTag: () => Promise<void>;
-}) {
-  const leadTags = useQuery(
-    (api as any).leadTags.getLeadTags,
-    { currentUserId: currentUserId as any, leadId: leadId as any }
-  ) ?? [];
-
-  const [showTagPopover, setShowTagPopover] = useState(false);
-
-  const availableTags = allTags.filter(
-    (tag) => !leadTags.some((lt: any) => String(lt._id) === String(tag._id))
-  );
-
-  // Check if user can add/remove tags (admin or assigned to lead)
-  const canManageTags = currentUserRole === ROLES.ADMIN || String(leadAssignedTo) === String(currentUserId);
-
-  return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-gray-700">Tags</div>
-      <div className="flex flex-wrap items-center gap-2">
-        {leadTags.length === 0 && (
-          <span className="text-xs text-gray-400">No tags assigned</span>
-        )}
-        {leadTags.map((tag: any) => (
-          <Badge
-            key={String(tag._id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-white border-0"
-            style={{ backgroundColor: tag.color }}
-          >
-            <div
-              className="w-2.5 h-2.5 rounded-full bg-white/30"
-            />
-            <span className="font-medium">{tag.name}</span>
-            {canManageTags && (
-              <button
-                onClick={() => onRemove(String(tag._id))}
-                className="ml-1 hover:opacity-70 font-bold text-sm"
-              >
-                ×
-              </button>
-            )}
-          </Badge>
-        ))}
-        {canManageTags && (
-          <Sheet open={showTagPopover} onOpenChange={setShowTagPopover}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                + Add Tag
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80">
-              <SheetHeader>
-                <SheetTitle>Add Tag to Lead</SheetTitle>
-                <SheetDescription>
-                  Select an existing tag or create a new one
-                </SheetDescription>
-              </SheetHeader>
-              <div className="mt-6 space-y-3">
-                <Button
-                  variant="default"
-                  className="w-full"
-                  onClick={async () => {
-                    await onCreateTag();
-                    setShowTagPopover(false);
-                  }}
-                >
-                  + Create New Tag
-                </Button>
-                <div className="border-t pt-3">
-                  <div className="text-sm font-medium mb-2">Available Tags</div>
-                  {availableTags.length === 0 ? (
-                    <div className="text-sm text-gray-500 text-center py-4">No tags available</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {availableTags.map((tag: any) => (
-                        <Button
-                          key={String(tag._id)}
-                          variant="outline"
-                          className="w-full justify-start"
-                          onClick={async () => {
-                            await onAssign(String(tag._id));
-                            setShowTagPopover(false);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: tag.color }}
-                            />
-                            <span>{tag.name}</span>
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-        )}
-      </div>
-    </div>
   );
 }
 
