@@ -163,7 +163,8 @@ export default function AllLeadsPage() {
   // Get unique sources from all leads
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
-    (sourceLeads ?? []).forEach((lead: any) => {
+    const leadsList = Array.isArray(sourceLeads) ? sourceLeads : [];
+    leadsList.forEach((lead: any) => {
       if (lead?.source) {
         sources.add(lead.source);
       }
@@ -262,7 +263,8 @@ export default function AllLeadsPage() {
 
   // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    let list: Array<any> = sourceLeads ?? [];
+    const leadsList = Array.isArray(sourceLeads) ? sourceLeads : [];
+    const list: Array<any> = leadsList;
     const q = (search || "").trim().toLowerCase();
 
     // Apply all filters

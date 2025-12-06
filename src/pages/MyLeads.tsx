@@ -84,7 +84,8 @@ export default function MyLeadsPage() {
     const timer = setInterval(() => {
       try {
         const now = Date.now();
-        for (const lead of (leads ?? []) as Array<any>) {
+        const leadsList = Array.isArray(leads) ? leads : [];
+        for (const lead of leadsList as Array<any>) {
           const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
           if (!ts || ts <= now) continue;
           const minutesRemaining = Math.round((ts - now) / 60000);

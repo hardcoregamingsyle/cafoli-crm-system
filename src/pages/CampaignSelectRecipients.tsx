@@ -46,7 +46,7 @@ export default function CampaignSelectRecipientsPage() {
   const updateCampaign = useMutation((api as any).campaigns.updateCampaign);
 
   useEffect(() => {
-    if (campaign?.recipientIds) {
+    if (campaign?.recipientIds && Array.isArray(campaign.recipientIds)) {
       setSelectedLeadIds(campaign.recipientIds.map((id: any) => String(id)));
     }
   }, [campaign]);
