@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { ROLES } from "@/convex/schema";
 import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
 import { 
   XCircle, 
   CheckCircle, 
@@ -25,6 +27,7 @@ export default function AllLeadsAdminView() {
   const { currentUser } = useCrmAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [search, setSearch] = useState("");
 
   // Redirect non-admins
   if (currentUser && currentUser.role !== ROLES.ADMIN) {
@@ -111,7 +114,28 @@ export default function AllLeadsAdminView() {
     }
   };
 
-  const displayedLeads = getLeadsForCurrentPage();
+  const rawLeads = getLeadsForCurrentPage();
+
+  // Add search filtering
+  const displayedLeads = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return rawLeads;
+
+    return rawLeads.filter((lead: any) => {
+      const fields = [
+        lead?.name,
+        lead?.subject,
+        lead?.message,
+        lead?.mobileNo,
+        lead?.email,
+        lead?.state,
+        lead?.district,
+        lead?.source,
+        lead?.assignedUserName,
+      ];
+      return fields.some((f: any) => String(f || "").toLowerCase().includes(q));
+    });
+  }, [rawLeads, search]);
 
   return (
     <Layout>
@@ -124,6 +148,17 @@ export default function AllLeadsAdminView() {
             <p className="text-gray-600 mt-1">Advanced lead filtering and management</p>
           </div>
         </div>
+
+        {/* Search Bar - Added */}
+        {!isMainPage && (
+          <div className="w-full sm:w-64">
+            <Input
+              placeholder="Search leads..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Sub-page Navigation */}
         <div className="flex flex-wrap gap-2">
@@ -185,7 +220,7 @@ export default function AllLeadsAdminView() {
             <CardContent>
               {displayedLeads.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  No {currentSubPage?.label.toLowerCase()} leads found
+                  {search ? `No leads found matching "${search}"` : `No ${currentSubPage?.label.toLowerCase()} leads found`}
                 </div>
               ) : (
                 <Accordion type="single" collapsible className="w-full">
