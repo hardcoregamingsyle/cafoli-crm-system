@@ -26,14 +26,73 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
-// Helper to ensure we have a userId for logging
-async function ensureLoggingUserId(ctx: any) {
+const SYSTEM_LOGGER_USERNAME = "system_logger";
+
+async function getOrCreateLoggingUserId(ctx: any) {
+  const existingSystemUser = await ctx.db
+    .query("users")
+    .withIndex("username", (q: any) => q.eq("username", SYSTEM_LOGGER_USERNAME))
+    .take(1);
+
+  if (existingSystemUser[0]?._id) {
+    return existingSystemUser[0]._id;
+  }
+
   const admins = await ctx.db
     .query("users")
     .withIndex("by_role", (q: any) => q.eq("role", "admin"))
     .take(1);
-  return admins[0]?._id ?? null;
+
+  if (admins[0]?._id) {
+    return admins[0]._id;
+  }
+
+  return await ctx.db.insert("users", {
+    name: "System Logger",
+    username: SYSTEM_LOGGER_USERNAME,
+    role: "admin",
+    createdAt: Date.now(),
+  });
 }
+
+// Helper to ensure we have a userId for logging
+async function ensureLoggingUserId(ctx: any) {
+  return getOrCreateLoggingUserId(ctx);
+}
+
+export const ensureLoggingUser = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    return getOrCreateLoggingUserId(ctx);
+  },
+});
+
+export const insertLog = internalMutation({
+  args: {
+    payload: v.any(),
+    method: v.optional(v.string()),
+    path: v.optional(v.string()),
+    ip: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getOrCreateLoggingUserId(ctx);
+    const details = JSON.stringify({
+      method: args.method ?? null,
+      path: args.path ?? null,
+      ip: args.ip ?? null,
+      payload: args.payload,
+    });
+
+    await ctx.db.insert("auditLogs", {
+      userId,
+      action: "WEBHOOK_LOG",
+      timestamp: Date.now(),
+      details,
+    });
+
+    return { success: true };
+  },
+});
 
 export const fetchGoogleScriptLeads = internalAction({
   args: {},
