@@ -28,12 +28,13 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
-// Get all leads (Admin and Manager only)
+// Get all leads (Admin and Manager only) with pagination
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"), v.literal("no_followup"))),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
@@ -111,9 +112,13 @@ export const getAllLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
 
+      // Apply limit to prevent reading too many bytes
+      const limit = Math.min(Math.max(args.limit ?? 500, 1), 2000);
+      const limitedLeads = leads.slice(0, limit);
+
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
-      for (const lead of leads) {
+      for (const lead of limitedLeads) {
         let assignedUserName: string | null = null;
         if (lead.assignedTo) {
           try {
