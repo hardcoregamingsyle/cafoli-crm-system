@@ -28,12 +28,14 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
-// Get all leads (Admin and Manager only)
+// Get all leads (Admin and Manager only) - with pagination
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"), v.literal("no_followup"))),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
+    limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
@@ -61,12 +63,16 @@ export const getAllLeads = query({
         return [];
       }
 
-      // Build leads list
+      // Set pagination defaults
+      const limit = Math.min(Math.max(args.limit ?? 100, 10), 500);
+      const offset = Math.max(args.offset ?? 0, 0);
+
+      // Build leads list with pagination
       let leads: any[] = [];
       
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads (excluding not relevant)
-        const all = await ctx.db.query("leads").collect();
+        const all = await ctx.db.query("leads").order("desc").take(2000);
         leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
       } else {
         // Admin can see all leads with filtering
@@ -84,7 +90,7 @@ export const getAllLeads = query({
           }
         }
 
-        const all = await ctx.db.query("leads").collect();
+        const all = await ctx.db.query("leads").order("desc").take(2000);
 
         if (normalizedAssignee === "unassigned") {
           leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
@@ -111,9 +117,13 @@ export const getAllLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
 
+      // Apply pagination
+      const paginatedLeads = leads.slice(offset, offset + limit);
+      const totalCount = leads.length;
+
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
-      for (const lead of leads) {
+      for (const lead of paginatedLeads) {
         let assignedUserName: string | null = null;
         if (lead.assignedTo) {
           try {
@@ -126,10 +136,14 @@ export const getAllLeads = query({
         enrichedLeads.push({ ...lead, assignedUserName });
       }
 
-      return enrichedLeads;
+      return {
+        leads: enrichedLeads,
+        totalCount,
+        hasMore: offset + limit < totalCount,
+      };
     } catch (err) {
       console.error("getAllLeads error:", err);
-      return [];
+      return { leads: [], totalCount: 0, hasMore: false };
     }
   },
 });
@@ -198,7 +212,7 @@ export const getMyLeads = query({
         leads = leads.filter((l) => !l.nextFollowup);
       }
 
-      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
+      const limit = Math.min(Math.max(args.limit ?? 100, 10), 500);
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {
