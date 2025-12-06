@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Filter, Plus, X } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -1318,6 +1319,9 @@ export default function AllLeadsPage() {
                     {/* Comments */}
                     <CommentsBox leadId={String(lead._id)} currentUserId={String(currentUser._id)} />
 
+                    {/* Tags */}
+                    <LeadTagsSection leadId={String(lead._id)} currentUserId={String(currentUser._id)} />
+
                     {/* Admin-only controls */}
                     {currentUser.role === ROLES.ADMIN && (
                       <div className="mt-4">
@@ -1399,6 +1403,94 @@ function CommentsBox({ leadId, currentUserId }: { leadId: string; currentUserId:
         >
           Add
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function LeadTagsSection({ leadId, currentUserId }: { leadId: string; currentUserId: string }) {
+  const allTags = useQuery((api as any).leadTags.getAllTags, { currentUserId: currentUserId as any }) ?? [];
+  const leadTags = useQuery((api as any).leadTags.getLeadTags, { currentUserId: currentUserId as any, leadId: leadId as any }) ?? [];
+  const assignTag = useMutation((api as any).leadTags.assignTagToLead);
+  const removeTag = useMutation((api as any).leadTags.removeTagFromLead);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+
+  const availableTags = allTags.filter((tag: any) => 
+    !leadTags.some((lt: any) => lt._id === tag._id)
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-gray-500">Tags</div>
+      <div className="flex flex-wrap gap-2 items-center">
+        {leadTags.map((tag: any) => (
+          <Badge 
+            key={tag._id} 
+            style={{ backgroundColor: tag.color }}
+            className="text-white flex items-center gap-1"
+          >
+            {tag.name}
+            <button
+              onClick={async () => {
+                try {
+                  await removeTag({
+                    currentUserId: currentUserId as any,
+                    leadId: leadId as any,
+                    tagId: tag._id,
+                  });
+                  toast.success("Tag removed");
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to remove tag");
+                }
+              }}
+              className="ml-1 hover:bg-black/20 rounded-full p-0.5"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+        
+        <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-6">
+              <Plus className="h-3 w-3 mr-1" />
+              Add Tag
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-2">
+            <div className="space-y-1">
+              {availableTags.length === 0 ? (
+                <div className="text-xs text-gray-500 p-2">No tags available</div>
+              ) : (
+                availableTags.map((tag: any) => (
+                  <button
+                    key={tag._id}
+                    onClick={async () => {
+                      try {
+                        await assignTag({
+                          currentUserId: currentUserId as any,
+                          leadId: leadId as any,
+                          tagId: tag._id,
+                        });
+                        toast.success("Tag added");
+                        setTagPopoverOpen(false);
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to add tag");
+                      }
+                    }}
+                    className="w-full text-left px-2 py-1.5 hover:bg-gray-100 rounded text-sm flex items-center gap-2"
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </button>
+                ))
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
