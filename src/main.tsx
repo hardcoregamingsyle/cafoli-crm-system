@@ -5,7 +5,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import "./index.css";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
