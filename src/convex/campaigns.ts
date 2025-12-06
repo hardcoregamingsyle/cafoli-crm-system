@@ -157,13 +157,20 @@ export const getLeadsForCampaign = query({
     } 
     // Manager/Staff: fetch only assigned leads
     else if (user.role === ROLES.MANAGER || user.role === ROLES.STAFF) {
-      // Fetch all leads and filter by assignedTo
-      const all = await ctx.db.query("leads").collect();
-      leads = all.filter((l) => {
-        // Check if lead is assigned to current user and not marked as not relevant
-        return String(l.assignedTo ?? "") === String(args.currentUserId) && 
-               l.status !== LEAD_STATUS.NOT_RELEVANT;
-      });
+      try {
+        leads = await ctx.db
+          .query("leads")
+          .withIndex("assignedTo", (q) => q.eq("assignedTo", args.currentUserId))
+          .collect();
+      } catch (error) {
+        console.error("Error querying leads by index:", error);
+        // Fallback to full table scan if index fails
+        const all = await ctx.db.query("leads").collect();
+        leads = all.filter((l) => String(l.assignedTo ?? "") === String(args.currentUserId));
+      }
+
+      // Filter out not relevant leads
+      leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {

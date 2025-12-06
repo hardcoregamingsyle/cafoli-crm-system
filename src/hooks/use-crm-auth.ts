@@ -7,41 +7,49 @@ const isValidUserId = (id: any): boolean => {
   return typeof id === 'string' && id.length >= 10 && !id.includes('undefined') && !id.includes('null');
 };
 
-// Helper function to safely parse and validate user from localStorage
-const getSafeUserFromStorage = (key: string): any => {
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) return null;
-    
-    const user = JSON.parse(stored);
-    
-    // Validate that it's an object and has required properties
-    if (!user || typeof user !== 'object' || Array.isArray(user)) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    
-    // Validate that the user ID exists and looks valid
-    if (!isValidUserId(user?._id)) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    
-    return user;
-  } catch (error) {
-    console.error(`Error parsing ${key} from localStorage:`, error);
-    localStorage.removeItem(key);
-    return null;
-  }
-};
-
 // Initialize currentUser from localStorage to prevent redirect loops
 export function useCrmAuth() {
   const [isLoading, setIsLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(() => getSafeUserFromStorage("crmUser"));
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem("crmUser");
+      if (!stored) return null;
+      const user = JSON.parse(stored);
+      
+      // Validate that the user ID exists and looks valid (basic check)
+      if (!isValidUserId(user?._id)) {
+        // Invalid user ID format, clear storage
+        localStorage.removeItem("crmUser");
+        localStorage.removeItem("originalAdmin");
+        return null;
+      }
+      
+      return user;
+    } catch {
+      localStorage.removeItem("crmUser");
+      localStorage.removeItem("originalAdmin");
+      return null;
+    }
+  });
   
   // Track if admin is impersonating another user
-  const [originalAdmin, setOriginalAdmin] = useState<any>(() => getSafeUserFromStorage("originalAdmin"));
+  const [originalAdmin, setOriginalAdmin] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem("originalAdmin");
+      if (!stored) return null;
+      const admin = JSON.parse(stored);
+      
+      // Validate admin ID as well
+      if (!isValidUserId(admin?._id)) {
+        localStorage.removeItem("originalAdmin");
+        return null;
+      }
+      
+      return admin;
+    } catch {
+      return null;
+    }
+  });
   
   const loginMutation = useMutation((api as any).users.loginWithCredentials);
   
@@ -75,18 +83,35 @@ export function useCrmAuth() {
   };
   
   const initializeAuth = () => {
-    const user = getSafeUserFromStorage("crmUser");
-    if (user) {
-      setCurrentUser(user);
-    } else {
-      setCurrentUser(null);
+    // Still keep this for idempotency; now it's already initialized at hook creation
+    const stored = localStorage.getItem("crmUser");
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        // Basic validation only
+        if (!isValidUserId(user?._id)) {
+          logout();
+          return;
+        }
+        setCurrentUser(user);
+      } catch {
+        logout();
+      }
     }
-    
-    const admin = getSafeUserFromStorage("originalAdmin");
-    if (admin) {
-      setOriginalAdmin(admin);
-    } else {
-      setOriginalAdmin(null);
+    const adminStored = localStorage.getItem("originalAdmin");
+    if (adminStored) {
+      try {
+        const admin = JSON.parse(adminStored);
+        if (!isValidUserId(admin?._id)) {
+          localStorage.removeItem("originalAdmin");
+          setOriginalAdmin(null);
+          return;
+        }
+        setOriginalAdmin(admin);
+      } catch {
+        localStorage.removeItem("originalAdmin");
+        setOriginalAdmin(null);
+      }
     }
   };
   

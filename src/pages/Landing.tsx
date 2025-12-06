@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowRight, Users, TrendingUp, Bell, Shield, FileText } from "lucide-react";
 
 export default function Landing() {
@@ -20,24 +20,14 @@ export default function Landing() {
                 Cafoli CRM
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => navigate("/specs")}
-              >
-                <FileText className="w-4 h-4" />
-                Specs
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => navigate("/report")}
-              >
-                <FileText className="w-4 h-4" />
-                Report
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => navigate("/report")}
+            >
+              <FileText className="w-4 h-4" />
+              Report
+            </Button>
           </div>
         </div>
       </header>

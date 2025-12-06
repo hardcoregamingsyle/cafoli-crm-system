@@ -46,22 +46,21 @@ export default function CampaignSelectRecipientsPage() {
   const updateCampaign = useMutation((api as any).campaigns.updateCampaign);
 
   useEffect(() => {
-    if (campaign?.recipientIds && Array.isArray(campaign.recipientIds)) {
+    if (campaign?.recipientIds) {
       setSelectedLeadIds(campaign.recipientIds.map((id: any) => String(id)));
     }
   }, [campaign]);
 
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
-    const leadsList = Array.isArray(availableLeads) ? availableLeads : [];
-    leadsList.forEach((lead: any) => {
+    (availableLeads ?? []).forEach((lead: any) => {
       if (lead?.source) sources.add(lead.source);
     });
     return Array.from(sources).sort();
   }, [availableLeads]);
 
   const filteredLeads = useMemo(() => {
-    const list: Array<any> = Array.isArray(availableLeads) ? availableLeads : [];
+    const list: Array<any> = availableLeads ?? [];
     const q = (search || "").trim().toLowerCase();
 
     return list.filter((lead: any) => {

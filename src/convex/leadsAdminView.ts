@@ -14,7 +14,7 @@ export const getIrrelevantLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
-      .take(200);
+      .take(1000);
 
     // Enrich with user info
     const enrichedLeads = await Promise.all(
@@ -60,7 +60,7 @@ export const getRelevantLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.RELEVANT))
-      .take(200);
+      .take(1000);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
@@ -78,7 +78,7 @@ export const getYetToDecideLeads = query({
     const leads = await ctx.db
       .query("leads")
       .filter((q) => q.eq(q.field("status"), LEAD_STATUS.YET_TO_DECIDE))
-      .take(200);
+      .take(1000);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
@@ -94,8 +94,8 @@ export const getOverdueLeads = query({
     }
 
     const now = Date.now();
-    // Use index and limit to 500 leads for performance
-    const allLeads = await ctx.db.query("leads").order("desc").take(500);
+    // Use index and limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     
     const overdueLeads = allLeads.filter(
       (lead) => lead.nextFollowup && lead.nextFollowup < now
@@ -121,8 +121,8 @@ export const getHotLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 500 leads for performance
-    const allLeads = await ctx.db.query("leads").order("desc").take(500);
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const hotLeads = allLeads.filter((lead) => lead.heat === "hot");
 
     return await enrichLeadsWithUserInfo(ctx, hotLeads);
@@ -138,8 +138,8 @@ export const getColdLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 500 leads for performance
-    const allLeads = await ctx.db.query("leads").order("desc").take(500);
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const coldLeads = allLeads.filter((lead) => lead.heat === "cold");
 
     return await enrichLeadsWithUserInfo(ctx, coldLeads);
@@ -155,8 +155,8 @@ export const getMatureLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 500 leads for performance
-    const allLeads = await ctx.db.query("leads").order("desc").take(500);
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const matureLeads = allLeads.filter((lead) => lead.heat === "matured" || lead.heat === "mature");
 
     return await enrichLeadsWithUserInfo(ctx, matureLeads);
@@ -172,8 +172,8 @@ export const getNoFollowupLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 500 leads for performance
-    const allLeads = await ctx.db.query("leads").order("desc").take(500);
+    // Limit to 1000 leads for performance
+    const allLeads = await ctx.db.query("leads").take(1000);
     const noFollowupLeads = allLeads.filter((lead) => !lead.nextFollowup);
 
     return await enrichLeadsWithUserInfo(ctx, noFollowupLeads);

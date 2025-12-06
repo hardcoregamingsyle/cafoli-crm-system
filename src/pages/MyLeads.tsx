@@ -44,11 +44,10 @@ export default function MyLeadsPage() {
     }
   }, [currentUser, navigate]);
 
-  const leadsData = useQuery(
+  const leads = useQuery(
     (api as any).leads.getMyLeads,
     currentUser ? { currentUserId: currentUser._id, limit: 500 } : "skip"
   );
-  const leads = leadsData?.leads ?? leadsData ?? [];
   const updateLeadStatus = useMutation((api as any).leads.updateLeadStatus);
   const setNextFollowup = useMutation((api as any).leads.setNextFollowup);
   const assignLead = useMutation((api as any).leads.assignLead);
@@ -84,8 +83,7 @@ export default function MyLeadsPage() {
     const timer = setInterval(() => {
       try {
         const now = Date.now();
-        const leadsList = Array.isArray(leads) ? leads : [];
-        for (const lead of leadsList as Array<any>) {
+        for (const lead of (leads ?? []) as Array<any>) {
           const ts = typeof lead?.nextFollowup === "number" ? (lead.nextFollowup as number) : null;
           if (!ts || ts <= now) continue;
           const minutesRemaining = Math.round((ts - now) / 60000);
@@ -126,8 +124,7 @@ export default function MyLeadsPage() {
   // Get unique sources from all leads
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
-    const leadsList = Array.isArray(leads) ? leads : [];
-    leadsList.forEach((lead: any) => {
+    (leads ?? []).forEach((lead: any) => {
       if (lead?.source) {
         sources.add(lead.source);
       }
@@ -137,8 +134,7 @@ export default function MyLeadsPage() {
 
   // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    const leadsList = Array.isArray(leads) ? leads : [];
-    const list: Array<any> = leadsList.filter(
+    const list: Array<any> = (leads ?? []).filter(
       (lead: any) => String(lead?.assignedTo ?? "") === String(currentUser?._id ?? "")
     );
     const q = (search || "").trim().toLowerCase();

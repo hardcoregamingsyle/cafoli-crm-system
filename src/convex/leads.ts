@@ -28,14 +28,12 @@ function normalizePhoneNumber(phone: string): string {
   return "91" + digits;
 }
 
-// Get all leads (Admin and Manager only) - with pagination
+// Get all leads (Admin and Manager only)
 export const getAllLeads = query({
   args: {
     filter: v.optional(v.union(v.literal("all"), v.literal("assigned"), v.literal("unassigned"), v.literal("no_followup"))),
     currentUserId: v.optional(v.union(v.id("users"), v.string())),
     assigneeId: v.optional(v.union(v.id("users"), v.literal("all"), v.literal("unassigned"), v.string())),
-    limit: v.optional(v.number()),
-    offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
@@ -63,16 +61,12 @@ export const getAllLeads = query({
         return [];
       }
 
-      // Set pagination defaults
-      const limit = Math.min(Math.max(args.limit ?? 100, 10), 500);
-      const offset = Math.max(args.offset ?? 0, 0);
-
-      // Build leads list with pagination
+      // Build leads list
       let leads: any[] = [];
       
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads (excluding not relevant)
-        const all = await ctx.db.query("leads").order("desc").take(2000);
+        const all = await ctx.db.query("leads").collect();
         leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
       } else {
         // Admin can see all leads with filtering
@@ -90,7 +84,7 @@ export const getAllLeads = query({
           }
         }
 
-        const all = await ctx.db.query("leads").order("desc").take(2000);
+        const all = await ctx.db.query("leads").collect();
 
         if (normalizedAssignee === "unassigned") {
           leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
@@ -117,13 +111,9 @@ export const getAllLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
 
-      // Apply pagination
-      const paginatedLeads = leads.slice(offset, offset + limit);
-      const totalCount = leads.length;
-
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
-      for (const lead of paginatedLeads) {
+      for (const lead of leads) {
         let assignedUserName: string | null = null;
         if (lead.assignedTo) {
           try {
@@ -136,14 +126,10 @@ export const getAllLeads = query({
         enrichedLeads.push({ ...lead, assignedUserName });
       }
 
-      return {
-        leads: enrichedLeads,
-        totalCount,
-        hasMore: offset + limit < totalCount,
-      };
+      return enrichedLeads;
     } catch (err) {
       console.error("getAllLeads error:", err);
-      return { leads: [], totalCount: 0, hasMore: false };
+      return [];
     }
   },
 });
@@ -212,7 +198,7 @@ export const getMyLeads = query({
         leads = leads.filter((l) => !l.nextFollowup);
       }
 
-      const limit = Math.min(Math.max(args.limit ?? 100, 10), 500);
+      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {
@@ -426,19 +412,15 @@ export const assignLead = mutation({
 
     // Authorization:
     // - Admin/Manager: can assign/unassign freely
-    // - Staff: can assign to themselves or unassign themselves
+    // - Staff: can only unassign themselves (assignedTo must be undefined and lead.assignedTo === currentUser._id)
     const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
-    const isStaffAssigningSelf =
-      currentUser.role !== ROLES.ADMIN &&
-      currentUser.role !== ROLES.MANAGER &&
-      args.assignedTo === currentUser._id;
     const isStaffUnassigningSelf =
       currentUser.role !== ROLES.ADMIN &&
       currentUser.role !== ROLES.MANAGER &&
       args.assignedTo === undefined &&
       String(lead.assignedTo ?? "") === String(currentUser._id);
 
-    if (!isAdminOrManager && !isStaffAssigningSelf && !isStaffUnassigningSelf) {
+    if (!isAdminOrManager && !isStaffUnassigningSelf) {
       throw new Error("Unauthorized");
     }
 
@@ -1550,66 +1532,6 @@ export const deleteLeadsWithPlaceholderEmail = mutation({
       userId: currentUser._id,
       action: "DELETE_PLACEHOLDER_EMAIL_LEADS",
       details: `Admin deleted ${deletedCount} leads with placeholder email (unknown@example.com)`,
-      timestamp: Date.now(),
-    });
-
-    return { deletedCount };
-  },
-});
-
-export const deletePharmavendsLeadsFromPastHour = mutation({
-  args: {
-    currentUserId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.currentUserId);
-    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
-      throw new Error("Unauthorized");
-    }
-
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    
-    // Find all leads from Pharmavends created in the past hour
-    const allLeads = await ctx.db.query("leads").collect();
-    const leadsToDelete = allLeads.filter(
-      (lead) => 
-        lead.source && 
-        lead.source.toLowerCase().includes("pharmavends") &&
-        lead._creationTime >= oneHourAgo
-    );
-
-    let deletedCount = 0;
-
-    for (const lead of leadsToDelete) {
-      // Delete associated WhatsApp messages
-      const whatsappMessages = await ctx.db
-        .query("whatsappMessages")
-        .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
-        .collect();
-      
-      for (const message of whatsappMessages) {
-        await ctx.db.delete(message._id);
-      }
-
-      // Delete associated comments
-      const comments = await ctx.db
-        .query("comments")
-        .withIndex("leadId", (q) => q.eq("leadId", lead._id))
-        .collect();
-      
-      for (const comment of comments) {
-        await ctx.db.delete(comment._id);
-      }
-
-      // Delete the lead
-      await ctx.db.delete(lead._id);
-      deletedCount++;
-    }
-
-    await ctx.db.insert("auditLogs", {
-      userId: currentUser._id,
-      action: "DELETE_PHARMAVENDS_LEADS_PAST_HOUR",
-      details: `Admin deleted ${deletedCount} Pharmavends leads created in the past hour`,
       timestamp: Date.now(),
     });
 

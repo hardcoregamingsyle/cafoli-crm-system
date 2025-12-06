@@ -40,7 +40,6 @@ export default function AdminPage() {
   const adminChangePassword = useMutation((api as any).users.adminChangeUserPassword);
   const loginAsUserMutation = useMutation((api as any).users.loginAsUser);
   const revertUnassignmentsMutation = useMutation((api as any).revertUnassignments.revertOldUnassignments);
-  const deletePharmavendsLeadsMutation = useMutation((api as any).leads.deletePharmavendsLeadsFromPastHour);
   
   const revertButtonUsed = useQuery(
     (api as any).revertUnassignments.hasRevertBeenUsed,
@@ -109,28 +108,6 @@ export default function AdminPage() {
                 {isReverting ? "Reverting..." : "Revert Auto-Unassignments (One-Time)"}
               </Button>
             )}
-            <Button
-              variant="outline"
-              className="bg-orange-50 hover:bg-orange-100 border-orange-300"
-              onClick={async () => {
-                try {
-                  const ok = window.confirm(
-                    "Are you sure you want to delete ALL unassigned Pharmavends leads? This action cannot be undone."
-                  );
-                  if (!ok) return;
-                  const result = await deletePharmavendsLeadsMutation({ currentUserId: currentUser._id });
-                  if (result.deletedCount === 0) {
-                    toast.info("No unassigned Pharmavends leads found. Check the browser console for details.");
-                  } else {
-                    toast.success(`Deleted ${result.deletedCount} unassigned Pharmavends leads`);
-                  }
-                } catch (e: any) {
-                  toast.error(e?.message || "Failed to delete Pharmavends leads");
-                }
-              }}
-            >
-              Delete Unassigned Pharmavends Leads
-            </Button>
             <Button
               variant="outline"
               onClick={async () => {
