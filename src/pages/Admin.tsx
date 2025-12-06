@@ -119,7 +119,11 @@ export default function AdminPage() {
                   );
                   if (!ok) return;
                   const result = await deletePharmavendsLeadsMutation({ currentUserId: currentUser._id });
-                  toast.success(`Deleted ${result.deletedCount} Pharmavends leads from the past hour`);
+                  if (result.deletedCount === 0) {
+                    toast.info("No Pharmavends leads found from the past hour. Check the browser console for details.");
+                  } else {
+                    toast.success(`Deleted ${result.deletedCount} Pharmavends leads from the past hour`);
+                  }
                 } catch (e: any) {
                   toast.error(e?.message || "Failed to delete Pharmavends leads");
                 }
