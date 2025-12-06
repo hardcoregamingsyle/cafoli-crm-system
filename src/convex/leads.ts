@@ -150,13 +150,14 @@ export const getMyLeads = query({
     try {
       // Validate currentUserId exists
       if (!args.currentUserId || args.currentUserId === "undefined" || args.currentUserId === "null") {
+        console.log("getMyLeads: No valid currentUserId provided");
         return [];
       }
 
       // Validate it's a proper ID format using normalizeId
       const normalizedUserId = ctx.db.normalizeId("users", args.currentUserId);
       if (!normalizedUserId) {
-        // If it's not a valid ID, we can't fetch the user
+        console.log("getMyLeads: Failed to normalize user ID:", args.currentUserId);
         return [];
       }
 
@@ -169,11 +170,15 @@ export const getMyLeads = query({
       }
       
       if (!currentUser) {
+        console.log("getMyLeads: User not found for ID:", normalizedUserId);
         return [];
       }
 
+      console.log("getMyLeads: User found:", currentUser.name, "Role:", currentUser.role);
+
       // Admin users should not use this query
       if (currentUser.role === ROLES.ADMIN) {
+        console.log("getMyLeads: Admin users should use getAllLeads instead");
         return [];
       }
 
@@ -183,12 +188,14 @@ export const getMyLeads = query({
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
           .collect();
+        console.log("getMyLeads: Found", leads.length, "leads via index");
       } catch (error) {
         console.error("Error querying leads by index:", error);
         // Fallback to full table scan if index fails
         try {
           const all = await ctx.db.query("leads").collect();
           leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
+          console.log("getMyLeads: Found", leads.length, "leads via fallback scan");
         } catch (fallbackError) {
           console.error("Fallback query also failed:", fallbackError);
           return [];
@@ -196,11 +203,15 @@ export const getMyLeads = query({
       }
 
       // Filter out not relevant leads
+      const beforeFilter = leads.length;
       leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+      console.log("getMyLeads: After filtering not relevant:", leads.length, "(removed", beforeFilter - leads.length, ")");
 
       // Apply no_followup filter if specified
       if (args.filter === "no_followup") {
+        const beforeNoFollowup = leads.length;
         leads = leads.filter((l) => !l.nextFollowup);
+        console.log("getMyLeads: After no_followup filter:", leads.length, "(removed", beforeNoFollowup - leads.length, ")");
       }
 
       const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
@@ -212,7 +223,9 @@ export const getMyLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
       
-      return leads.slice(0, limit);
+      const result = leads.slice(0, limit);
+      console.log("getMyLeads: Returning", result.length, "leads (limit:", limit, ")");
+      return result;
     } catch (err) {
       console.error("getMyLeads outer error:", err);
       return [];
