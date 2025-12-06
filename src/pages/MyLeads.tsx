@@ -125,7 +125,8 @@ export default function MyLeadsPage() {
   // Get unique sources from all leads
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
-    (leads ?? []).forEach((lead: any) => {
+    const leadsList = Array.isArray(leads) ? leads : [];
+    leadsList.forEach((lead: any) => {
       if (lead?.source) {
         sources.add(lead.source);
       }
@@ -135,7 +136,8 @@ export default function MyLeadsPage() {
 
   // Enhanced filtering logic
   const filteredLeads = useMemo(() => {
-    const list: Array<any> = (leads ?? []).filter(
+    const leadsList = Array.isArray(leads) ? leads : [];
+    const list: Array<any> = leadsList.filter(
       (lead: any) => String(lead?.assignedTo ?? "") === String(currentUser?._id ?? "")
     );
     const q = (search || "").trim().toLowerCase();

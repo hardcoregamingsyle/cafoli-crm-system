@@ -53,15 +53,15 @@ export default function CampaignSelectRecipientsPage() {
 
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
-    const leads = Array.isArray(availableLeads) ? availableLeads : [];
-    leads.forEach((lead: any) => {
+    const leadsList = Array.isArray(availableLeads) ? availableLeads : [];
+    leadsList.forEach((lead: any) => {
       if (lead?.source) sources.add(lead.source);
     });
     return Array.from(sources).sort();
   }, [availableLeads]);
 
   const filteredLeads = useMemo(() => {
-    const list: Array<any> = availableLeads ?? [];
+    const list: Array<any> = Array.isArray(availableLeads) ? availableLeads : [];
     const q = (search || "").trim().toLowerCase();
 
     return list.filter((lead: any) => {
