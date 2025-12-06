@@ -62,13 +62,17 @@ export const getAllLeads = query({
         return [];
       }
 
-      // Build leads list
+      // Determine fetch limit (default 500, max 1000)
+      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
       let leads: any[] = [];
       
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads (excluding not relevant)
-        const all = await ctx.db.query("leads").collect();
-        leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
+        // Optimization: Fetch latest leads and filter. 
+        // Note: We can't easily index "unassigned" efficiently without a specific index, 
+        // but taking latest 1000 and filtering is better than full scan.
+        const latest = await ctx.db.query("leads").order("desc").take(2000);
+        leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
       } else {
         // Admin can see all leads with filtering
         const rawAssignee = args.assigneeId;
@@ -85,22 +89,39 @@ export const getAllLeads = query({
           }
         }
 
-        const all = await ctx.db.query("leads").collect();
-
-        if (normalizedAssignee === "unassigned") {
-          leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
-        } else if (normalizedAssignee && normalizedAssignee !== "all") {
-          leads = all.filter((l) => String(l.assignedTo ?? "") === String(normalizedAssignee) && l.status !== LEAD_STATUS.NOT_RELEVANT);
+        // Optimization: Use indexes where possible
+        if (normalizedAssignee && normalizedAssignee !== "all" && normalizedAssignee !== "unassigned") {
+          // Filter by specific assignee using index
+          leads = await ctx.db
+            .query("leads")
+            .withIndex("assignedTo", (q) => q.eq("assignedTo", normalizedAssignee as any))
+            .order("desc")
+            .take(limit);
+            
+          // Apply status filter in memory
+          leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+        } else if (args.filter === "assigned") {
+           // Use assignedTo index to get any assigned leads
+           // Note: This index only contains assigned leads
+           leads = await ctx.db
+             .query("leads")
+             .withIndex("assignedTo")
+             .order("desc")
+             .take(limit);
+           leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
         } else {
-          // Apply general filter
-          if (args.filter === "assigned") {
-            leads = all.filter((l) => l.assignedTo !== undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
+          // For "all", "unassigned", or other filters, fetch latest and filter
+          // This avoids full table scan of 7000+ rows
+          const latest = await ctx.db.query("leads").order("desc").take(2000);
+          
+          if (normalizedAssignee === "unassigned") {
+            leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else if (args.filter === "unassigned") {
-            leads = all.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
+            leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else if (args.filter === "no_followup") {
-            leads = all.filter((l) => !l.nextFollowup && l.status !== LEAD_STATUS.NOT_RELEVANT);
+            leads = latest.filter((l) => !l.nextFollowup && l.status !== LEAD_STATUS.NOT_RELEVANT);
           } else {
-            leads = all.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+            leads = latest.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
           }
         }
       }
@@ -112,8 +133,7 @@ export const getAllLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
 
-      // Apply limit to prevent reading too many bytes - reduced to 100 for safety
-      const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
+      // Apply final limit
       const limitedLeads = leads.slice(0, limit);
 
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
@@ -174,32 +194,25 @@ export const getMyLeads = query({
         return [];
       }
 
-      console.log("getMyLeads: User found:", currentUser.name, "Role:", currentUser.role);
-
-      // Admin users should not use this query
-      if (currentUser.role === ROLES.ADMIN) {
-        console.log("getMyLeads: Admin users should use getAllLeads instead");
-        return [];
-      }
-
+      // Removed Admin block: Admins can now see their assigned leads
+      
+      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
       let leads: any[] = [];
+      
       try {
+        // Optimization: Use index to fetch only assigned leads for this user
+        // Use .take() to avoid fetching all 7000 leads if many are assigned
+        // Order by desc (creation time) to get newest leads first
         leads = await ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
-          .collect();
+          .order("desc")
+          .take(limit * 2); // Fetch more than limit to account for filtering
+          
         console.log("getMyLeads: Found", leads.length, "leads via index");
       } catch (error) {
         console.error("Error querying leads by index:", error);
-        // Fallback to full table scan if index fails
-        try {
-          const all = await ctx.db.query("leads").collect();
-          leads = all.filter((l) => String(l.assignedTo ?? "") === String(currentUser._id));
-          console.log("getMyLeads: Found", leads.length, "leads via fallback scan");
-        } catch (fallbackError) {
-          console.error("Fallback query also failed:", fallbackError);
-          return [];
-        }
+        return [];
       }
 
       // Filter out not relevant leads
@@ -213,8 +226,6 @@ export const getMyLeads = query({
         leads = leads.filter((l) => !l.nextFollowup);
         console.log("getMyLeads: After no_followup filter:", leads.length, "(removed", beforeNoFollowup - leads.length, ")");
       }
-
-      const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {
