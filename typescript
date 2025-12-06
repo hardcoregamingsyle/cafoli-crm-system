@@ -1,4 +1,6 @@
-await ctx.runAction(api.rcsSms.sendTextMessage, {
-  to: lead.primaryPhone, // or lead.secondaryPhone
-  message: "Your message" // This is ignored for template-based messages
-});
+// ... imports ...
+export default function AllLeadsPage() {
+  // ... hooks ...
+  
+  // ... clean up the repeated blocks ...
+}

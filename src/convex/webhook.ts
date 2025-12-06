@@ -422,3 +422,149 @@ export const handleWhatsAppReaction = internalMutation({
     }
   },
 });
+
+// Generic mutation to create a lead from an external source (Indiamart, etc.)
+export const createLeadFromSource = internalMutation({
+  args: {
+    name: v.string(),
+    subject: v.string(),
+    message: v.string(),
+    mobileNo: v.string(),
+    email: v.string(),
+    altMobileNo: v.optional(v.string()),
+    altEmail: v.optional(v.string()),
+    state: v.string(),
+    source: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Normalize phone numbers
+    const mobile = normalizePhoneNumber(args.mobileNo || "");
+    const altMobile = args.altMobileNo ? normalizePhoneNumber(args.altMobileNo) : undefined;
+
+    // Normalize and ignore placeholder email for dedup
+    const rawEmail = (args.email || "").trim().toLowerCase();
+    const emailForDedup = rawEmail && rawEmail !== "unknown@example.com" ? rawEmail : "";
+
+    // Dedup by mobile or email (skip placeholder/empty email)
+    const byMobile = mobile
+      ? await ctx.db
+          .query("leads")
+          .withIndex("mobileNo", (q: any) => q.eq("mobileNo", mobile))
+          .unique()
+      : null;
+
+    const existing =
+      byMobile ||
+      (emailForDedup
+        ? await ctx.db
+            .query("leads")
+            .withIndex("email", (q: any) => q.eq("email", emailForDedup))
+            .unique()
+        : null);
+
+    // Check if existing lead is marked as not relevant - skip if so
+    if (existing && existing.status === "not_relevant") {
+      return false;
+    }
+
+    if (existing) {
+      // Club fields into existing with concatenation
+      const patch: Record<string, any> = {};
+      
+      if (!existing.name && args.name) patch.name = args.name;
+      
+      // Concatenate subject if different
+      if (args.subject && existing.subject !== args.subject) {
+        patch.subject = existing.subject ? `${existing.subject} & ${args.subject}` : args.subject;
+      }
+      
+      // Concatenate message if different
+      if (args.message && existing.message !== args.message) {
+        patch.message = existing.message ? `${existing.message} & ${args.message}` : args.message;
+      }
+      
+      if (!existing.altEmail && args.altEmail) patch.altEmail = args.altEmail;
+      if (!existing.altMobileNo && altMobile) patch.altMobileNo = altMobile;
+      if (!existing.state && args.state) patch.state = args.state;
+      if (!existing.source && args.source) patch.source = args.source;
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+
+      // Add comment about duplicate lead posting
+      if (Object.keys(patch).length > 0) {
+        const loggingUserId = await ensureLoggingUserId(ctx);
+        await ctx.db.insert("comments", {
+          leadId: existing._id,
+          userId: loggingUserId,
+          content: "The Lead was Posted again",
+          timestamp: Date.now(),
+        });
+      }
+
+      // Notify assignees
+      if (existing.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId: existing.assignedTo,
+          title: "Duplicate Lead Clubbed",
+          message: `A lead from ${args.source} was clubbed into your assigned lead.`,
+          read: false,
+          type: "lead_assigned",
+          relatedLeadId: existing._id,
+        });
+      }
+
+      await ctx.db.insert("auditLogs", {
+        userId: await ensureLoggingUserId(ctx),
+        action: "CLUB_DUPLICATE_LEAD",
+        details: `${args.source} clubbed into existing lead ${existing._id}`,
+        timestamp: Date.now(),
+        relatedLeadId: existing._id,
+      });
+      return false;
+    }
+
+    // Create new lead
+    const leadId = await ctx.db.insert("leads", {
+      source: args.source,
+      name: args.name,
+      subject: args.subject,
+      email: rawEmail,
+      mobileNo: mobile,
+      message: args.message,
+      altEmail: args.altEmail,
+      altMobileNo: altMobile,
+      state: args.state,
+      status: "yet_to_decide",
+      heat: "cold",
+      lastActivityTime: Date.now(),
+      unreadCount: 0,
+    });
+
+    // Notify Admins
+    const allUsers = await ctx.db.query("users").collect();
+    const admins = allUsers.filter((u: any) => u.role === "admin");
+    
+    for (const admin of admins) {
+      await ctx.db.insert("notifications", {
+        userId: admin._id,
+        title: "New Lead Created",
+        message: `A new lead from ${args.source} has been created.`,
+        read: false,
+        type: "lead_created",
+        relatedLeadId: leadId,
+      });
+    }
+
+    await ctx.db.insert("auditLogs", {
+      userId: await ensureLoggingUserId(ctx),
+      action: "CREATE_LEAD",
+      details: `${args.source} created new lead ${leadId}`,
+      timestamp: Date.now(),
+      relatedLeadId: leadId,
+    });
+
+    return true;
+  },
+});
