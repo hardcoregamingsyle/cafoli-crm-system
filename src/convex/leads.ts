@@ -412,15 +412,19 @@ export const assignLead = mutation({
 
     // Authorization:
     // - Admin/Manager: can assign/unassign freely
-    // - Staff: can only unassign themselves (assignedTo must be undefined and lead.assignedTo === currentUser._id)
+    // - Staff: can assign to themselves or unassign themselves
     const isAdminOrManager = currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.MANAGER;
+    const isStaffAssigningSelf =
+      currentUser.role !== ROLES.ADMIN &&
+      currentUser.role !== ROLES.MANAGER &&
+      args.assignedTo === currentUser._id;
     const isStaffUnassigningSelf =
       currentUser.role !== ROLES.ADMIN &&
       currentUser.role !== ROLES.MANAGER &&
       args.assignedTo === undefined &&
       String(lead.assignedTo ?? "") === String(currentUser._id);
 
-    if (!isAdminOrManager && !isStaffUnassigningSelf) {
+    if (!isAdminOrManager && !isStaffAssigningSelf && !isStaffUnassigningSelf) {
       throw new Error("Unauthorized");
     }
 
