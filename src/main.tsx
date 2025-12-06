@@ -27,6 +27,7 @@ import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
 import AllLeadsAdminViewPage from "@/pages/AllLeadsAdminView.tsx";
 import ComposeEmailPage from "@/pages/ComposeEmail.tsx";
 import CampaignWorkflowEditorPage from "@/pages/CampaignWorkflowEditor.tsx";
+import SpecsPage from "@/pages/Specs.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -66,6 +67,7 @@ createRoot(document.getElementById("root")!).render(
           <RouteSyncer />
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/specs" element={<SpecsPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/assigned" element={<MyLeadsPage />} />
