@@ -40,6 +40,7 @@ export default function AdminPage() {
   const adminChangePassword = useMutation((api as any).users.adminChangeUserPassword);
   const loginAsUserMutation = useMutation((api as any).users.loginAsUser);
   const revertUnassignmentsMutation = useMutation((api as any).revertUnassignments.revertOldUnassignments);
+  const deletePharmavendsLeadsMutation = useMutation((api as any).leads.deletePharmavendsLeadsFromPastHour);
   
   const revertButtonUsed = useQuery(
     (api as any).revertUnassignments.hasRevertBeenUsed,
@@ -108,6 +109,24 @@ export default function AdminPage() {
                 {isReverting ? "Reverting..." : "Revert Auto-Unassignments (One-Time)"}
               </Button>
             )}
+            <Button
+              variant="outline"
+              className="bg-orange-50 hover:bg-orange-100 border-orange-300"
+              onClick={async () => {
+                try {
+                  const ok = window.confirm(
+                    "Are you sure you want to delete ALL Pharmavends leads created in the past hour? This action cannot be undone."
+                  );
+                  if (!ok) return;
+                  const result = await deletePharmavendsLeadsMutation({ currentUserId: currentUser._id });
+                  toast.success(`Deleted ${result.deletedCount} Pharmavends leads from the past hour`);
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to delete Pharmavends leads");
+                }
+              }}
+            >
+              Delete Pharmavends Leads (Past Hour)
+            </Button>
             <Button
               variant="outline"
               onClick={async () => {
