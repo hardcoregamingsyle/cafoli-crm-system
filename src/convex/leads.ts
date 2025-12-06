@@ -112,8 +112,8 @@ export const getAllLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
 
-      // Apply limit to prevent reading too many bytes
-      const limit = Math.min(Math.max(args.limit ?? 500, 1), 2000);
+      // Apply limit to prevent reading too many bytes - reduced to 100 for safety
+      const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
       const limitedLeads = leads.slice(0, limit);
 
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
@@ -203,7 +203,7 @@ export const getMyLeads = query({
         leads = leads.filter((l) => !l.nextFollowup);
       }
 
-      const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
+      const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
       leads.sort((a, b) => {
