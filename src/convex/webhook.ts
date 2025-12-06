@@ -67,6 +67,86 @@ export const ensureLoggingUser = internalMutation({
   },
 });
 
+// Add the missing importFromWebhookLogs mutation
+export const importFromWebhookLogs = internalMutation({
+  args: {
+    currentUserId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Verify user is admin
+    const user = await ctx.db.get(args.currentUserId);
+    if (!user || user.role !== "admin") {
+      throw new Error("Unauthorized: Admin access required");
+    }
+
+    const maxLimit = Math.min(args.limit || 500, 1000);
+    
+    // Get webhook logs
+    const logs = await ctx.db
+      .query("auditLogs")
+      .withIndex("by_action", (q) => q.eq("action", "WEBHOOK_LOG"))
+      .order("desc")
+      .take(maxLimit);
+
+    let created = 0;
+    let clubbed = 0;
+    let skipped = 0;
+
+    for (const log of logs) {
+      try {
+        const details = JSON.parse(log.details || "{}");
+        const payload = details.payload;
+
+        if (!payload) {
+          skipped++;
+          continue;
+        }
+
+        // Try to identify the source and process accordingly
+        if (payload.type === "INDIAMART_WEBHOOK" || payload.SENDER_NAME || payload.RESPONSE?.SENDER_NAME) {
+          const response = payload.RESPONSE || payload.data || payload;
+          const name = response.SENDER_NAME || "Unknown";
+          const subject = response.SUBJECT || response.QUERY_SUBJECT || "Lead from Indiamart";
+          const message = response.QUERY_MESSAGE || response.MESSAGE || "";
+          const mobileNo = response.SENDER_MOBILE || response.MOBILE || "";
+          const email = response.SENDER_EMAIL || response.EMAIL || "unknown@example.com";
+          const state = response.SENDER_STATE || response.STATE || "Unknown";
+
+          const result = await ctx.db.insert("leads", {
+            name,
+            subject,
+            message,
+            mobileNo: normalizePhoneNumber(mobileNo),
+            email,
+            state,
+            source: "indiamart",
+            status: "yet_to_decide",
+            heat: "cold",
+            lastActivityTime: Date.now(),
+          });
+
+          if (result) created++;
+          else clubbed++;
+        } else {
+          skipped++;
+        }
+      } catch (err) {
+        console.error("Error processing webhook log:", err);
+        skipped++;
+      }
+    }
+
+    return {
+      success: true,
+      processed: logs.length,
+      created,
+      clubbed,
+      skipped,
+    };
+  },
+});
+
 export const insertLog = internalMutation({
   args: {
     payload: v.any(),
