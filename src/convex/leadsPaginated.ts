@@ -1,5 +1,5 @@
 import { query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { LEAD_STATUS, ROLES } from "./schema";
 
@@ -17,25 +17,37 @@ export const getAllLeadsPaginated = query({
   handler: async (ctx, args) => {
     try {
       // Auth check
-      if (!args.currentUserId) return { page: [], isDone: true, continueCursor: "" };
+      if (!args.currentUserId) {
+        console.log("getAllLeadsPaginated: No currentUserId provided");
+        return { page: [], isDone: true, continueCursor: "" };
+      }
       
       // Normalize ID
       let userId;
       try {
           userId = ctx.db.normalizeId("users", args.currentUserId);
-      } catch { return { page: [], isDone: true, continueCursor: "" }; }
+      } catch (e) { 
+        console.error("getAllLeadsPaginated: Invalid currentUserId format", args.currentUserId);
+        return { page: [], isDone: true, continueCursor: "" }; 
+      }
       
-      if (!userId) return { page: [], isDone: true, continueCursor: "" };
+      if (!userId) {
+        console.log("getAllLeadsPaginated: Normalized userId is null", args.currentUserId);
+        return { page: [], isDone: true, continueCursor: "" };
+      }
 
       const user = await ctx.db.get(userId);
-      if (!user || (user.role !== ROLES.ADMIN && user.role !== ROLES.MANAGER)) {
+      if (!user) {
+        console.log("getAllLeadsPaginated: User not found in db", userId);
+        return { page: [], isDone: true, continueCursor: "" };
+      }
+
+      if (user.role !== ROLES.ADMIN && user.role !== ROLES.MANAGER) {
+          console.log("getAllLeadsPaginated: User is not ADMIN or MANAGER", user.role);
           return { page: [], isDone: true, continueCursor: "" };
       }
 
       // Use index for sorting by lastActivityTime desc
-      // Note: This excludes leads without lastActivityTime. 
-      // If we want ALL leads, we should use creation time or ensure lastActivityTime is set.
-      // For now, we keep it as is but log if we suspect issues.
       let q: any = ctx.db.query("leads").withIndex("by_lastActivityTime").order("desc");
 
       // Apply filters
@@ -125,10 +137,8 @@ export const getAllLeadsPaginated = query({
       return { ...results, page: enrichedPage };
     } catch (error: any) {
       console.error("Error in getAllLeadsPaginated:", error);
-      // Return empty page on error to prevent UI crash, or rethrow if critical
-      // But for "Server Error" in UI, it's better to log and maybe return empty with done
-      // However, throwing allows the UI to see the error.
-      throw new Error(`Failed to fetch leads: ${error.message}`);
+      // Use ConvexError to pass the message to the client
+      throw new ConvexError(`Failed to fetch leads: ${error.message}`);
     }
   }
 });
@@ -153,15 +163,6 @@ export const getMyLeadsPaginated = query({
       const user = await ctx.db.get(userId);
       if (!user) return { page: [], isDone: true, continueCursor: "" };
 
-      // Use index for assignedTo
-      // We want to sort by lastActivityTime.
-      // But we can't use two indexes (assignedTo AND lastActivityTime).
-      // We have .index("by_assignedTo_and_assignedDate", ["assignedTo", "assignedDate"])
-      // We don't have assignedTo + lastActivityTime.
-      // So we must use assignedTo index and filter/sort in memory? No, paginate doesn't support in-memory sort.
-      // We must use the index that gives us the order we want, and filter.
-      // If we use "by_lastActivityTime", we can filter by assignedTo.
-      
       let q: any = ctx.db.query("leads").withIndex("by_lastActivityTime").order("desc");
       q = q.filter((q: any) => q.eq(q.field("assignedTo"), userId));
 
@@ -177,7 +178,7 @@ export const getMyLeadsPaginated = query({
       return results;
     } catch (error: any) {
       console.error("Error in getMyLeadsPaginated:", error);
-      throw new Error(`Failed to fetch my leads: ${error.message}`);
+      throw new ConvexError(`Failed to fetch my leads: ${error.message}`);
     }
   }
 });
