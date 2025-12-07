@@ -1,12 +1,11 @@
 import { internalAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 export const runBatchedAssignment = internalAction({
   args: {},
   handler: async (ctx) => {
-    // Find an admin user
-    const users = await ctx.runQuery(api.users.getAllUsers, {});
-    const adminUser = users.find((u: any) => u.role === "admin");
+    // Find an admin user using internal query to bypass auth checks
+    const adminUser = await ctx.runQuery(internal.users.getAnyAdminUser, {});
     
     if (!adminUser) {
       throw new Error("No admin user found");
