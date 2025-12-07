@@ -1,1 +1,2 @@
-npx convex run assignSerialNumbersScript:runBatchedAssignment
+   npx convex run assignSerialNumbersScript:runBatchedAssignment
+   
