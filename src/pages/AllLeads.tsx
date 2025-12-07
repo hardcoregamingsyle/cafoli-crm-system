@@ -101,7 +101,7 @@ export default function AllLeadsPage() {
             // We'll handle this in the args construction below.
           }
         : "skip",
-      { initialNumItems: 50 }
+      { initialNumItems: 500 }
     );
     
     users = useQuery(
@@ -1359,7 +1359,7 @@ export default function AllLeadsPage() {
               <div className="mt-6 flex justify-center">
                 <Button 
                   variant="outline" 
-                  onClick={() => loadMore(50)}
+                  onClick={() => loadMore(500)}
                   className="w-full sm:w-auto"
                 >
                   Load More Leads
