@@ -991,4 +991,62 @@ http.route({
   }),
 });
 
+// New: GET /getleads?leadcount=N endpoint
+http.route({
+  path: "/getleads",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return corsNoContent();
+  }),
+});
+
+http.route({
+  path: "/getleads",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const leadCountParam = url.searchParams.get("leadcount");
+      
+      if (!leadCountParam) {
+        return corsJson({ 
+          ok: false, 
+          error: "Missing 'leadcount' parameter" 
+        }, 400);
+      }
+      
+      const leadCount = Number(leadCountParam);
+      
+      if (isNaN(leadCount) || leadCount < 1) {
+        return corsJson({ 
+          ok: false, 
+          error: "Invalid 'leadcount' parameter. Must be a positive number." 
+        }, 400);
+      }
+      
+      // Query the lead by serial number
+      const lead = await ctx.runQuery(api.leads.getLeadBySerialNo, { 
+        serialNo: leadCount 
+      });
+      
+      if (!lead) {
+        return corsJson({ 
+          ok: false, 
+          error: `Lead with number ${leadCount} not found` 
+        }, 404);
+      }
+      
+      return corsJson({ 
+        ok: true, 
+        lead 
+      }, 200);
+    } catch (e: any) {
+      return corsJson({ 
+        ok: false, 
+        error: e.message || "Failed to retrieve lead" 
+      }, 500);
+    }
+  }),
+});
+
 export default http;

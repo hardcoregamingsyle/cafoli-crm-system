@@ -362,8 +362,14 @@ export const createLead = mutation({
     }
 
     // No duplicate: create new lead with normalized phone
+    // Get next serial number
+    const allLeads = await ctx.db.query("leads").collect();
+    const maxSerial = allLeads.length === 0 ? 0 : Math.max(...allLeads.map((l: any) => l.serialNo || 0));
+    const nextSerial = maxSerial + 1;
+    
     const leadId = await ctx.db.insert("leads", {
       ...args,
+      serialNo: nextSerial,
       mobileNo: normalizedMobile,
       altMobileNo: normalizedAltMobile,
       status: LEAD_STATUS.YET_TO_DECIDE,
@@ -792,8 +798,14 @@ export const bulkCreateLeads = mutation({
         });
       } else {
         // Create fresh lead with normalized phone
+        // Get next serial number
+        const allLeads = await ctx.db.query("leads").collect();
+        const maxSerial = allLeads.length === 0 ? 0 : Math.max(...allLeads.map((l: any) => l.serialNo || 0));
+        const nextSerial = maxSerial + 1;
+        
         const leadId = await ctx.db.insert("leads", {
           ...incoming,
+          serialNo: nextSerial,
           mobileNo: normalizedMobile,
           altMobileNo: normalizedAltMobile,
           state: finalState,
@@ -1571,5 +1583,60 @@ export const deleteLeadsWithPlaceholderEmail = mutation({
     });
 
     return { deletedCount };
+  },
+});
+
+export const assignSequentialNumbers = mutation({
+  args: {
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    const allLeads = await ctx.db.query("leads").collect();
+    
+    // Sort by creation time to maintain consistent ordering
+    allLeads.sort((a, b) => a._creationTime - b._creationTime);
+    
+    let counter = 1;
+    for (const lead of allLeads) {
+      if (!lead.serialNo) {
+        await ctx.db.patch(lead._id, { serialNo: counter });
+      }
+      counter++;
+    }
+    
+    return { success: true, totalLeads: allLeads.length };
+  },
+});
+
+export const getLeadBySerialNo = query({
+  args: { serialNo: v.number() },
+  handler: async (ctx, args) => {
+    const lead = await ctx.db
+      .query("leads")
+      .filter((q) => q.eq(q.field("serialNo"), args.serialNo))
+      .first();
+    
+    if (!lead) {
+      return null;
+    }
+    
+    // Enrich with assignee name if assigned
+    let assignedUserName = null;
+    if (lead.assignedTo) {
+      const user = await ctx.db.get(lead.assignedTo);
+      if (user) {
+        assignedUserName = user.name || user.username || "Unknown";
+      }
+    }
+    
+    return {
+      ...lead,
+      assignedUserName,
+    };
   },
 });

@@ -226,9 +226,15 @@ export const processLeadRequest = mutation({
         throw new Error(`Only ${available.length} leads available, but ${request.numberOfLeads} requested`);
       }
 
-      // Convert masterdata to leads and assign to requester
+      // Create a new lead from the approved masterdata
+      // Get next serial number
+      const allLeads = await ctx.db.query("leads").collect();
+      const maxSerial = allLeads.length === 0 ? 0 : Math.max(...allLeads.map((l: any) => l.serialNo || 0));
+      const nextSerial = maxSerial + 1;
+      
       for (const masterLead of available) {
         await ctx.db.insert("leads", {
+          serialNo: nextSerial,
           name: masterLead.name,
           subject: masterLead.subject,
           message: masterLead.message,
@@ -243,6 +249,8 @@ export const processLeadRequest = mutation({
           pincode: masterLead.pincode,
           agencyName: masterLead.agencyName,
           status: "yet_to_decide",
+          heat: "cold",
+          lastActivityTime: Date.now(),
           assignedTo: request.requestedBy,
         });
 

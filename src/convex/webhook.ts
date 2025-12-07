@@ -113,7 +113,9 @@ export const importFromWebhookLogs = internalMutation({
           const email = response.SENDER_EMAIL || response.EMAIL || "unknown@example.com";
           const state = response.SENDER_STATE || response.STATE || "Unknown";
 
+          const nextSerial = await getNextSerialNumber(ctx);
           const result = await ctx.db.insert("leads", {
+            serialNo: nextSerial,
             name,
             subject,
             message,
@@ -337,6 +339,15 @@ export const fetchPharmavendsLeads = internalAction({
   },
 });
 
+// Helper to get next serial number
+async function getNextSerialNumber(ctx: any): Promise<number> {
+  const allLeads = await ctx.db.query("leads").collect();
+  if (allLeads.length === 0) return 1;
+  
+  const maxSerial = Math.max(...allLeads.map((l: any) => l.serialNo || 0));
+  return maxSerial + 1;
+}
+
 // Create a lead from Google Script data with new column structure
 export const createLeadFromGoogleScript = internalMutation({
   args: {
@@ -491,8 +502,9 @@ export const createLeadFromGoogleScript = internalMutation({
     }
 
     // Create new lead
+    const nextSerial = await getNextSerialNumber(ctx);
     const leadId = await ctx.db.insert("leads", {
-      serialNo: args.serialNo,
+      serialNo: args.serialNo || nextSerial,
       source: args.source || "Google Script",
       name: args.name,
       subject: args.subject,
@@ -663,7 +675,9 @@ export const createLeadFromPharmavends = internalMutation({
     }
 
     // Create new lead
+    const nextSerial = await getNextSerialNumber(ctx);
     const leadId = await ctx.db.insert("leads", {
+      serialNo: nextSerial,
       source: "Pharmavends",
       name: args.name,
       subject: subject,
@@ -761,7 +775,9 @@ export const storeWhatsAppMessage = internalMutation({
       return { success: true, leadId: existingLead._id, created: false };
     } else {
       // Create new lead from WhatsApp message
+      const nextSerial = await getNextSerialNumber(ctx);
       const leadId = await ctx.db.insert("leads", {
+        serialNo: nextSerial,
         name: normalizedPhone,
         email: `${normalizedPhone}@whatsapp.com`,
         mobileNo: normalizedPhone,
@@ -905,7 +921,9 @@ export const createLeadFromSource = internalMutation({
     }
 
     // Create new lead
+    const nextSerial = await getNextSerialNumber(ctx);
     const leadId = await ctx.db.insert("leads", {
+      serialNo: nextSerial,
       source: args.source,
       name: args.name,
       subject: args.subject,
