@@ -2,7 +2,7 @@ import { query, mutation, internalAction, internalQuery, internalMutation } from
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
-import { internal, api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 // Add phone normalization helper at the top after imports
 function normalizePhoneNumber(phone: string): string {
@@ -1694,19 +1694,8 @@ export const ensureSerialNumbersAssigned = internalAction({
         return { success: true, message: "Serial numbers already assigned", skipped: true };
       }
       
-      // Get an admin user to run the mutation
-      const allUsers = await ctx.runQuery(api.users.getAllUsers, {});
-      const adminUser = allUsers.find((u: any) => u.role === ROLES.ADMIN);
-      
-      if (!adminUser) {
-        console.error("No admin user found to assign serial numbers");
-        return { success: false, message: "No admin user found" };
-      }
-      
-      // Run the assignment via public API (actions can call public mutations)
-      const result: any = await ctx.runMutation(api.leads.assignSequentialNumbers, {
-        currentUserId: adminUser._id,
-      });
+      // Run the internal mutation directly (no user ID needed)
+      const result: any = await ctx.runMutation(internal.leads.assignSequentialNumbersInternal, {});
       
       // Set the flag to prevent future runs
       await ctx.runMutation(internal.leads.setSerialNumberFlag, {});
@@ -1749,5 +1738,29 @@ export const setSerialNumberFlag = internalMutation({
         usedAt: Date.now(),
       });
     }
+  },
+});
+
+// Add this new internal mutation for direct serial number assignment
+export const assignSequentialNumbersInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const allLeads = await ctx.db.query("leads").collect();
+    
+    // Sort by creation time to maintain consistent ordering
+    allLeads.sort((a, b) => a._creationTime - b._creationTime);
+    
+    let counter = 1;
+    let assigned = 0;
+    for (const lead of allLeads) {
+      // Always assign/reassign to ensure sequential ordering
+      await ctx.db.patch(lead._id, { serialNo: counter });
+      assigned++;
+      counter++;
+    }
+    
+    console.log(`Assigned sequential numbers to ${assigned} leads`);
+    
+    return { success: true, totalLeads: allLeads.length, assigned };
   },
 });
