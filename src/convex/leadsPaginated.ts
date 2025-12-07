@@ -1,5 +1,5 @@
 import { query } from "./_generated/server";
-import { v, ConvexError } from "convex/values";
+import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { LEAD_STATUS, ROLES } from "./schema";
 
@@ -137,8 +137,8 @@ export const getAllLeadsPaginated = query({
       return { ...results, page: enrichedPage };
     } catch (error: any) {
       console.error("Error in getAllLeadsPaginated:", error);
-      // Use ConvexError to pass the message to the client
-      throw new ConvexError(`Failed to fetch leads: ${error.message}`);
+      // Re-throw with more context
+      throw new Error(`Failed to fetch leads: ${error.message || String(error)}`);
     }
   }
 });
@@ -178,7 +178,7 @@ export const getMyLeadsPaginated = query({
       return results;
     } catch (error: any) {
       console.error("Error in getMyLeadsPaginated:", error);
-      throw new ConvexError(`Failed to fetch my leads: ${error.message}`);
+      throw new Error(`Failed to fetch my leads: ${error.message || String(error)}`);
     }
   }
 });
