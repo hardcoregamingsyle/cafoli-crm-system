@@ -122,7 +122,8 @@ export default defineSchema({
     .index("by_assignedTo_and_assignedDate", ["assignedTo", "assignedDate"])
     .index("by_lastActivityTime", ["lastActivityTime"])
     .index("by_heat", ["heat"])
-    .index("by_batchId", ["batchId"]),
+    .index("by_batchId", ["batchId"])
+    .index("by_serialNo", ["serialNo"]),
 
   leadBatches: defineTable({
     batchNumber: v.number(),

@@ -1618,7 +1618,7 @@ export const getLeadBySerialNo = query({
   handler: async (ctx, args) => {
     const lead = await ctx.db
       .query("leads")
-      .filter((q) => q.eq(q.field("serialNo"), args.serialNo))
+      .withIndex("by_serialNo", (q) => q.eq("serialNo", args.serialNo))
       .first();
     
     if (!lead) {
