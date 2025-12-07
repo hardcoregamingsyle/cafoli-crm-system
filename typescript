@@ -1,20 +1,17 @@
-handler: async (ctx, args) => {
-  console.log("getAllLeadsPaginated called with:", args);
-  try {
-    // Try to normalize assigneeId if it's a string that looks like an ID
-    let targetAssigneeId: any = args.assigneeId;
-    if (args.assigneeId && args.assigneeId !== "all") {
-        if (args.assigneeId === "unassigned") {
-            // ...
-        } else {
-            // normalize
-            // ...
-        }
-    }
-    q = q.filter((q: any) => q.eq(q.field("assignedTo"), targetAssigneeId));
-    console.log("getAllLeadsPaginated args:", JSON.stringify(args));
-  } catch (error) {
-    console.error("Error in getAllLeadsPaginated:", error);
-    throw error;
-  }
-}
+                  // Try to normalize assigneeId if it's a string that looks like an ID
+                  let targetAssigneeId: any = args.assigneeId;
+                  try {
+                      const normalized = ctx.db.normalizeId("users", args.assigneeId as string);
+                      if (normalized) targetAssigneeId = normalized;
+                  } catch (e) {
+                      // ignore
+                  }
+                  q = q.filter((q: any) => q.eq(q.field("assignedTo"), targetAssigneeId));
+
+          if (args.assigneeId && args.assigneeId !== "all") {
+              if (args.assigneeId === "unassigned") {
+                  q = q.filter((q: any) => q.eq(q.field("assignedTo"), undefined));
+              } else {
+                  // ... normalization logic ...
+              }
+          }
