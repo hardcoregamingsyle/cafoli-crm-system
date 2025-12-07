@@ -35,7 +35,6 @@ crons.cron(
   { maxToSend: 200 }
 );
 
-// Update: Run every 2 minutes to fetch leads from Google Script (Convex doesn't support seconds granularity)
 // COMMENTED OUT: Function does not exist
 // crons.interval(
 //   "Fetch Google Script leads every 5 minutes",
@@ -63,6 +62,15 @@ crons.interval(
   "fetch google script leads",
   { minutes: 5 },
   (internal as any).webhook.fetchGoogleScriptLeads,
+  {}
+);
+
+// NEW: One-time serial number assignment on deployment
+// Runs every 5 minutes but only executes once via system flag
+crons.interval(
+  "assign serial numbers once",
+  { minutes: 5 },
+  (internal as any).leads.ensureSerialNumbersAssigned,
   {}
 );
 

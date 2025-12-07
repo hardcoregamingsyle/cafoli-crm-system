@@ -1,8 +1,8 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 import { ROLES, LEAD_STATUS, leadStatusValidator } from "./schema";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // Add phone normalization helper at the top after imports
 function normalizePhoneNumber(phone: string): string {
@@ -1679,5 +1679,75 @@ export const getLeadBySerialNo = query({
       assignedUserName,
       comments: enrichedComments,
     };
+  },
+});
+
+export const ensureSerialNumbersAssigned = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ success: boolean; message: string; skipped?: boolean; result?: any }> => {
+    try {
+      // Check if serial numbers have already been assigned
+      const flag = await ctx.runQuery(internal.leads.checkSerialNumberFlag, {});
+      
+      if (flag) {
+        // Already assigned, skip
+        return { success: true, message: "Serial numbers already assigned", skipped: true };
+      }
+      
+      // Get an admin user to run the mutation
+      const allUsers = await ctx.runQuery(api.users.getAllUsers, {});
+      const adminUser = allUsers.find((u: any) => u.role === ROLES.ADMIN);
+      
+      if (!adminUser) {
+        console.error("No admin user found to assign serial numbers");
+        return { success: false, message: "No admin user found" };
+      }
+      
+      // Run the assignment via public API (actions can call public mutations)
+      const result: any = await ctx.runMutation(api.leads.assignSequentialNumbers, {
+        currentUserId: adminUser._id,
+      });
+      
+      // Set the flag to prevent future runs
+      await ctx.runMutation(internal.leads.setSerialNumberFlag, {});
+      
+      console.log("Serial numbers assigned successfully:", result);
+      return { success: true, message: "Serial numbers assigned", result };
+    } catch (error: any) {
+      console.error("Error in ensureSerialNumbersAssigned:", error);
+      return { success: false, message: error.message || "Unknown error" };
+    }
+  },
+});
+
+export const checkSerialNumberFlag = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const flag = await ctx.db
+      .query("systemFlags")
+      .withIndex("by_key", (q) => q.eq("key", "serialNumbersAssigned"))
+      .first();
+    
+    return flag?.value ?? false;
+  },
+});
+
+export const setSerialNumberFlag = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const existing = await ctx.db
+      .query("systemFlags")
+      .withIndex("by_key", (q) => q.eq("key", "serialNumbersAssigned"))
+      .first();
+    
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: true, usedAt: Date.now() });
+    } else {
+      await ctx.db.insert("systemFlags", {
+        key: "serialNumbersAssigned",
+        value: true,
+        usedAt: Date.now(),
+      });
+    }
   },
 });
