@@ -1036,9 +1036,12 @@ http.route({
         }, 404);
       }
       
+      // Filter out sensitive internal fields
+      const { _id, assignedTo, serialNo, assignedUserName, ...publicLead } = lead;
+      
       return corsJson({ 
         ok: true, 
-        lead 
+        lead: publicLead 
       }, 200);
     } catch (e: any) {
       return corsJson({ 

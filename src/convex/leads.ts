@@ -1602,14 +1602,22 @@ export const assignSequentialNumbers = mutation({
     allLeads.sort((a, b) => a._creationTime - b._creationTime);
     
     let counter = 1;
+    let assigned = 0;
     for (const lead of allLeads) {
-      if (!lead.serialNo) {
-        await ctx.db.patch(lead._id, { serialNo: counter });
-      }
+      // Always assign/reassign to ensure sequential ordering
+      await ctx.db.patch(lead._id, { serialNo: counter });
+      assigned++;
       counter++;
     }
     
-    return { success: true, totalLeads: allLeads.length };
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: "ASSIGN_SEQUENTIAL_NUMBERS",
+      details: `Assigned sequential numbers to ${assigned} leads`,
+      timestamp: Date.now(),
+    });
+    
+    return { success: true, totalLeads: allLeads.length, assigned };
   },
 });
 
