@@ -1635,7 +1635,7 @@ export const assignSerialNumbersBatched = mutation({
 
     const batchSize = args.batchSize || 100;
     
-    // Get leads without serial numbers, ordered by creation time
+    // Get leads ordered by creation time, take a batch
     let query = ctx.db.query("leads").order("asc");
     
     if (args.startAfter !== undefined) {
@@ -1651,20 +1651,22 @@ export const assignSerialNumbersBatched = mutation({
       return { 
         success: true, 
         processed: 0, 
-        hasMore: false,
-        message: "All leads have serial numbers assigned"
+        hasMore: leads.length === batchSize,
+        lastProcessedTime: leads.length > 0 ? leads[leads.length - 1]._creationTime : undefined,
+        message: "All leads in this batch have serial numbers assigned"
       };
     }
     
-    // Get the current max serial number
-    const allLeadsWithSerial = await ctx.db
+    // Get the current max serial number by querying with index
+    const leadsWithSerial = await ctx.db
       .query("leads")
-      .filter((q) => q.neq(q.field("serialNo"), undefined))
-      .collect();
+      .withIndex("by_serialNo")
+      .order("desc")
+      .take(1);
     
-    const maxSerial = allLeadsWithSerial.length === 0 
-      ? 0 
-      : Math.max(...allLeadsWithSerial.map((l: any) => l.serialNo || 0));
+    const maxSerial = leadsWithSerial.length > 0 && leadsWithSerial[0].serialNo
+      ? leadsWithSerial[0].serialNo 
+      : 0;
     
     let counter = maxSerial + 1;
     let assigned = 0;
