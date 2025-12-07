@@ -64,15 +64,25 @@ export const getAllLeads = query({
 
       // Determine fetch limit (default 500, max 1000)
       const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
-      let leads: any[] = [];
+      const leads: any[] = [];
       
+      // Helper to process iterator and fill leads array up to limit
+      const processIterator = async (iterator: any, filterFn: (l: any) => boolean) => {
+        for await (const lead of iterator) {
+          if (filterFn(lead)) {
+            leads.push(lead);
+            if (leads.length >= limit) break;
+          }
+        }
+      };
+
       if (currentUser.role === ROLES.MANAGER) {
         // Managers only see unassigned leads (excluding not relevant)
-        // Optimization: Fetch latest leads and filter. 
-        // Note: We can't easily index "unassigned" efficiently without a specific index, 
-        // but taking latest 1000 and filtering is better than full scan.
-        const latest = await ctx.db.query("leads").order("desc").take(2000);
-        leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
+        // Use iterator to scan until we find enough unassigned leads
+        await processIterator(
+          ctx.db.query("leads").order("desc"),
+          (l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT
+        );
       } else {
         // Admin can see all leads with filtering
         const rawAssignee = args.assigneeId;
@@ -89,56 +99,55 @@ export const getAllLeads = query({
           }
         }
 
-        // Optimization: Use indexes where possible
         if (normalizedAssignee && normalizedAssignee !== "all" && normalizedAssignee !== "unassigned") {
           // Filter by specific assignee using index
-          leads = await ctx.db
-            .query("leads")
-            .withIndex("assignedTo", (q) => q.eq("assignedTo", normalizedAssignee as any))
-            .order("desc")
-            .take(limit);
-            
-          // Apply status filter in memory
-          leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+          await processIterator(
+            ctx.db
+              .query("leads")
+              .withIndex("assignedTo", (q) => q.eq("assignedTo", normalizedAssignee as any))
+              .order("desc"),
+            (l) => l.status !== LEAD_STATUS.NOT_RELEVANT
+          );
         } else if (args.filter === "assigned") {
            // Use assignedTo index to get any assigned leads
-           // Note: This index only contains assigned leads
-           leads = await ctx.db
-             .query("leads")
-             .withIndex("assignedTo")
-             .order("desc")
-             .take(limit);
-           leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
+           await processIterator(
+             ctx.db.query("leads").withIndex("assignedTo").order("desc"),
+             (l) => l.status !== LEAD_STATUS.NOT_RELEVANT
+           );
+        } else if (normalizedAssignee === "unassigned" || args.filter === "unassigned") {
+          // Unassigned leads
+          await processIterator(
+            ctx.db.query("leads").order("desc"),
+            (l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT
+          );
+        } else if (args.filter === "no_followup") {
+          // No followup
+          await processIterator(
+            ctx.db.query("leads").order("desc"),
+            (l) => !l.nextFollowup && l.status !== LEAD_STATUS.NOT_RELEVANT
+          );
         } else {
-          // For "all", "unassigned", or other filters, fetch latest and filter
-          // This avoids full table scan of 7000+ rows
-          const latest = await ctx.db.query("leads").order("desc").take(2000);
-          
-          if (normalizedAssignee === "unassigned") {
-            leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
-          } else if (args.filter === "unassigned") {
-            leads = latest.filter((l) => l.assignedTo === undefined && l.status !== LEAD_STATUS.NOT_RELEVANT);
-          } else if (args.filter === "no_followup") {
-            leads = latest.filter((l) => !l.nextFollowup && l.status !== LEAD_STATUS.NOT_RELEVANT);
-          } else {
-            leads = latest.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
-          }
+          // Default: All leads (excluding not relevant)
+          // We use the default order (creation time) and filter
+          await processIterator(
+            ctx.db.query("leads").order("desc"),
+            (l) => l.status !== LEAD_STATUS.NOT_RELEVANT
+          );
         }
       }
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
+      // Note: The iterator gave us roughly sorted results by creation time, 
+      // but lastActivityTime is better for the user.
       leads.sort((a, b) => {
         const aTime = a.lastActivityTime ?? a._creationTime;
         const bTime = b.lastActivityTime ?? b._creationTime;
         return bTime - aTime; // Descending order (newest first)
       });
 
-      // Apply final limit
-      const limitedLeads = leads.slice(0, limit);
-
       // Replace the in-place mutation with creation of enriched copies to avoid mutating Convex docs
       const enrichedLeads: any[] = [];
-      for (const lead of limitedLeads) {
+      for (const lead of leads) {
         let assignedUserName: string | null = null;
         if (lead.assignedTo) {
           try {
@@ -194,37 +203,36 @@ export const getMyLeads = query({
         return [];
       }
 
-      // Removed Admin block: Admins can now see their assigned leads
-      
       const limit = Math.min(Math.max(args.limit ?? 500, 1), 1000);
-      let leads: any[] = [];
+      const leads: any[] = [];
       
       try {
-        // Optimization: Use index to fetch only assigned leads for this user
-        // Use .take() to avoid fetching all 7000 leads if many are assigned
-        // Order by desc (creation time) to get newest leads first
-        leads = await ctx.db
+        // Use iterator to fetch assigned leads and filter efficiently
+        const iterator = ctx.db
           .query("leads")
           .withIndex("assignedTo", (q) => q.eq("assignedTo", currentUser._id))
-          .order("desc")
-          .take(limit * 2); // Fetch more than limit to account for filtering
+          .order("desc");
+
+        for await (const lead of iterator) {
+          // Filter out not relevant leads
+          if (lead.status !== LEAD_STATUS.NOT_RELEVANT) {
+            // Apply no_followup filter if specified
+            if (args.filter === "no_followup") {
+              if (!lead.nextFollowup) {
+                leads.push(lead);
+              }
+            } else {
+              leads.push(lead);
+            }
+          }
           
-        console.log("getMyLeads: Found", leads.length, "leads via index");
+          if (leads.length >= limit) break;
+        }
+          
+        console.log("getMyLeads: Found", leads.length, "leads via iterator");
       } catch (error) {
         console.error("Error querying leads by index:", error);
         return [];
-      }
-
-      // Filter out not relevant leads
-      const beforeFilter = leads.length;
-      leads = leads.filter((l) => l.status !== LEAD_STATUS.NOT_RELEVANT);
-      console.log("getMyLeads: After filtering not relevant:", leads.length, "(removed", beforeFilter - leads.length, ")");
-
-      // Apply no_followup filter if specified
-      if (args.filter === "no_followup") {
-        const beforeNoFollowup = leads.length;
-        leads = leads.filter((l) => !l.nextFollowup);
-        console.log("getMyLeads: After no_followup filter:", leads.length, "(removed", beforeNoFollowup - leads.length, ")");
       }
 
       // Sort by lastActivityTime (most recent first), fallback to _creationTime
@@ -234,9 +242,7 @@ export const getMyLeads = query({
         return bTime - aTime; // Descending order (newest first)
       });
       
-      const result = leads.slice(0, limit);
-      console.log("getMyLeads: Returning", result.length, "leads (limit:", limit, ")");
-      return result;
+      return leads;
     } catch (err) {
       console.error("getMyLeads outer error:", err);
       return [];
