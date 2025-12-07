@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Filter } from "lucide-react";
 import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ROLES, LEAD_STATUS } from "@/convex/schema";
 import { useMemo, useState, useEffect } from "react";
@@ -77,11 +77,12 @@ export default function AllLeadsPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   
   // Wrap queries with error handling to catch invalid user IDs
-  let leads, users, assignable, myLeads, notRelevantLeads;
+  let leadsResult, users, assignable, myLeads, notRelevantLeads;
   
   try {
-    leads = useQuery(
-      (api as any).leads.getAllLeads,
+    // Use paginated query for leads
+    leadsResult = usePaginatedQuery(
+      (api as any).leadsPaginated.getAllLeadsPaginated,
       currentUser && authReady
         ? {
             filter,
@@ -92,8 +93,15 @@ export default function AllLeadsPage() {
                 : assigneeFilter === "unassigned"
                 ? ("unassigned" as any)
                 : (assigneeFilter as any),
+            statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+            sources: selectedSources.length > 0 ? selectedSources : undefined,
+            heats: selectedHeats.length > 0 ? selectedHeats : undefined,
+            // If enforcedHeatRoute is set, we should filter by it.
+            // But getAllLeadsPaginated takes 'heats' array.
+            // We'll handle this in the args construction below.
           }
-        : "skip"
+        : "skip",
+      { initialNumItems: 50 }
     );
     
     users = useQuery(
@@ -127,6 +135,8 @@ export default function AllLeadsPage() {
     }
     throw error;
   }
+
+  const { results: leads, status: leadsStatus, loadMore } = leadsResult || { results: [], status: "LoadingMore", loadMore: () => {} };
 
   const assignLead = useMutation((api as any).leads.assignLead);
   const setNextFollowup = useMutation((api as any).leads.setNextFollowup);
@@ -289,19 +299,19 @@ export default function AllLeadsPage() {
         if (!matchesSearch) return false;
       }
 
-      // Status filter
+      // Status filter - handled by server query mostly, but keep for client side consistency if needed
       if (selectedStatuses.length > 0) {
         const leadStatus = lead?.status || LEAD_STATUS.YET_TO_DECIDE;
         if (!selectedStatuses.includes(leadStatus)) return false;
       }
 
-      // Source filter
+      // Source filter - handled by server query mostly
       if (selectedSources.length > 0) {
         const leadSource = lead?.source || "";
         if (!selectedSources.includes(leadSource)) return false;
       }
 
-      // Heat filter
+      // Heat filter - handled by server query mostly
       if (selectedHeats.length > 0) {
         const leadHeat = lead?.heat || "";
         if (!selectedHeats.includes(leadHeat)) return false;
@@ -721,7 +731,7 @@ export default function AllLeadsPage() {
 
         <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
           <CardHeader>
-            <CardTitle>Leads</CardTitle>
+            <CardTitle>Leads ({displayedLeadsSorted.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
@@ -1343,6 +1353,22 @@ export default function AllLeadsPage() {
               );
               })}
             </Accordion>
+            
+            {/* Load More Button */}
+            {leadsStatus === "CanLoadMore" && (
+              <div className="mt-6 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => loadMore(50)}
+                  className="w-full sm:w-auto"
+                >
+                  Load More Leads
+                </Button>
+              </div>
+            )}
+            {leadsStatus === "LoadingMore" && (
+              <div className="mt-6 text-center text-sm text-gray-500">Loading more leads...</div>
+            )}
           </CardContent>
         </Card>
       </div>
