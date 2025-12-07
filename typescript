@@ -1,130 +1,20 @@
-import { useQuery, useMutation, usePaginatedQuery } from "convex/react";
-
-export default function AllLeadsPage() {
-  const { currentUser, authReady, logout } = useAuth();
-  const { args, selectedStatuses, selectedSources, selectedHeats, assigneeFilter } = useQueryParams();
-  const { filter } = useFilter();
-  const { displayedLeadsSorted, highlightClass } = useDisplayedLeads();
-
-  // Wrap queries with error handling to catch invalid user IDs
-  let leadsResult, users, assignable, myLeads, notRelevantLeads;
-
+handler: async (ctx, args) => {
+  console.log("getAllLeadsPaginated called with:", args);
   try {
-    leadsResult = usePaginatedQuery(
-      (api as any).leadsPaginated.getAllLeadsPaginated,
-      currentUser && authReady
-        ? {
-            filter,
-            currentUserId: currentUser._id as any,
-            assigneeId:
-              assigneeFilter === "all"
-                ? undefined
-                : assigneeFilter === "unassigned"
-                ? ("unassigned" as any)
-                : (assigneeFilter as any),
-            statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
-            sources: selectedSources.length > 0 ? selectedSources : undefined,
-            heats: selectedHeats.length > 0 ? selectedHeats : undefined,
-          }
-        : "skip",
-      { initialNumItems: 500 }
-    );
-    
-    users = useQuery(
-      (api as any).users.getAllUsers,
-      currentUser && authReady ? { currentUserId: currentUser._id } : "skip"
-    );
-  } catch (error: any) {
-    console.error("Error fetching leads:", error);
-    if (error?.message?.includes("ArgumentValidationError") || 
-        error?.message?.includes("does not match the table name")) {
-      console.error("Authentication error detected, logging out:", error);
-      logout();
-      return null;
+    // Try to normalize assigneeId if it's a string that looks like an ID
+    let targetAssigneeId: any = args.assigneeId;
+    if (args.assigneeId && args.assigneeId !== "all") {
+        if (args.assigneeId === "unassigned") {
+            // ...
+        } else {
+            // normalize
+            // ...
+        }
     }
+    q = q.filter((q: any) => q.eq(q.field("assignedTo"), targetAssigneeId));
+    console.log("getAllLeadsPaginated args:", JSON.stringify(args));
+  } catch (error) {
+    console.error("Error in getAllLeadsPaginated:", error);
     throw error;
   }
-
-  const { results: leads, status: leadsStatus, loadMore } = leadsResult || { results: [], status: "LoadingMore", loadMore: () => {} };
-
-  const assignLead = useMutation((api as any).leads.assignLead);
-
-  // Statuses Filter
-  if (args.statuses && args.statuses.length > 0) {
-    const statuses = args.statuses;
-    q = q.filter(q => {
-        let condition = q.eq(q.field("status"), statuses[0]);
-        for (let i = 1; i < statuses.length; i++) {
-            condition = q.or(condition, q.eq(q.field("status"), statuses[i]));
-        }
-        return condition;
-    });
-  }
-
-  q = q.filter(q => q.eq(q.field("assignedTo"), args.assigneeId as any));
-
-  q.index("by_lastActivityTime", ["lastActivityTime"])
-  { initialNumItems: 500 }
-  onClick={() => loadMore(500)}
-
-  <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
-    <CardHeader>
-      <CardTitle>Leads ({displayedLeadsSorted.length})</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <Accordion type="single" collapsible className="w-full">
-        {displayedLeadsSorted.map((lead: any) => {
-          // ... keep existing code (lead item rendering)
-          return (
-            <AccordionItem key={String(lead._id)} value={String(lead._id)} className={highlightClass}>
-              {/* ... keep existing code (AccordionItem content) */}
-              <AccordionTrigger className="text-left">
-                {/* ... keep existing code */}
-                <div className="flex flex-col w-full gap-2">
-                  {/* ... keep existing code */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    {/* ... keep existing code */}
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium">
-                        {lead.name || "-"}
-                      </div>
-                    </div>
-                    {/* ... keep existing code */}
-                  </div>
-                  {/* ... keep existing code */}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                {/* ... keep existing code (AccordionContent) */}
-                <div className="grid md:grid-cols-3 gap-4 py-2">
-                    {/* ... keep existing code */}
-                </div>
-                {/* ... keep existing code */}
-                <CommentsBox leadId={String(lead._id)} currentUserId={String(currentUser._id)} />
-                {/* ... keep existing code */}
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
-      
-      {/* Load More Button */}
-      {leadsStatus === "CanLoadMore" && (
-        <div className="mt-6 flex justify-center">
-          <Button 
-            variant="outline" 
-            onClick={() => loadMore(500)}
-            className="w-full sm:w-auto"
-          >
-            Load More Leads
-          </Button>
-        </div>
-      )}
-      {leadsStatus === "LoadingMore" && (
-        <div className="mt-6 text-center text-sm text-gray-500">Loading more leads...</div>
-      )}
-    </CardContent>
-  </Card>
-  </div>
-  </Layout>
 }
