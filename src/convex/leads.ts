@@ -1634,9 +1634,42 @@ export const getLeadBySerialNo = query({
       }
     }
     
+    // Fetch all comments for this lead
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("leadId", (q) => q.eq("leadId", lead._id))
+      .collect();
+    
+    // Enrich comments with user names
+    const enrichedComments = await Promise.all(
+      comments.map(async (comment) => {
+        let userName = "System";
+        if (comment.userId) {
+          try {
+            const user = await ctx.db.get(comment.userId);
+            if (user) {
+              userName = user.name || user.username || "Unknown";
+            }
+          } catch {
+            userName = "Unknown";
+          }
+        }
+        return {
+          _id: comment._id,
+          content: comment.content,
+          timestamp: comment.timestamp,
+          userName,
+        };
+      })
+    );
+    
+    // Sort comments by timestamp (oldest first)
+    enrichedComments.sort((a, b) => a.timestamp - b.timestamp);
+    
     return {
       ...lead,
       assignedUserName,
+      comments: enrichedComments,
     };
   },
 });
