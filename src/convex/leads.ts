@@ -1621,6 +1621,81 @@ export const assignSequentialNumbers = mutation({
   },
 });
 
+export const assignSerialNumbersBatched = mutation({
+  args: {
+    currentUserId: v.id("users"),
+    batchSize: v.optional(v.number()),
+    startAfter: v.optional(v.number()), // _creationTime to start after
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.currentUserId);
+    if (!currentUser || currentUser.role !== ROLES.ADMIN) {
+      throw new Error("Unauthorized");
+    }
+
+    const batchSize = args.batchSize || 100;
+    
+    // Get leads without serial numbers, ordered by creation time
+    let query = ctx.db.query("leads").order("asc");
+    
+    if (args.startAfter !== undefined) {
+      query = query.filter((q) => q.gt(q.field("_creationTime"), args.startAfter!));
+    }
+    
+    const leads = await query.take(batchSize);
+    
+    // Filter to only leads without serial numbers
+    const leadsWithoutSerial = leads.filter(l => !l.serialNo);
+    
+    if (leadsWithoutSerial.length === 0) {
+      return { 
+        success: true, 
+        processed: 0, 
+        hasMore: false,
+        message: "All leads have serial numbers assigned"
+      };
+    }
+    
+    // Get the current max serial number
+    const allLeadsWithSerial = await ctx.db
+      .query("leads")
+      .filter((q) => q.neq(q.field("serialNo"), undefined))
+      .collect();
+    
+    const maxSerial = allLeadsWithSerial.length === 0 
+      ? 0 
+      : Math.max(...allLeadsWithSerial.map((l: any) => l.serialNo || 0));
+    
+    let counter = maxSerial + 1;
+    let assigned = 0;
+    
+    for (const lead of leadsWithoutSerial) {
+      await ctx.db.patch(lead._id, { serialNo: counter });
+      assigned++;
+      counter++;
+    }
+    
+    const lastProcessedTime = leadsWithoutSerial[leadsWithoutSerial.length - 1]._creationTime;
+    const hasMore = leads.length === batchSize;
+    
+    await ctx.db.insert("auditLogs", {
+      userId: currentUser._id,
+      action: "ASSIGN_SEQUENTIAL_NUMBERS_BATCH",
+      details: `Assigned serial numbers to ${assigned} leads (batch)`,
+      timestamp: Date.now(),
+    });
+    
+    return { 
+      success: true, 
+      processed: assigned,
+      hasMore,
+      lastProcessedTime,
+      nextSerial: counter,
+      message: `Assigned ${assigned} serial numbers. ${hasMore ? 'More leads to process.' : 'All done!'}`
+    };
+  },
+});
+
 export const getLeadBySerialNo = query({
   args: { serialNo: v.number() },
   handler: async (ctx, args) => {

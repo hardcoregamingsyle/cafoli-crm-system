@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as assignSerialNumbersScript from "../assignSerialNumbersScript.js";
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
 import type * as auth_emailOtp from "../auth/emailOtp.js";
@@ -49,6 +50,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  assignSerialNumbersScript: typeof assignSerialNumbersScript;
   audit: typeof audit;
   auth: typeof auth;
   "auth/emailOtp": typeof auth_emailOtp;
