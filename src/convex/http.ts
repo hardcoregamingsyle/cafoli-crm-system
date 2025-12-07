@@ -1006,38 +1006,38 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     try {
       const url = new URL(req.url);
-      const leadCountParam = url.searchParams.get("leadcount");
+      const serialNoParam = url.searchParams.get("serialNo");
       
-      if (!leadCountParam) {
+      if (!serialNoParam) {
         return corsJson({ 
           ok: false, 
-          error: "Missing 'leadcount' parameter" 
+          error: "Missing 'serialNo' parameter. Use: /getleads?serialNo=1" 
         }, 400);
       }
       
-      const leadCount = Number(leadCountParam);
+      const serialNo = Number(serialNoParam);
       
-      if (isNaN(leadCount) || leadCount < 1) {
+      if (isNaN(serialNo) || serialNo < 1) {
         return corsJson({ 
           ok: false, 
-          error: "Invalid 'leadcount' parameter. Must be a positive number." 
+          error: "Invalid 'serialNo' parameter. Must be a positive number." 
         }, 400);
       }
       
       // Query the lead by serial number
       const lead = await ctx.runQuery(api.leads.getLeadBySerialNo, { 
-        serialNo: leadCount 
+        serialNo: serialNo 
       });
       
       if (!lead) {
         return corsJson({ 
           ok: false, 
-          error: `Lead with number ${leadCount} not found` 
+          error: `Lead with serial number ${serialNo} not found` 
         }, 404);
       }
       
       // Filter out sensitive internal fields
-      const { _id, assignedTo, serialNo, assignedUserName, ...publicLead } = lead;
+      const { _id, assignedTo, serialNo: _serialNo, assignedUserName, ...publicLead } = lead;
       
       return corsJson({ 
         ok: true, 

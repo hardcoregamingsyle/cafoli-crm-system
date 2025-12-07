@@ -65,14 +65,8 @@ crons.interval(
   {}
 );
 
-// NEW: One-time serial number assignment on deployment
-// Runs every 5 minutes but only executes once via system flag
-crons.interval(
-  "assign serial numbers once",
-  { minutes: 5 },
-  (internal as any).leads.ensureSerialNumbersAssigned,
-  {}
-);
+// Serial number assignment removed - new leads get sequential numbers automatically
+// Existing leads without serial numbers won't be accessible via the /getleads endpoint
 
 // Add default export required by Convex
 export default crons;
