@@ -1008,11 +1008,11 @@ http.route({
       // Get an admin user to run the query
       const adminUserId = await ensureAdminUserId(ctx);
       
-      // Fetch all leads
+      // Fetch leads in smaller batches to avoid memory limits
       const allLeads: any[] = await ctx.runQuery(api.leads.getAllLeads, { 
         filter: "all", 
         currentUserId: adminUserId,
-        limit: 10000
+        limit: 1000  // Reduced from 10000 to avoid memory issues
       });
       
       // Filter out unassigned Pharmavends leads
