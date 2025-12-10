@@ -991,7 +991,7 @@ http.route({
   }),
 });
 
-// New: GET /getleads?leadcount=N endpoint
+// GET /getleads - Returns all leads with comments, filtering out unassigned Pharmavends leads
 http.route({
   path: "/getleads",
   method: "OPTIONS",
@@ -1003,50 +1003,53 @@ http.route({
 http.route({
   path: "/getleads",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (ctx, _req) => {
     try {
-      const url = new URL(req.url);
-      const serialNoParam = url.searchParams.get("serialNo");
+      // Get an admin user to run the query
+      const adminUserId = await ensureAdminUserId(ctx);
       
-      if (!serialNoParam) {
-        return corsJson({ 
-          ok: false, 
-          error: "Missing 'serialNo' parameter. Use: /getleads?serialNo=1" 
-        }, 400);
-      }
-      
-      const serialNo = Number(serialNoParam);
-      
-      if (isNaN(serialNo) || serialNo < 1) {
-        return corsJson({ 
-          ok: false, 
-          error: "Invalid 'serialNo' parameter. Must be a positive number." 
-        }, 400);
-      }
-      
-      // Query the lead by serial number
-      const lead = await ctx.runQuery(api.leads.getLeadBySerialNo, { 
-        serialNo: serialNo 
+      // Fetch all leads
+      const allLeads: any[] = await ctx.runQuery(api.leads.getAllLeads, { 
+        filter: "all", 
+        currentUserId: adminUserId,
+        limit: 10000
       });
       
-      if (!lead) {
-        return corsJson({ 
-          ok: false, 
-          error: `Lead with serial number ${serialNo} not found` 
-        }, 404);
-      }
+      // Filter out unassigned Pharmavends leads
+      const filteredLeads = allLeads.filter((lead) => {
+        const source = (lead.source || "").toLowerCase();
+        const isPharmavends = source.includes("pharmavend");
+        const isUnassigned = !lead.assignedTo;
+        
+        // Exclude if it's Pharmavends AND unassigned
+        return !(isPharmavends && isUnassigned);
+      });
       
-      // Filter out sensitive internal fields
-      const { _id, assignedTo, serialNo: _serialNo, assignedUserName, ...publicLead } = lead;
+      // Enrich each lead with comments
+      const enrichedLeads = await Promise.all(
+        filteredLeads.map(async (lead) => {
+          // Fetch comments for this lead
+          const comments = await ctx.runQuery(api.comments.getLeadComments, {
+            leadId: lead._id,
+            currentUserId: adminUserId,
+          });
+          
+          return {
+            ...lead,
+            comments: comments || [],
+          };
+        })
+      );
       
       return corsJson({ 
         ok: true, 
-        lead: publicLead 
+        count: enrichedLeads.length,
+        leads: enrichedLeads 
       }, 200);
     } catch (e: any) {
       return corsJson({ 
         ok: false, 
-        error: e.message || "Failed to retrieve lead" 
+        error: e.message || "Failed to retrieve leads" 
       }, 500);
     }
   }),
