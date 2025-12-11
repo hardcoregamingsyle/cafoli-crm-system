@@ -1841,3 +1841,31 @@ export const assignSequentialNumbersInternal = internalMutation({
     return { success: true, totalLeads: allLeads.length, assigned };
   },
 });
+
+// Add internal query for webhook access (at the end of the file)
+export const getAllLeadsInternal = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit || 500, 1000);
+    
+    try {
+      // Fetch leads efficiently using iterator
+      const leads: any[] = [];
+      const iterator = ctx.db.query("leads").order("desc");
+      
+      for await (const lead of iterator) {
+        // Exclude not relevant leads
+        if (lead.status !== "not_relevant") {
+          leads.push(lead);
+        }
+        
+        if (leads.length >= limit) break;
+      }
+      
+      return leads;
+    } catch (error) {
+      console.error("Error in getAllLeadsInternal:", error);
+      return [];
+    }
+  },
+});

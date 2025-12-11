@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./users";
 
@@ -139,5 +139,50 @@ export const addComment = mutation({
     });
     
     return commentId;
+  },
+});
+
+// Add internal query for webhook access (at the end of the file)
+export const getLeadCommentsInternal = internalQuery({
+  args: {
+    leadId: v.id("leads"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const comments = await ctx.db
+        .query("comments")
+        .withIndex("leadId", (q) => q.eq("leadId", args.leadId))
+        .collect();
+      
+      // Get user names for comments
+      const commentsWithUser = await Promise.all(
+        comments.map(async (comment) => {
+          let userName = "System";
+          if (comment.userId) {
+            try {
+              const user = await ctx.db.get(comment.userId);
+              userName = user?.name || user?.username || "Unknown";
+            } catch {
+              userName = "Unknown";
+            }
+          }
+          
+          return {
+            _id: comment._id,
+            content: comment.content,
+            timestamp: comment.timestamp,
+            userName,
+          };
+        })
+      );
+      
+      // Sort by timestamp (newest first)
+      commentsWithUser.sort((a, b) => b.timestamp - a.timestamp);
+      
+      return commentsWithUser;
+    } catch (error) {
+      console.error("Error in getLeadCommentsInternal:", error);
+      return [];
+    }
   },
 });
