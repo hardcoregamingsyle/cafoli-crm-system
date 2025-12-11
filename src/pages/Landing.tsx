@@ -20,14 +20,24 @@ export default function Landing() {
                 Cafoli CRM
               </span>
             </div>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => navigate("/report")}
-            >
-              <FileText className="w-4 h-4" />
-              Report
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => navigate("/specs")}
+              >
+                <FileText className="w-4 h-4" />
+                Specs
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => navigate("/report")}
+              >
+                <FileText className="w-4 h-4" />
+                Report
+              </Button>
+            </div>
           </div>
         </div>
       </header>
