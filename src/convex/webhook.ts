@@ -348,6 +348,60 @@ async function getNextSerialNumber(ctx: any): Promise<number> {
   return maxSerial + 1;
 }
 
+// Add mutation to update WhatsApp message status
+export const updateWhatsAppMessageStatus = internalMutation({
+  args: {
+    messageId: v.string(),
+    status: v.string(),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    // Find the message by messageId
+    const message = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_messageId", (q) => q.eq("messageId", args.messageId))
+      .unique();
+
+    if (!message) {
+      console.log(`[WhatsApp] Message ${args.messageId} not found for status update`);
+      return { success: false, error: "Message not found" };
+    }
+
+    // Update the message status
+    await ctx.db.patch(message._id, {
+      status: args.status,
+      metadata: args.metadata,
+    });
+
+    // If message is associated with a lead, update lead's last message status
+    if (message.leadId && message.direction === "outbound") {
+      await ctx.db.patch(message.leadId, {
+        lastMessageStatus: args.status,
+        lastActivityTime: Date.now(),
+      });
+
+      // If status is "read", mark lead as having read messages
+      if (args.status === "read") {
+        const lead = await ctx.db.get(message.leadId);
+        if (lead?.assignedTo) {
+          // Notify the assigned user that their message was read
+          await ctx.db.insert("notifications", {
+            userId: lead.assignedTo,
+            title: "Message Read",
+            message: `Your WhatsApp message to ${lead.name} was read`,
+            read: false,
+            type: "message_read",
+            relatedLeadId: message.leadId,
+          });
+        }
+      }
+    }
+
+    console.log(`[WhatsApp] Updated message ${args.messageId} status to ${args.status}`);
+    return { success: true };
+  },
+});
+
 // Create a lead from Google Script data with new column structure
 export const createLeadFromGoogleScript = internalMutation({
   args: {

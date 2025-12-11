@@ -289,7 +289,7 @@ http.route({
                 if (messageType === "reaction") {
                   const reaction = message.reaction;
                   const targetMessageId = reaction.message_id;
-                  const emoji = reaction.emoji || ""; // Empty string means remove reaction usually, but we'll just store what we get
+                  const emoji = reaction.emoji || "";
 
                   await ctx.runMutation((internal as any).webhook.handleWhatsAppReaction, {
                     messageId: targetMessageId,
@@ -297,7 +297,6 @@ http.route({
                     phoneNumber,
                   });
                   
-                  // Skip storing this as a new message
                   continue;
                 }
 
@@ -322,7 +321,6 @@ http.route({
                   const mimeType = message[messageType]?.mime_type;
                   
                   if (mediaId) {
-                    // Fetch media URL from WhatsApp (not the full file, just the URL)
                     const mediaResult = await processInboundMedia(ctx, mediaId, messageType, mimeType);
                     
                     await ctx.runMutation(internal.webhook.storeWhatsAppMessage, {
@@ -336,6 +334,7 @@ http.route({
                       caption: caption,
                     });
                   }
+                  continue;
                 } else {
                   messageText = `[${messageType}]`;
                 }
@@ -364,7 +363,10 @@ http.route({
               // Handle status updates (delivered, read, sent, failed)
               const statuses = value.statuses || [];
               for (const status of statuses) {
-                await ctx.runMutation((internal as any).webhook.updateWhatsAppMessageStatus, {
+                console.log(`[WhatsApp] Status update for message ${status.id}: ${status.status}`);
+                
+                // Update message status in database
+                await ctx.runMutation(internal.webhook.updateWhatsAppMessageStatus, {
                   messageId: status.id,
                   status: status.status,
                   metadata: status,
