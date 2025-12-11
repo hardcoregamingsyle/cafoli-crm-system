@@ -1869,3 +1869,129 @@ export const getAllLeadsInternal = internalQuery({
     }
   },
 });
+
+// Internal query for efficient webhook/API access with pagination
+export const getAllLeadsWithCommentsInternal = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 100;
+    
+    try {
+      // Query leads efficiently using index, excluding not_relevant and unassigned Pharmavends
+      const leadsQuery = ctx.db
+        .query("leads")
+        .withIndex("by_lastActivityTime")
+        .order("desc");
+      
+      // Collect leads with cursor support
+      let leads: any[] = [];
+      let hasMore = false;
+      let nextCursor: string | null = null;
+      
+      // Manual pagination implementation
+      let count = 0;
+      let skipUntilCursor = args.cursor ? true : false;
+      
+      for await (const lead of leadsQuery) {
+        // Skip until we reach the cursor
+        if (skipUntilCursor) {
+          if (lead._id === args.cursor) {
+            skipUntilCursor = false;
+          }
+          continue;
+        }
+        
+        // Filter logic
+        const isNotRelevant = lead.status === LEAD_STATUS.NOT_RELEVANT;
+        const source = (lead.source || "").toLowerCase();
+        const isPharmavends = source.includes("pharmavend");
+        const isUnassigned = !lead.assignedTo;
+        
+        // Skip if not_relevant OR (Pharmavends AND unassigned)
+        if (isNotRelevant || (isPharmavends && isUnassigned)) {
+          continue;
+        }
+        
+        leads.push(lead);
+        count++;
+        
+        if (count >= limit) {
+          hasMore = true;
+          nextCursor = lead._id;
+          break;
+        }
+      }
+      
+      // Batch fetch all comments for these leads
+      const leadIds = leads.map(l => l._id);
+      const allComments = await ctx.db.query("comments").collect();
+      const commentsByLeadId = new Map<string, any[]>();
+      
+      for (const comment of allComments) {
+        if (leadIds.includes(comment.leadId)) {
+          if (!commentsByLeadId.has(comment.leadId)) {
+            commentsByLeadId.set(comment.leadId, []);
+          }
+          commentsByLeadId.get(comment.leadId)!.push(comment);
+        }
+      }
+      
+      // Batch fetch user info for comments
+      const userIds = new Set<string>();
+      for (const comments of commentsByLeadId.values()) {
+        for (const comment of comments) {
+          if (comment.userId) {
+            userIds.add(comment.userId);
+          }
+        }
+      }
+      
+      const userMap = new Map<string, any>();
+      for (const userId of userIds) {
+        try {
+          const user = await ctx.db.get(userId as any);
+          if (user) {
+            userMap.set(userId, user);
+          }
+        } catch {
+          // Skip invalid user IDs
+        }
+      }
+      
+      // Enrich leads with comments
+      const enrichedLeads = leads.map(lead => {
+        const leadComments = commentsByLeadId.get(lead._id) || [];
+        const enrichedComments = leadComments.map(comment => {
+          const user = userMap.get(comment.userId);
+          return {
+            _id: comment._id,
+            content: comment.content,
+            timestamp: comment.timestamp,
+            userName: user?.name || user?.username || "Unknown",
+          };
+        }).sort((a, b) => b.timestamp - a.timestamp);
+        
+        return {
+          ...lead,
+          comments: enrichedComments,
+        };
+      });
+      
+      return {
+        leads: enrichedLeads,
+        hasMore,
+        nextCursor,
+      };
+    } catch (error: any) {
+      console.error("[getAllLeadsWithCommentsInternal] Error:", error);
+      return {
+        leads: [],
+        hasMore: false,
+        nextCursor: null,
+      };
+    }
+  },
+});

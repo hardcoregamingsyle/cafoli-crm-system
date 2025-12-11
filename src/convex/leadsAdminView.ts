@@ -13,8 +13,8 @@ export const getIrrelevantLeads = query({
 
     const leads = await ctx.db
       .query("leads")
-      .filter((q) => q.eq(q.field("status"), LEAD_STATUS.NOT_RELEVANT))
-      .take(1000);
+      .withIndex("by_status", (q) => q.eq("status", LEAD_STATUS.NOT_RELEVANT))
+      .take(500);
 
     // Enrich with user info
     const enrichedLeads = await Promise.all(
@@ -59,8 +59,8 @@ export const getRelevantLeads = query({
 
     const leads = await ctx.db
       .query("leads")
-      .filter((q) => q.eq(q.field("status"), LEAD_STATUS.RELEVANT))
-      .take(1000);
+      .withIndex("by_status", (q) => q.eq("status", LEAD_STATUS.RELEVANT))
+      .take(500);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
@@ -77,8 +77,8 @@ export const getYetToDecideLeads = query({
 
     const leads = await ctx.db
       .query("leads")
-      .filter((q) => q.eq(q.field("status"), LEAD_STATUS.YET_TO_DECIDE))
-      .take(1000);
+      .withIndex("by_status", (q) => q.eq("status", LEAD_STATUS.YET_TO_DECIDE))
+      .take(500);
 
     return await enrichLeadsWithUserInfo(ctx, leads);
   },
@@ -94,12 +94,14 @@ export const getOverdueLeads = query({
     }
 
     const now = Date.now();
-    // Use index and limit to 1000 leads for performance
-    const allLeads = await ctx.db.query("leads").take(1000);
+    // Query leads with nextFollowup set and filter for overdue
+    const allLeads = await ctx.db
+      .query("leads")
+      .withIndex("by_nextFollowup")
+      .order("asc")
+      .take(1000);
     
-    const overdueLeads = allLeads.filter(
-      (lead) => lead.nextFollowup && lead.nextFollowup < now
-    );
+    const overdueLeads = allLeads.filter((lead) => lead.nextFollowup && lead.nextFollowup < now);
 
     // Sort overdue leads by how overdue they are (most overdue first)
     const sortedOverdue = overdueLeads.sort((a, b) => {
@@ -121,9 +123,11 @@ export const getHotLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 1000 leads for performance
-    const allLeads = await ctx.db.query("leads").take(1000);
-    const hotLeads = allLeads.filter((lead) => lead.heat === "hot");
+    // Use index for better performance
+    const hotLeads = await ctx.db
+      .query("leads")
+      .withIndex("by_heat", (q) => q.eq("heat", "hot"))
+      .take(500);
 
     return await enrichLeadsWithUserInfo(ctx, hotLeads);
   },
@@ -138,9 +142,11 @@ export const getColdLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 1000 leads for performance
-    const allLeads = await ctx.db.query("leads").take(1000);
-    const coldLeads = allLeads.filter((lead) => lead.heat === "cold");
+    // Use index for better performance
+    const coldLeads = await ctx.db
+      .query("leads")
+      .withIndex("by_heat", (q) => q.eq("heat", "cold"))
+      .take(500);
 
     return await enrichLeadsWithUserInfo(ctx, coldLeads);
   },
@@ -155,11 +161,20 @@ export const getMatureLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 1000 leads for performance
-    const allLeads = await ctx.db.query("leads").take(1000);
-    const matureLeads = allLeads.filter((lead) => lead.heat === "matured" || lead.heat === "mature");
+    // Query both matured and mature leads efficiently
+    const maturedLeads = await ctx.db
+      .query("leads")
+      .withIndex("by_heat", (q) => q.eq("heat", "matured"))
+      .take(250);
+    
+    const matureLeads = await ctx.db
+      .query("leads")
+      .withIndex("by_heat", (q) => q.eq("heat", "mature"))
+      .take(250);
+    
+    const allMatureLeads = [...maturedLeads, ...matureLeads];
 
-    return await enrichLeadsWithUserInfo(ctx, matureLeads);
+    return await enrichLeadsWithUserInfo(ctx, allMatureLeads);
   },
 });
 
@@ -172,8 +187,12 @@ export const getNoFollowupLeads = query({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Limit to 1000 leads for performance
-    const allLeads = await ctx.db.query("leads").take(1000);
+    // Query all leads and filter for those without follow-up
+    const allLeads = await ctx.db
+      .query("leads")
+      .order("desc")
+      .take(1000);
+    
     const noFollowupLeads = allLeads.filter((lead) => !lead.nextFollowup);
 
     return await enrichLeadsWithUserInfo(ctx, noFollowupLeads);
