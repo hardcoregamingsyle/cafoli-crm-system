@@ -1995,3 +1995,13 @@ export const getAllLeadsWithCommentsInternal = internalQuery({
     }
   },
 });
+
+export const getAllLeadsPublic = query({
+  args: {},
+  handler: async (ctx) => {
+    // Fetch leads without auth check as requested for public download
+    // Using take(5000) to prevent memory issues while fetching "all" leads for now
+    const leads = await ctx.db.query("leads").order("desc").take(5000);
+    return leads;
+  },
+});
