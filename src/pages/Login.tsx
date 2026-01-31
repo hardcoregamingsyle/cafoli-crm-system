@@ -1,167 +1,110 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useCrmAuth } from "@/hooks/use-crm-auth";
-import { motion } from "framer-motion";
-import { Loader2, Lock, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const { login, isLoading, currentUser, initializeAuth } = useCrmAuth();
+  const [isOtpLogin, setIsOtpLogin] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  
+  const login = useMutation(api.auth.login);
+  const loginWithOtp = useMutation(api.auth.loginWithOtp);
   const navigate = useNavigate();
 
-  // Check if user is already logged in and redirect
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      // Redirect authenticated users to their appropriate dashboard
-      if (currentUser.role === "admin" || currentUser.role === "manager") {
-        navigate("/all_leads");
-      } else {
-        navigate("/leads");
-      }
-    }
-  }, [currentUser, navigate]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!username || !password) {
-      toast.error("Please enter both username and password");
-      return;
-    }
-
+  const handleLogin = async () => {
     try {
-      const user = await login(username, password);
-      toast.success("Login successful!");
-
-      // Add: POST to Convex HTTP endpoint to log IP + geolocation
-      try {
-        const webhookBase = import.meta.env.VITE_WEBHOOK_URL as string | undefined;
-        if (webhookBase && webhookBase.startsWith("http")) {
-          await fetch(`${webhookBase}/api/iplogging`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username }),
-          }).catch(() => {});
+      if (isOtpLogin && !showOtpInput) {
+        // Request OTP
+        const res = await login({ identifier });
+        if (res.requireOtp) {
+          setShowOtpInput(true);
+          toast.success("OTP sent to your email");
         }
-      } catch {
-        // Swallow errors; do not block login UX
-      }
-
-      // Redirect per role logic
-      if (user.role === "admin" || user.role === "manager") {
-        navigate("/all_leads");
+      } else if (isOtpLogin && showOtpInput) {
+        // Verify OTP
+        const res = await loginWithOtp({ email: identifier, otp });
+        if (res.success) {
+          toast.success("Logged in successfully");
+          navigate("/dashboard");
+        }
       } else {
-        navigate("/leads");
+        // Password Login
+        const res = await login({ identifier, password });
+        if (res.success) {
+          toast.success("Logged in successfully");
+          navigate("/dashboard");
+        }
       }
-    } catch (error) {
-      toast.error("Invalid credentials. Please try again.");
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
-  // Don't show login form if user is already authenticated
-  if (currentUser) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p>Redirecting to dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <motion.div 
-            className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            whileHover={{ scale: 1.05 }}
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <Card className="w-[400px] bg-gray-800 border-gray-700 text-white">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">
+            Vicovibe Coder Login
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Input
+              placeholder="Email or Username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              className="bg-gray-700 border-gray-600 text-white"
+            />
+          </div>
+          
+          {!isOtpLogin && (
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+          )}
+
+          {showOtpInput && (
+            <div className="space-y-2">
+              <Input
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+          )}
+
+          <Button 
+            className="w-full bg-blue-600 hover:bg-blue-700" 
+            onClick={handleLogin}
           >
-            <span className="text-white font-bold text-2xl">C</span>
-          </motion.div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Cafoli Lifecare
-          </h1>
-          <p className="text-gray-600 mt-2">Customer Relationship Management</p>
-        </div>
+            {showOtpInput ? "Verify OTP" : (isOtpLogin ? "Get OTP" : "Login")}
+          </Button>
 
-        {/* Login Card */}
-        <Card className="bg-white/80 backdrop-blur-md border-blue-100 shadow-xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-gray-900">Welcome Back</CardTitle>
-            <CardDescription>Sign in to access your CRM dashboard</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10"
-                    disabled={isLoading}
-                    autoComplete="username"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    disabled={isLoading}
-                    autoComplete="current-password"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
+          <div className="flex justify-between text-sm text-gray-400">
+            <button onClick={() => { setIsOtpLogin(!isOtpLogin); setShowOtpInput(false); }}>
+              {isOtpLogin ? "Use Password" : "Login with OTP"}
+            </button>
+            <button onClick={() => navigate("/signup")}>
+              Create Account
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

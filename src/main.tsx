@@ -9,26 +9,9 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
-import Landing from "./pages/Landing.tsx";
-import "./types/global.d.ts";
-import AllLeadsPage from "@/pages/AllLeads.tsx";
-import MyLeadsPage from "@/pages/MyLeads.tsx";
-import AdminPage from "@/pages/Admin.tsx";
-import CampaignsPage from "@/pages/Campaigns.tsx";
-import CampaignSelectRecipientsPage from "@/pages/CampaignSelectRecipients.tsx";
-import NotificationsPage from "@/pages/Notifications.tsx";
-import WebhookLogsPage from "@/pages/WebhookLogs.tsx";
-import IpLogsPage from "@/pages/IpLogs.tsx";
+import Signup from "./pages/Signup.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import Migrate from "./pages/Migrate.tsx";
-import ReportPage from "@/pages/Report.tsx";
-import WhatsAppPage from "@/pages/WhatsApp.tsx";
-import CreateTemplatePage from "@/pages/CreateTemplate.tsx";
-import AllLeadsAdminViewPage from "@/pages/AllLeadsAdminView.tsx";
-import ComposeEmailPage from "@/pages/ComposeEmail.tsx";
-import CampaignWorkflowEditorPage from "@/pages/CampaignWorkflowEditor.tsx";
-import SpecsPage from "@/pages/Specs.tsx";
-import DownloadLeads from "@/pages/DownloadLeads.tsx";
+import "./types/global.d.ts";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -67,39 +50,10 @@ createRoot(document.getElementById("root")!).render(
         <ConvexProviderWrapper>
           <RouteSyncer />
           <Routes>
-            <Route path="/" element={<Landing />} />
+            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/download" element={<DownloadLeads />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/assigned" element={<MyLeadsPage />} />
-            <Route path="/dashboard/followup" element={<MyLeadsPage />} />
-            <Route path="/dashboard/cold" element={<AllLeadsPage />} />
-            <Route path="/dashboard/hot" element={<AllLeadsPage />} />
-            <Route path="/dashboard/mature" element={<AllLeadsPage />} />
-            <Route path="/all_leads" element={<AllLeadsPage />} />
-            <Route path="/leads" element={<MyLeadsPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/campaigns" element={<CampaignsPage />} />
-            <Route path="/campaigns/edit/:campaignId" element={<CampaignWorkflowEditorPage />} />
-            <Route path="/campaigns/select/:campaignId" element={<CampaignSelectRecipientsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/webhook/logs" element={<WebhookLogsPage />} />
-            <Route path="/ip-logs" element={<IpLogsPage />} />
-            <Route path="/migrate" element={<Migrate />} />
-            <Route path="/report" element={<ReportPage />} />
-            <Route path="/whatsapp" element={<WhatsAppPage />} />
-            <Route path="/whatsapp/create-template" element={<CreateTemplatePage />} />
-            <Route path="/all-leads-adv" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/irrelevant" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/relevant" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/yetodecide" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/overdue" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/hot" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/cold" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/mature" element={<AllLeadsAdminViewPage />} />
-            <Route path="/all-leads-adv/nofollowset" element={<AllLeadsAdminViewPage />} />
-            <Route path="/compose-email" element={<ComposeEmailPage />} />
-            <Route path="/specs" element={<SpecsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ConvexProviderWrapper>
