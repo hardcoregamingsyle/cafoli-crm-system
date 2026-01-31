@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // Simple password hashing simulation (In production, use a proper library or Convex Auth)
@@ -37,6 +37,7 @@ export const signup = mutation({
     const otpExpiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     const userId = await ctx.db.insert("users", {
+      name: args.username, // Use username as display name
       email: args.email,
       username: args.username,
       passwordHash: args.password, // In a real app, hash this!

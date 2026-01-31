@@ -1,2 +1,1 @@
-   npx convex run assignSerialNumbersScript:runBatchedAssignment
-   
+git push origin backup-local-1769842814799 --force
