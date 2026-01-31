@@ -1,1 +1,1 @@
-export CONVEX_DEPLOYMENT=precious-cricket-778 && npx convex deploy --allow-deleting-large-indexes || true
+npx convex dev --once && npx tsc -b --noEmit
