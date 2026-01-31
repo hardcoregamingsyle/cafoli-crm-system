@@ -1,1 +1,1 @@
-git push origin backup-local-1769842814799 --force
+export CONVEX_DEPLOYMENT=precious-cricket-778 && npx convex deploy --allow-deleting-large-indexes || true
